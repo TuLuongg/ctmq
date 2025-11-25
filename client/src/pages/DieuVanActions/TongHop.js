@@ -6,8 +6,8 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
 
-const API_URL = "http://localhost:4000/api/schedule-admin";
-const USER_API = "http://localhost:4000/api/auth/dieu-van"; // ✅ API mới lấy danh sách điều vận
+const API_URL = "https://ctmq.onrender.com/api/schedule-admin";
+const USER_API = "https://ctmq.onrender.com/api/auth/dieu-van"; // ✅ API mới lấy danh sách điều vận
 
 export default function TongHop({ user, onLogout }) {
   const [rides, setRides] = useState([]);

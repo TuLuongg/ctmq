@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { format } from "date-fns";
 import axios from "axios";
 
-const API_URL = "http://localhost:4000/api/schedule-admin";
+const API_URL = "https://ctmq.onrender.com/api/schedule-admin";
 
 const FIELD_MAP = [
   { key: "ltState", label: "LT" },

@@ -8,9 +8,9 @@ import RideEditRequestModal from "../components/RideEditRequestModal";
 import RideHistoryModal from "../components/RideHistoryModal"
 import axios from "axios";
 
-const API_URL = "http://localhost:4000/api/schedule-admin";
-const USER_API = "http://localhost:4000/api/auth/dieu-van";
-const API = "http://localhost:4000/api";
+const API_URL = "https://ctmq.onrender.com/api/schedule-admin";
+const USER_API = "https://ctmq.onrender.com/api/auth/dieu-van";
+const API = "https://ctmq.onrender.com/api";
 
 const mainColumns = [
   { key: "dieuVan", label: "ĐIỀU VẬN PHỤ TRÁCH" },

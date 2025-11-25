@@ -63,7 +63,7 @@ const KeToanPage = () => {
     try {
       const formattedDate = new Date(selectedDate).toISOString().split("T")[0];
       const response = await axios.get(
-        "http://localhost:4000/api/schedules/export",
+        "https://ctmq.onrender.com/api/schedules/export",
         {
           params: { ngay: formattedDate },
           responseType: "blob",
@@ -89,7 +89,7 @@ const KeToanPage = () => {
     try {
       const formattedDate = new Date(selectedDate).toISOString().split("T")[0];
       const response = await axios.get(
-        `http://localhost:4000/api/schedules?ngay=${formattedDate}`
+        `https://ctmq.onrender.com/api/schedules?ngay=${formattedDate}`
       );
       setFilteredData(response.data);
     } catch (err) {
@@ -108,7 +108,7 @@ const KeToanPage = () => {
     try {
       const formattedDate = new Date(selectedDate).toISOString().split("T")[0];
       await axios.delete(
-        `http://localhost:4000/api/schedules?ngay=${formattedDate}`
+        `https://ctmq.onrender.com/api/schedules?ngay=${formattedDate}`
       );
       alert("Đã xóa thành công!");
       setFilteredData([]);
@@ -125,7 +125,7 @@ const KeToanPage = () => {
       const from = new Date(startDate).toISOString().split("T")[0];
       const to = new Date(endDate).toISOString().split("T")[0];
       const response = await axios.get(
-        `http://localhost:4000/api/schedules/range?from=${from}&to=${to}`
+        `https://ctmq.onrender.com/api/schedules/range?from=${from}&to=${to}`
       );
       setFilteredData(response.data);
     } catch (err) {
@@ -147,7 +147,7 @@ const KeToanPage = () => {
       const from = new Date(startDate).toISOString().split("T")[0];
       const to = new Date(endDate).toISOString().split("T")[0];
       await axios.delete(
-        `http://localhost:4000/api/schedules/range?from=${from}&to=${to}`
+        `https://ctmq.onrender.com/api/schedules/range?from=${from}&to=${to}`
       );
       alert("Đã xóa thành công!");
       setFilteredData([]);
@@ -163,7 +163,7 @@ const KeToanPage = () => {
       const from = new Date(startDate).toISOString().split("T")[0];
       const to = new Date(endDate).toISOString().split("T")[0];
       const response = await axios.get(
-        `http://localhost:4000/api/schedules/export-range`,
+        `https://ctmq.onrender.com/schedules/export-range`,
         {
           params: { from, to },
           responseType: "blob",

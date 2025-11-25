@@ -12,8 +12,8 @@ import "react-resizable/css/styles.css";
 import RideEditModal from "../../components/RideEditModal";
 import RideRequestListModal from "../../components/RideRequestListModal";
 
-const API_URL = "http://localhost:4000/api/schedule-admin";
-const USER_API = "http://localhost:4000/api/auth/dieu-van"; // API lấy danh sách điều vận
+const API_URL = "https://ctmq.onrender.com/api/schedule-admin";
+const USER_API = "https://ctmq.onrender.com/api/auth/dieu-van"; // API lấy danh sách điều vận
 
 export default function ManageTrip({ user, onLogout }) {
   const [rides, setRides] = useState([]);

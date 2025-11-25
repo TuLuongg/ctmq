@@ -53,7 +53,7 @@ export default function ProfileModal({ onClose, onUpdate }) {
       if (form.passwordNew) fd.append("passwordNew", form.passwordNew);
 
       const res = await axios.put(
-        "http://localhost:4000/api/auth/profile",
+        "https://ctmq.onrender.com/api/auth/profile",
         fd,
         {
           headers: {

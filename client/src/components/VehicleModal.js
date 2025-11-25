@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 
-export default function VehicleModal({ initialData = null, onClose, onSave, apiBase = "http://localhost:4000/api/vehicles" }) {
+export default function VehicleModal({ initialData = null, onClose, onSave, apiBase = "https://ctmq.onrender.com/api/vehicles" }) {
   const [form, setForm] = useState({
     plateNumber: "",
     company: "",
