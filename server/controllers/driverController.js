@@ -1,0 +1,293 @@
+const Driver = require("../models/Driver");
+const mongoose = require("mongoose");
+const fs = require("fs");
+const path = require("path");
+const XLSX = require("xlsx");
+
+// ==============================
+// LẤY DANH SÁCH
+// ==============================
+const listDrivers = async (req, res) => {
+  try {
+    const { q } = req.query;
+    const filter = {};
+    if (q) {
+      const re = new RegExp(q, "i");
+      filter.$or = [
+        { name: re },
+        { nameZalo: re },
+        { phone: re },
+        { company: re },
+        { cccd: re },
+        { hometown: re },
+        { resHometown: re },
+        { licenseClass: re },
+        { bsx: re },
+      ];
+    }
+    const drivers = await Driver.find(filter).sort({ createdAt: -1 });
+    res.json(drivers);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Lỗi server khi lấy danh sách lái xe" });
+  }
+};
+
+// ==============================
+// LẤY 1 LÁI XE
+// ==============================
+const getDriver = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.isValidObjectId(id))
+      return res.status(400).json({ error: "ID không hợp lệ" });
+    const driver = await Driver.findById(id);
+    if (!driver) return res.status(404).json({ error: "Không tìm thấy lái xe" });
+    res.json(driver);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Lỗi server" });
+  }
+};
+
+// ==============================
+// THÊM MỚI
+// ==============================
+const createDriver = async (req, res) => {
+  try {
+    const body = req.body || {};
+    const driverData = {
+      name: body.name,
+      nameZalo: body.nameZalo || "",
+      birthYear: body.birthYear ? Number(body.birthYear) : undefined,
+      company: body.company || "",
+      bsx: body.bsx || "",
+      phone: body.phone || "",
+      hometown: body.hometown || "",
+      resHometown: body.resHometown || "",
+      address: body.address || "",
+      cccd: body.cccd || "",
+      cccdIssuedAt: body.cccdIssuedAt ? new Date(body.cccdIssuedAt) : null,
+      cccdExpiryAt: body.cccdExpiryAt ? new Date(body.cccdExpiryAt) : null,
+      licenseImageCCCD: body.licenseImageCCCD || "",
+      numberClass: body.numberClass || "",
+      licenseClass: body.licenseClass || "",
+      licenseIssuedAt: body.licenseIssuedAt ? new Date(body.licenseIssuedAt) : null,
+      licenseExpiryAt: body.licenseExpiryAt ? new Date(body.licenseExpiryAt) : null,
+      licenseImage: body.licenseImage || "",
+      numberHDLD: body.numberHDLD || "",
+      dayStartWork: body.dayStartWork ? new Date(body.dayStartWork) : null,
+      dayEndWork: body.dayEndWork ? new Date(body.dayEndWork) : null,
+      createdBy: req.user?.username || body.createdBy || "",
+    };
+
+    if (req.files) {
+  if (req.files.licenseImage && req.files.licenseImage[0]) {
+    driverData.licenseImage = `/uploads/${req.files.licenseImage[0].filename}`;
+  }
+  if (req.files.licenseImageCCCD && req.files.licenseImageCCCD[0]) {
+    driverData.licenseImageCCCD = `/uploads/${req.files.licenseImageCCCD[0].filename}`;
+  }
+}
+
+
+    const saved = await new Driver(driverData).save();
+    res.status(201).json(saved);
+  } catch (err) {
+    console.error("Lỗi khi tạo lái xe:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ==============================
+// CẬP NHẬT
+// ==============================
+const updateDriver = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.isValidObjectId(id))
+      return res.status(400).json({ error: "ID không hợp lệ" });
+
+    const driver = await Driver.findById(id);
+    if (!driver) return res.status(404).json({ error: "Không tìm thấy lái xe" });
+
+    const body = req.body || {};
+    Object.assign(driver, {
+      name: body.name || driver.name,
+      nameZalo: body.nameZalo || driver.nameZalo,
+      birthYear: body.birthYear ? Number(body.birthYear) : driver.birthYear,
+      company: body.company || driver.company,
+      bsx: body.bsx || driver.bsx,
+      phone: body.phone || driver.phone,
+      hometown: body.hometown || driver.hometown,
+      resHometown: body.resHometown || driver.resHometown,
+      address: body.address || driver.address,
+      cccd: body.cccd || driver.cccd,
+      cccdIssuedAt: body.cccdIssuedAt ? new Date(body.cccdIssuedAt) : driver.cccdIssuedAt,
+      cccdExpiryAt: body.cccdExpiryAt ? new Date(body.cccdExpiryAt) : driver.cccdExpiryAt,
+      licenseImageCCCD: body.licenseImageCCCD || driver.licenseImageCCCD,
+      numberClass: body.numberClass || driver.numberClass,
+      licenseClass: body.licenseClass || driver.licenseClass,
+      licenseIssuedAt: body.licenseIssuedAt ? new Date(body.licenseIssuedAt) : driver.licenseIssuedAt,
+      licenseExpiryAt: body.licenseExpiryAt ? new Date(body.licenseExpiryAt) : driver.licenseExpiryAt,
+      numberHDLD: body.numberHDLD || driver.numberHDLD,
+      dayStartWork: body.dayStartWork ? new Date(body.dayStartWork) : driver.dayStartWork,
+      dayEndWork: body.dayEndWork ? new Date(body.dayEndWork) : driver.dayEndWork,
+    });
+
+if (req.files) {
+  // Cập nhật ảnh bằng lái
+  if (req.files.licenseImage && req.files.licenseImage[0]) {
+    // Xoá ảnh cũ nếu có
+    if (driver.licenseImage) {
+      const oldPath = path.join(process.cwd(), driver.licenseImage.replace(/^\//, ""));
+      if (fs.existsSync(oldPath)) {
+        try { fs.unlinkSync(oldPath); } catch (e) {}
+      }
+    }
+    driver.licenseImage = `/uploads/${req.files.licenseImage[0].filename}`;
+  }
+
+  // Cập nhật ảnh CCCD
+  if (req.files.licenseImageCCCD && req.files.licenseImageCCCD[0]) {
+    if (driver.licenseImageCCCD) {
+      const oldPathCCCD = path.join(process.cwd(), driver.licenseImageCCCD.replace(/^\//, ""));
+      if (fs.existsSync(oldPathCCCD)) {
+        try { fs.unlinkSync(oldPathCCCD); } catch (e) {}
+      }
+    }
+    driver.licenseImageCCCD = `/uploads/${req.files.licenseImageCCCD[0].filename}`;
+  }
+}
+
+
+    await driver.save();
+    res.json(driver);
+  } catch (err) {
+    console.error("Lỗi khi cập nhật lái xe:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ==============================
+// XOÁ
+// ==============================
+const deleteDriver = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.isValidObjectId(id))
+      return res.status(400).json({ error: "ID không hợp lệ" });
+
+    const driver = await Driver.findById(id);
+    if (!driver) return res.status(404).json({ error: "Không tìm thấy lái xe" });
+
+    if (driver.licenseImage) {
+      const oldPath = path.join(process.cwd(), driver.licenseImage.replace(/^\//, ""));
+      if (fs.existsSync(oldPath)) {
+        try { fs.unlinkSync(oldPath); } catch (e) {}
+      }
+    }
+
+    await driver.deleteOne();
+    res.json({ message: "Đã xóa thành công" });
+  } catch (err) {
+    console.error("Lỗi khi xóa lái xe:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ==============================
+// IMPORT TỪ EXCEL
+// ==============================
+const importDriversFromExcel = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "Chưa upload file Excel" });
+
+    // đọc workbook
+    const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+
+    // chuyển sheet thành JSON
+    const rows = XLSX.utils.sheet_to_json(sheet);
+
+    let imported = 0;
+    const errors = [];
+
+    // hàm parse ngày an toàn
+    const getDate = (val) => {
+      if (!val) return null;
+      const d = new Date(val);
+      return isNaN(d) ? null : d;
+    };
+
+    for (const [idx, row] of rows.entries()) {
+      try {
+        // bỏ qua row không có tên
+        if (!row["HỌ TÊN LÁI XE"] && !row["Tên"]) continue;
+
+        // parse ngày sinh ra năm
+        const birthDate = row["Ngày sinh"] ? new Date(row["Ngày sinh"]) : null;
+        const birthYear = birthDate && !isNaN(birthDate) ? birthDate.getFullYear() : undefined;
+
+        const driverData = {
+          name: row["HỌ TÊN LÁI XE"] || row["Tên"] || "",
+          nameZalo: row["TÊN ZALO"] || "",
+          birthYear,
+          company: row["ĐƠN VỊ"] || row["Đơn vị"] || "",
+          bsx: row["BSX"] || row["bsx"] || "",
+          phone: row["SĐT"] || "",
+          hometown: row["NGUYÊN QUÁN"] || "",
+          resHometown: row["NƠI ĐĂNG KÝ HKTT"] || "",
+          address: row["NƠI Ở HIỆN TẠI"] || "",
+          cccd: row["SỐ CCCD"] || "",
+          cccdIssuedAt: getDate(row["Ngày cấp CCCD"]),
+          cccdExpiryAt: getDate(row["Ngày hết hạn CCCD"]),
+          numberClass: row["Số GPLX"] || "",
+          licenseClass: row["Hạng bằng lái xe"] || row["HẠNG BL"] || "",
+          licenseIssuedAt: getDate(row["Ngày cấp GPLX"] || row["Ngày cấp BL"]),
+          licenseExpiryAt: getDate(row["Ngày hết hạn GPLX"] || row["Ngày hết hạn BL"]),
+          numberHDLD: row["Số HĐLĐ"] || "",
+          dayStartWork: getDate(row["Ngày vào làm"]),
+          dayEndWork: getDate(row["Ngày nghỉ"]),
+        };
+
+        // tạo driver
+        await Driver.create(driverData);
+        imported++;
+      } catch (err) {
+        errors.push({ row: idx + 2, error: err.message });
+      }
+    }
+
+    res.json({
+      message: `Import hoàn tất`,
+      imported,
+      errors,
+    });
+  } catch (err) {
+    console.error("Lỗi import Excel:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+// ==============================
+// Lấy danh sách chỉ gồm _id và name
+// ==============================
+const listDriverNames = async (req, res) => {
+  try {
+    const drivers = await Driver.find({}, { name: 1 });
+    res.json(drivers);
+  } catch (error) {
+    res.status(500).json({ error: "Không thể lấy danh sách lái xe" });
+  }
+};
+
+module.exports = {
+  listDrivers,
+  getDriver,
+  createDriver,
+  updateDriver,
+  deleteDriver,
+  importDriversFromExcel,
+  listDriverNames,
+};

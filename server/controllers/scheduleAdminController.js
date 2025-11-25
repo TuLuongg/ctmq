@@ -1,0 +1,395 @@
+const ScheduleAdmin = require("../models/ScheduleAdmin");
+const mongoose = require("mongoose");
+
+// 🆕 Tạo chuyến mới
+const createScheduleAdmin = async (req, res) => {
+  try {
+    const { dieuVan, dieuVanID, ...data } = req.body;
+    const user = req.user;
+
+    if (!user || !["admin", "dieuVan"].includes(user.role)) {
+      return res.status(403).json({ error: "Không có quyền tạo chuyến" });
+    }
+
+    // 🔹 Tạo mã chuyến tự động BKMM.XXXX
+    const today = new Date();
+    const monthStr = String(today.getMonth() + 1).padStart(2, "0"); // 01 -> 12
+
+    // 🔹 Lấy chuyến cao nhất trong tháng hiện tại
+    const lastRide = await ScheduleAdmin.find({ maChuyen: new RegExp(`^BK${monthStr}`) })
+      .sort({ maChuyen: -1 })
+      .limit(1);
+
+    let nextNum = 1;
+    if (lastRide.length > 0) {
+      const lastMa = lastRide[0].maChuyen; // ví dụ: BK11.0023
+      nextNum = parseInt(lastMa.split(".")[1], 10) + 1;
+    }
+
+    const maChuyen = `BK${monthStr}.${String(nextNum).padStart(4, "0")}`;
+
+    // Nếu điều vận tạo, vẫn có thể tạo chuyến cho điều vận khác
+    const newSchedule = new ScheduleAdmin({
+      dieuVan: dieuVan || user.username,
+      dieuVanID: dieuVanID || user.id,
+      createdBy: user.fullname || user.username,
+      maChuyen, // 💡 gán mã tự động
+      ...data,
+    });
+
+    await newSchedule.save();
+    res.status(201).json(newSchedule);
+  } catch (err) {
+    console.error("❌ Lỗi khi tạo chuyến:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+// ✏️ Sửa chuyến
+const updateScheduleAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const schedule = await ScheduleAdmin.findById(id);
+    const user = req.user;
+
+    if (!schedule) return res.status(404).json({ error: "Không tìm thấy chuyến" });
+
+    // Admin hoặc điều vận đều có quyền sửa
+    if (!["admin", "dieuVan", "keToan"].includes(user.role)) {
+      return res.status(403).json({ error: "Không có quyền sửa chuyến này" });
+    }
+
+    Object.assign(schedule, req.body);
+    await schedule.save();
+    res.json(schedule);
+  } catch (err) {
+    console.error("Lỗi khi sửa chuyến:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ❌ Xóa chuyến - chỉ admin mới được xóa
+const deleteScheduleAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const schedule = await ScheduleAdmin.findById(id);
+    const user = req.user;
+
+    if (!schedule) return res.status(404).json({ error: "Không tìm thấy chuyến" });
+
+    if (user.role !== "admin") {
+      return res.status(403).json({ error: "Chỉ admin mới có quyền xóa" });
+    }
+
+    await schedule.deleteOne();
+    res.json({ message: "Đã xóa thành công" });
+  } catch (err) {
+    console.error("Lỗi khi xóa chuyến:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// 📋 Lấy tất cả chuyến (dieuVan xem tất cả, điều vận xem tất cả)
+const getAllSchedulesAdmin = async (req, res) => {
+  try {
+    const { tenLaiXe, maChuyen, khachHang, bienSoXe, date, dieuVanID } = req.query;
+    const filter = {};
+    const andConditions = [];
+
+    const page = parseInt(req.query.page || 1);
+    const limit = parseInt(req.query.limit || 100);
+    const skip = (page - 1) * limit;
+
+    if (tenLaiXe) andConditions.push({ tenLaiXe: new RegExp(tenLaiXe, "i") });
+    if (maChuyen) andConditions.push({ maChuyen: new RegExp(maChuyen, "i") });
+    if (khachHang) andConditions.push({ khachHang: new RegExp(khachHang, "i") });
+    if (bienSoXe) andConditions.push({ bienSoXe: new RegExp(bienSoXe, "i") });
+    if (dieuVanID) andConditions.push({ dieuVanID });
+
+    if (date) {
+      const start = new Date(date);
+      const end = new Date(date);
+      end.setHours(23, 59, 59, 999);
+      andConditions.push({ ngayBoc: { $gte: start, $lte: end } });
+    }
+
+    if (andConditions.length > 0) filter.$and = andConditions;
+
+    const total = await ScheduleAdmin.countDocuments(filter);
+
+    const schedules = await ScheduleAdmin.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    return res.json({
+      data: schedules,
+      total,
+      totalPages: Math.ceil(total / limit),
+      page,
+    });
+
+  } catch (err) {
+    console.error("❌ Lỗi khi lấy tất cả chuyến:", err);
+    return res.status(500).json({ error: "Lỗi server khi lấy tất cả chuyến" });
+  }
+};
+
+
+// 🔍 Lấy lịch trình theo tên điều vận (admin dùng)
+const getSchedulesByDieuVan = async (req, res) => {
+  try {
+    const { dieuVanID } = req.params;
+    const { tenLaiXe, maChuyen, khachHang, ngayBoc } = req.query;
+
+    if (!dieuVanID) {
+      return res.status(400).json({ error: "Thiếu ID điều vận" });
+    }
+
+    const filter = { dieuVanID };
+    const andConditions = [];
+
+    if (tenLaiXe) andConditions.push({ tenLaiXe: new RegExp(tenLaiXe, "i") });
+    if (maChuyen) andConditions.push({ maChuyen: new RegExp(maChuyen, "i") });
+    if (khachHang) andConditions.push({ khachHang: new RegExp(khachHang, "i") });
+
+    if (ngayBoc) {
+      const start = new Date(ngayBoc);
+      const end = new Date(ngayBoc);
+      end.setHours(23, 59, 59, 999);
+      andConditions.push({ ngayBoc: { $gte: start, $lte: end } });
+    }
+
+    if (andConditions.length > 0) {
+      filter.$and = andConditions;
+    }
+
+    // 📌 Phân trang
+    const page = parseInt(req.query.page || 1);
+    const limit = parseInt(req.query.limit || 50);
+    const skip = (page - 1) * limit;
+
+    const total = await ScheduleAdmin.countDocuments(filter);
+
+    const schedules = await ScheduleAdmin.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    return res.json({
+      data: schedules,
+      total,
+      totalPages: Math.ceil(total / limit),
+      page,
+    });
+
+  } catch (err) {
+    console.error("❌ Lỗi khi lấy chuyến theo điều vận:", err);
+    res.status(500).json({ error: "Lỗi server khi lấy chuyến theo điều vận" });
+  }
+};
+
+
+// 📌 Lấy danh sách chuyến theo kế toán phụ trách
+const getSchedulesByAccountant = async (req, res) => {
+  try {
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({ error: "Không xác thực được người dùng" });
+    }
+
+    if (user.role !== "keToan") {
+      return res.status(403).json({ error: "Chỉ kế toán mới được xem danh sách này" });
+    }
+
+    const { tenLaiXe, maChuyen, khachHang, bienSoXe, date } = req.query;
+
+    const filter = { accountUsername: user.username };
+    const andConditions = [];
+
+    if (tenLaiXe) andConditions.push({ tenLaiXe: new RegExp(tenLaiXe, "i") });
+    if (maChuyen) andConditions.push({ maChuyen: new RegExp(maChuyen, "i") });
+    if (khachHang) andConditions.push({ khachHang: new RegExp(khachHang, "i") });
+    if (bienSoXe) andConditions.push({ bienSoXe: new RegExp(bienSoXe, "i") });
+
+    if (date) {
+      const start = new Date(date);
+      const end = new Date(date);
+      end.setHours(23, 59, 59, 999);
+      andConditions.push({
+        ngayBoc: { $gte: start, $lte: end }
+      });
+    }
+
+    if (andConditions.length > 0) {
+      filter.$and = andConditions;
+    }
+
+    // 📌 Phân trang
+    const page = parseInt(req.query.page || 1);
+    const limit = parseInt(req.query.limit || 50);
+    const skip = (page - 1) * limit;
+
+    const total = await ScheduleAdmin.countDocuments(filter);
+
+    const schedules = await ScheduleAdmin.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    return res.json({
+      data: schedules,
+      total,
+      totalPages: Math.ceil(total / limit),
+      page,
+    });
+
+  } catch (err) {
+    console.error("❌ Lỗi khi lấy chuyến theo kế toán:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+// 🆕 Thêm mã hoá đơn cho 1 hoặc nhiều chuyến
+const addHoaDonToSchedules = async (req, res) => {
+  try {
+    const { maHoaDon, maChuyenList } = req.body;
+
+    if (!maHoaDon || !Array.isArray(maChuyenList) || maChuyenList.length === 0) {
+      return res.status(400).json({ error: "Thiếu maHoaDon hoặc maChuyenList" });
+    }
+
+    // Cập nhật tất cả chuyến có mã chuyến trong maChuyenList
+    const result = await ScheduleAdmin.updateMany(
+      { maChuyen: { $in: maChuyenList } },
+      { $set: { maHoaDon } }
+    );
+
+    res.json({
+      message: `Đã cập nhật mã hoá đơn cho ${result.modifiedCount} chuyến`,
+      maHoaDon,
+      maChuyenList,
+    });
+  } catch (err) {
+    console.error("❌ Lỗi khi thêm mã hoá đơn cho chuyến:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+
+const addBoSung = async (req, res) => {
+  try {
+    const { updates } = req.body; // [{ maChuyen, cuocPhiBoSung }, ...]
+
+    for (const u of updates) {
+      const schedule = await ScheduleAdmin.findOne({ maChuyen: u.maChuyen });
+      if (schedule) {
+        schedule.ltState = u.ltState?.toString() || "";
+        schedule.onlState = u.onlState?.toString() || "";
+        schedule.offState = u.offState?.toString() || "";
+        schedule.cuocPhiBS = u.cuocPhiBS?.toString() || "";
+        schedule.daThanhToan = u.daThanhToan?.toString() || "";
+        schedule.bocXepBS = u.bocXepBS?.toString() || "";
+        schedule.veBS = u.veBS?.toString() || "";
+        schedule.hangVeBS = u.hangVeBS?.toString() || "";
+        schedule.luuCaBS = u.luuCaBS?.toString() || "";
+        schedule.cpKhacBS = u.cpKhacBS?.toString() || "";
+        await schedule.save();
+      }
+    }
+
+    res.json({ message: "Cập nhật cước phí bổ sung thành công" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+const importSchedulesFromExcel = async (req, res) => {
+  try {
+    const user = req.user;
+
+    if (!user || !["admin", "dieuVan"].includes(user.role)) {
+      return res.status(403).json({ error: "Không có quyền import chuyến" });
+    }
+
+    let { records } = req.body;
+
+    if (!Array.isArray(records) || records.length === 0) {
+      return res.status(400).json({ error: "Không có dữ liệu để import" });
+    }
+
+    let count = 0;
+
+    for (const r of records) {
+      const maChuyen = r.maChuyen?.toString().trim();
+
+      if (!maChuyen) {
+        console.log("🚫 Bỏ qua dòng vì không có mã chuyến");
+        continue;
+      }
+
+      // Xoá bản ghi cũ
+      await ScheduleAdmin.deleteOne({ maChuyen });
+
+      await ScheduleAdmin.create({
+        dieuVan: user.fullname || user.username,
+        dieuVanID: user.id,
+        createdBy: user.fullname || user.username,
+
+        tenLaiXe: r.tenLaiXe || "",
+        maKH: r.maKH || "",
+        khachHang: r.khachHang || "",
+        dienGiai: r.dienGiai || "",
+
+        ngayBoc: r.ngayBoc || "",
+        ngayBocHang: r.ngayBocHang || "",
+        ngayGiaoHang: r.ngayGiaoHang || "",
+
+        diemXepHang: r.diemXepHang || "",
+        diemDoHang: r.diemDoHang || "",
+        soDiem: r.soDiem || "",
+        trongLuong: r.trongLuong || "",
+        bienSoXe: r.bienSoXe || "",
+        cuocPhi: r.cuocPhi || "",
+        daThanhToan: r.daThanhToan || "",
+        bocXep: r.bocXep || "",
+        ve: r.ve || "",
+        hangVe: r.hangVe || "",
+        luuCa: r.luuCa || "",
+        luatChiPhiKhac: r.luatChiPhiKhac || "",
+        ghiChu: r.ghiChu || "",
+        maChuyen,
+        accountUsername: r.accountUsername || "",
+      });
+
+      count++;
+    }
+
+    return res.json({
+      success: true,
+      message: `Import thành công ${count} chuyến`,
+    });
+
+  } catch (err) {
+    console.error("Lỗi import Excel:", err);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+module.exports = {
+  createScheduleAdmin,
+  updateScheduleAdmin,
+  deleteScheduleAdmin,
+  getAllSchedulesAdmin,
+  getSchedulesByDieuVan,
+  getSchedulesByAccountant,
+  addHoaDonToSchedules,
+  addBoSung,
+  importSchedulesFromExcel
+};
