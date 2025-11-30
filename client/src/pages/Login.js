@@ -1,24 +1,28 @@
 import { useState } from "react";
 import API from "../api";
+import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
 export default function Login({ setUser }) {
-  const [step, setStep] = useState("question"); // 🟢 Bước 1: hiển thị câu hỏi
+  const [step, setStep] = useState("question");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
 
   const handleLogin = async () => {
     try {
-      const res = await API.post("/auth/login", { username, password });
+      const res = await axios.post(`${API}/auth/login`, {
+        username,
+        password,
+      });
 
       console.log("✅ Login response:", res.data);
 
-      // 🟢 Lưu token
+      // Lưu token
       localStorage.setItem("token", res.data.accessToken);
       localStorage.setItem("refreshToken", res.data.refreshToken);
 
-      // 🟢 Lưu thông tin user
+      // Lưu user
       localStorage.setItem(
         "user",
         JSON.stringify({
@@ -32,10 +36,9 @@ export default function Login({ setUser }) {
         })
       );
 
-      // 🟢 Cập nhật state
       if (setUser) setUser(res.data);
 
-      // 🟢 Điều hướng theo role
+      // Điều hướng
       if (res.data.role === "admin") {
         navigate("/admin");
       } else if (res.data.role === "dieuVan") {
@@ -51,7 +54,7 @@ export default function Login({ setUser }) {
     }
   };
 
-  // 🟢 Giao diện bước hỏi "Bạn có phải là lái xe không?"
+  // Giao diện bước hỏi
   if (step === "question") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
@@ -78,7 +81,7 @@ export default function Login({ setUser }) {
     );
   }
 
-  // 🟢 Giao diện đăng nhập (chỉ hiển thị nếu chọn "Không")
+  // Giao diện đăng nhập
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
       <div className="bg-white shadow-xl rounded-2xl px-8 py-10 w-full max-w-sm">

@@ -7,10 +7,11 @@ import { saveAs } from "file-saver";
 import { FaEdit, FaTrash, FaHistory } from "react-icons/fa";
 import RideModal from "../../components/RideModal";
 import RideHistoryModal from "../../components/RideHistoryModal"
+import API from "../../api";
 
-const API_URL = "https://ctmq.onrender.com/api/schedule-admin";
-const USER_API = "https://ctmq.onrender.com/api/auth/dieu-van";
-const API = "https://ctmq.onrender.com/api";
+
+const API_URL = `${API}/schedule-admin`;
+const USER_API = `${API}/dieu-van`;
 
 export default function ManageTripAdmin({ user }) {
   const navigate = useNavigate();

@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
+import API from "../api";
 
-export default function CustomerModal({ initialData = null, onClose, onSave, apiBase = "https://ctmq.onrender.com/api/customers" }) {
+export default function CustomerModal({ initialData = null, onClose, onSave, apiBase = `${API}/customers` }) {
   const [form, setForm] = useState({
     name: "",
     accountant: "",

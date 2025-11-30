@@ -8,11 +8,9 @@ export default function RideEditTripModal({
 }) {
   const [formData, setFormData] = useState({});
 
-  // 🔹 Các cột hiển thị
+  const LT_ONL_OFF = ["ltState", "onlState", "offState"];
+
   const allColumns = [
-    { key: "ltState", label: "LT" },
-    { key: "onlState", label: "ONL" },
-    { key: "offState", label: "OFF" },
     { key: "dieuVan", label: "ĐIỀU VẬN" },
     { key: "createdBy", label: "NGƯỜI NHẬP" },
     { key: "tenLaiXe", label: "TÊN LÁI XE" },
@@ -37,7 +35,6 @@ export default function RideEditTripModal({
     { key: "keToanPhuTrach", label: "KẾ TOÁN PHỤ TRÁCH" },
     { key: "maHoaDon", label: "MÃ HOÁ ĐƠN" },
 
-    // REGION: extra columns 
     { key: "laiXeThuCuoc", label: "LÁI XE THU CƯỚC" },
     { key: "cuocPhi", label: "CƯỚC PHÍ BĐ" },
     { key: "bocXep", label: "BỐC XẾP BĐ" },
@@ -48,7 +45,6 @@ export default function RideEditTripModal({
     { key: "ghiChu", label: "GHI CHÚ (BẮT BUỘC)" },
   ];
 
-  // 🔹 Các trường tài chính
   const financialColumns = [
     "maHoaDon",
     "cuocPhiBS",
@@ -59,8 +55,19 @@ export default function RideEditTripModal({
     "luuCaBS",
     "cpKhacBS",
   ];
+  // Format 1000000 => 1.000.000
+const formatMoney = (value) => {
+  if (!value) return "";
+  return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+};
 
-  // 🔹 User có quyền full hay không
+const moneyFields = [
+  "cuocPhi", "bocXep", "ve", "hangVe", "luuCa", "luatChiPhiKhac",
+  "cuocPhiBS", "bocXepBS", "veBS", "hangVeBS", "luuCaBS", "cpKhacBS",
+  "daThanhToan"
+];
+
+
   const canEditFinancial =
     currentUser?.permissions?.includes("edit_trip_full");
 
@@ -73,23 +80,57 @@ export default function RideEditTripModal({
     }
   }, [initialData]);
 
-  const handleChange = (key, value) => {
+const handleChange = (key, value) => {
+  // xử lý tiền
+  if (moneyFields.includes(key)) {
+    // bỏ dấu chấm trước khi lưu
+    const raw = value.replace(/\./g, "");
+
+    // Nếu user nhập ký tự không phải số → bỏ qua
+    if (isNaN(raw)) return;
+
     setFormData((prev) => ({
       ...prev,
-      [key]: value,
+      [key]: raw
     }));
+    return;
+  }
+
+  // xử lý bình thường
+  setFormData((prev) => ({
+    ...prev,
+    [key]: value,
+  }));
+};
+
+  // 🔥 Nếu chỉ thay đổi 3 trường LT–ONL–OFF → không cần ghi chú
+  const isOnlyStatusChanged = () => {
+    const changedFields = [];
+
+    for (const key in formData) {
+      if (formData[key] !== initialData[key]) {
+        changedFields.push(key);
+      }
+    }
+
+    // Nếu chỉ thay đổi 3 trường trạng thái
+    return (
+      changedFields.length > 0 &&
+      changedFields.every((k) => LT_ONL_OFF.includes(k))
+    );
   };
 
   const handleSubmit = () => {
-    if (!formData.ghiChu?.trim()) {
-      alert("Vui lòng nhập ghi chú!");
-      return;
+    if (!isOnlyStatusChanged()) {
+      if (!formData.ghiChu?.trim()) {
+        alert("Vui lòng nhập ghi chú!");
+        return;
+      }
     }
 
     onSubmit(formData);
   };
 
-  // Format ngày yyyy-mm-dd
   const formatDate = (value) => {
     if (!value) return "";
     try {
@@ -106,24 +147,37 @@ export default function RideEditTripModal({
           Chỉnh sửa chuyến: {initialData?.maChuyen || initialData?._id}
         </h2>
 
+        {/* 🔥 LT - ONL - OFF TRÊN 1 DÒNG */}
+        <div className="flex gap-4 mb-4">
+          {LT_ONL_OFF.map((key) => (
+            <div key={key} className="flex flex-col w-1/3">
+              <label className="font-semibold">
+                {key === "ltState" ? "LT" : key === "onlState" ? "ONL" : "OFF"}
+              </label>
+              <input
+                type="text"
+                value={formData[key] || ""}
+                className="border rounded p-2"
+                onChange={(e) => handleChange(key, e.target.value)}
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* FORM CHÍNH */}
         <div className="grid grid-cols-2 gap-4">
           {allColumns.map(({ key, label }) => {
-            // Không cho sửa mã chuyến
-            const isReadOnly = key === "maChuyen";
-
-            // Nếu không có quyền → ẩn các trường tài chính
             if (!canEditFinancial && financialColumns.includes(key)) {
               return null;
             }
 
+            const isReadOnly = key === "maChuyen";
             const value = formData[key];
+
             const inputType =
-              key.toLowerCase().includes("ngay") ||
-              key.toLowerCase().includes("date")
-                ? "date"
-                : typeof value === "number"
-                ? "number"
-                : "text";
+              key.toLowerCase().includes("ngay") ? "date"
+              : typeof value === "number" ? "number"
+              : "text";
 
             return (
               <div key={key} className="flex flex-col">
@@ -137,7 +191,14 @@ export default function RideEditTripModal({
                   <input
                     type={inputType}
                     className="border rounded w-full p-2 mt-1"
-                    value={inputType === "date" ? formatDate(value) : value || ""}
+                    value={
+  inputType === "date"
+    ? formatDate(value)
+    : moneyFields.includes(key)
+      ? formatMoney(value)
+      : value || ""
+}
+
                     onChange={(e) =>
                       handleChange(
                         key,

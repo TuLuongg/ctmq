@@ -3,6 +3,19 @@ import React, { useEffect, useState } from "react";
 export default function RideEditModal({ ride, allColumns, onSubmit, onClose }) {
   const [formData, setFormData] = useState({});
 
+  // 🔥 Các trường là tiền (tùy bạn muốn thêm bớt)
+  const moneyFields = [
+    "cuocPhi", "bocXep", "ve", "hangVe", "luuCa", "luatChiPhiKhac",
+    "cuocPhiBS", "bocXepBS", "veBS", "hangVeBS", "luuCaBS", "cpKhacBS",
+    "daThanhToan"
+  ];
+
+  // 🔥 Format 1000000 => "1.000.000"
+  const formatMoney = (value) => {
+    if (!value) return "";
+    return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  };
+
   useEffect(() => {
     if (ride) {
       setFormData({
@@ -14,7 +27,21 @@ export default function RideEditModal({ ride, allColumns, onSubmit, onClose }) {
 
   if (!ride) return null;
 
+  // 🔥 Xử lý input — hỗ trợ tự thêm dấu chấm
   const handleChange = (key, value) => {
+    if (moneyFields.includes(key)) {
+      const raw = value.replace(/\./g, ""); // bỏ dấu chấm khi edit
+
+      if (isNaN(raw)) return; // chặn ký tự không phải số
+
+      setFormData((prev) => ({
+        ...prev,
+        [key]: raw, // lưu vào state dạng số thô
+      }));
+      return;
+    }
+
+    // bình thường
     setFormData((prev) => ({
       ...prev,
       [key]: value,
@@ -49,7 +76,7 @@ export default function RideEditModal({ ride, allColumns, onSubmit, onClose }) {
           {allColumns.map((col) => {
             const value = formData[col.key];
 
-            // Nếu là mã chuyến → không cho chỉnh sửa
+            // Không cho sửa mã chuyến
             if (col.key === "maChuyen") {
               return (
                 <div key={col.key} className="flex flex-col">
@@ -65,6 +92,8 @@ export default function RideEditModal({ ride, allColumns, onSubmit, onClose }) {
               col.key.toLowerCase().includes("date") ||
               col.key.toLowerCase().includes("ngay")
                 ? "date"
+                : moneyFields.includes(col.key)
+                ? "text" // tiền thì luôn là text để format
                 : typeof value === "number"
                 ? "number"
                 : "text";
@@ -76,16 +105,13 @@ export default function RideEditModal({ ride, allColumns, onSubmit, onClose }) {
                 <input
                   type={inputType}
                   value={
-                    inputType === "date" ? formatDate(value) : value ?? ""
+                    moneyFields.includes(col.key)
+                      ? formatMoney(value) // 🔥 hiển thị dạng tiền
+                      : inputType === "date"
+                      ? formatDate(value)
+                      : value ?? ""
                   }
-                  onChange={(e) =>
-                    handleChange(
-                      col.key,
-                      inputType === "number"
-                        ? Number(e.target.value)
-                        : e.target.value
-                    )
-                  }
+                  onChange={(e) => handleChange(col.key, e.target.value)}
                   className="border rounded w-full p-2 mt-1"
                 />
               </div>

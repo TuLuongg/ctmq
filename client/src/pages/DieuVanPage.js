@@ -7,28 +7,26 @@ import ProfileModal from "../components/ProfileModal";
 import RideEditRequestModal from "../components/RideEditRequestModal";
 import RideHistoryModal from "../components/RideHistoryModal"
 import axios from "axios";
+import API from "../api";
 
-const API_URL = "https://ctmq.onrender.com/api/schedule-admin";
-const USER_API = "https://ctmq.onrender.com/api/auth/dieu-van";
-const API = "https://ctmq.onrender.com/api";
+const API_URL = `${API}/schedule-admin`;
+const USER_API = `${API}/auth/dieu-van`;
 
 const mainColumns = [
   { key: "dieuVan", label: "ĐIỀU VẬN PHỤ TRÁCH" },
-  { key: "createdBy", label: "NGƯỜI NHẬP" },
   { key: "ngayBoc", label: "NGÀY NHẬP" },
-  { key: "tenLaiXe", label: "TÊN LÁI XE" },
   { key: "khachHang", label: "KHÁCH HÀNG" },
+  { key: "dienGiai", label: "DIỄN GIẢI" },
+  { key: "diemXepHang", label: "ĐIỂM XẾP HÀNG" },
+  { key: "diemDoHang", label: "ĐIỂM DỠ HÀNG" },
   { key: "ngayBocHang", label: "NGÀY BỐC HÀNG" },
   { key: "ngayGiaoHang", label: "NGÀY GIAO HÀNG" },
   { key: "bienSoXe", label: "BIỂN SỐ XE" },
-  { key: "keToanPhuTrach", label: "KẾ TOÁN PHỤ TRÁCH" },
   { key: "maChuyen", label: "MÃ CHUYẾN" },
 ];
 
 const extraColumns = [
-  { key: "dienGiai", label: "DIỄN GIẢI" },
-  { key: "diemXepHang", label: "ĐIỂM XẾP HÀNG" },
-  { key: "diemDoHang", label: "ĐIỂM DỠ HÀNG" },
+  { key: "tenLaiXe", label: "TÊN LÁI XE" },
   { key: "soDiem", label: "SỐ ĐIỂM" },
   { key: "trongLuong", label: "TRỌNG LƯỢNG" },
   { key: "cuocPhi", label: "CƯỚC PHÍ" },
@@ -38,6 +36,7 @@ const extraColumns = [
   { key: "hangVe", label: "HÀNG VỀ" },
   { key: "luuCa", label: "LƯU CA" },
   { key: "luatChiPhiKhac", label: "LUẬT CP KHÁC" },
+  { key: "keToanPhuTrach", label: "KẾ TOÁN PHỤ TRÁCH" },
   { key: "ghiChu", label: "GHI CHÚ" },
 ];
 
@@ -54,7 +53,7 @@ export default function DieuVanPage({ user, onLogout }) {
   const [date, setDate] = useState(new Date());
   const [rides, setRides] = useState([]);
   const [managers, setManagers] = useState([]);
-  const [selectedManager, setSelectedManager] = useState(currentUser.username || "");
+  const [selectedManager, setSelectedManager] = useState(currentUser || "");
   const [showModal, setShowModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [editRide, setEditRide] = useState(null);
@@ -69,7 +68,7 @@ export default function DieuVanPage({ user, onLogout }) {
       // 🔹 3 danh sách gợi ý
   const [drivers, setDrivers] = useState([]);
   const [customers, setCustomers] = useState([]);
-  const [vehicles, setVehicles] = useState([]);
+  //const [vehicles, setVehicles] = useState([]);
 
     // 🔹 Lấy danh sách gợi ý
   useEffect(() => {
@@ -81,7 +80,7 @@ export default function DieuVanPage({ user, onLogout }) {
       ]);
       setDrivers(driverRes.data);
       setCustomers(customerRes.data);
-      setVehicles(vehicleRes.data);
+      //setVehicles(vehicleRes.data);
     };
     fetchData();
   }, []);
@@ -103,40 +102,45 @@ export default function DieuVanPage({ user, onLogout }) {
   }, []);
 
   const [page, setPage] = useState(1);
+  const [limit] = useState(30);
   const [totalPages, setTotalPages] = useState(1);
 
+  const [warnings, setWarnings] = useState({});
 
-  // 🟢 Lấy chuyến theo điều vận + bộ lọc
-  const fetchRides = async (manager, filters = {}, date, pageNumber = page) => {
+  // 🔹 Lấy tất cả chuyến (có filter)
+const fetchRides = async (manager) => {
   try {
-    let dieuVanId = manager?._id || manager;
-    if (!dieuVanId) return;
+    const dieuVanID = manager._id || manager;
+    const q = new URLSearchParams();
+    q.append("page", page);
+    q.append("limit", limit);
 
-    const query = new URLSearchParams();
-    query.append("page", pageNumber);
-    query.append("limit", 20); // mỗi trang 20 items
+    // 🔥 Lặp qua toàn bộ filters (tự động thêm)
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== "" && value !== null && value !== undefined) {
+        q.append(key, value);
+      }
+    });
 
-    if (filters.tenLaiXe) query.append("tenLaiXe", filters.tenLaiXe);
-    if (filters.maChuyen) query.append("maChuyen", filters.maChuyen);
-    if (filters.khachHang) query.append("khachHang", filters.khachHang);
-    if (filters.ngayBoc)
-      query.append("ngayBoc", format(new Date(filters.ngayBoc), "yyyy-MM-dd"));
-    if (date) query.append("date", format(date, "yyyy-MM-dd"));
+    // 🔥 Filter ngày riêng (nếu có)
 
-    const url = `${API_URL}/dieuvan/${dieuVanId}?${query.toString()}`;
-
-    const res = await axios.get(url, {
+    const res = await axios.get(`${API_URL}/dieuvan/${dieuVanID}?${q.toString()}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    setRides(res.data.data);       // lấy danh sách
+    setRides(res.data.data || []);
     setTotalPages(res.data.totalPages || 1);
-
+    const w = {};
+    res.data.data.forEach(d => {
+      if (d.warning === true) w[d._id] = true;
+    });
+    setWarnings(w)
   } catch (err) {
-    console.error("Lỗi lấy chuyến:", err.response?.data || err.message);
+    console.error("Lỗi khi lấy tất cả chuyến:", err.response?.data || err.message);
     setRides([]);
   }
 };
+
 
 
 useEffect(() => {
@@ -221,6 +225,7 @@ const handleEdit = (ride) => {
           headers: { Authorization: `Bearer ${token}` },
         });
         setRides((prev) => [...prev, res.data]);
+        fetchRides();
       }
       setShowModal(false);
     } catch (err) {
@@ -296,11 +301,14 @@ const handleViewHistory = async (ride) => {
   className="w-10 h-10 rounded-full object-cover"
 />
           <span>{currentUserState?.fullname || currentUserState.username}</span>
-          <button
+          <button 
   onClick={() => setShowProfileModal(true)}
-  className="bg-yellow-400 text-white px-3 py-1 rounded"
+  className="bg-yellow-400 rounded-full border"
 >
-  Chỉnh sửa hồ sơ
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+  <path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+</svg>
+
 </button>
 
           <span className="font-semibold text-blue-600">
@@ -542,7 +550,7 @@ const handleViewHistory = async (ride) => {
     currentUser={currentUser}
     drivers={drivers}
     customers={customers}
-    vehicles={vehicles}
+    //vehicles={vehicles}
   />
 )}
 
@@ -566,7 +574,7 @@ const handleViewHistory = async (ride) => {
   dieuVanList={managers}
   drivers={drivers}
   customers={customers}
-  vehicles={vehicles}
+  //vehicles={vehicles}
   onClose={() => {
     setShowEditRequestModal(false);
     setEditRequestRide(null);
@@ -592,6 +600,7 @@ const handleViewHistory = async (ride) => {
     ride={historyRide}
     historyData={rideHistory}
     onClose={() => setShowHistoryModal(false)}
+    role={currentUser.role}
   />
       )}
 

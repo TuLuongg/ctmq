@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate,useLocation } from "react-router-dom";
 import ProfileModal from "../components/ProfileModal";
+import API from "../api";
 
 const KeToanPage = () => {
   const [filterType, setFilterType] = useState("");
@@ -14,14 +15,12 @@ const KeToanPage = () => {
   const navigate = useNavigate(); // 👈 khởi tạo navigate
 
   const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
-  const currentUser = user || storedUser;
 
 
   // State quản lý user hiện tại, để live update avatar/tên
   const [currentUserState, setCurrentUserState] = useState(user || storedUser);
   const [showProfileModal, setShowProfileModal] = useState(false);
 
-  console.log(storedUser.permissions)
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -63,7 +62,7 @@ const KeToanPage = () => {
     try {
       const formattedDate = new Date(selectedDate).toISOString().split("T")[0];
       const response = await axios.get(
-        "https://ctmq.onrender.com/api/schedules/export",
+        `${API}/schedules/export`,
         {
           params: { ngay: formattedDate },
           responseType: "blob",
@@ -89,7 +88,7 @@ const KeToanPage = () => {
     try {
       const formattedDate = new Date(selectedDate).toISOString().split("T")[0];
       const response = await axios.get(
-        `https://ctmq.onrender.com/api/schedules?ngay=${formattedDate}`
+        `${API}/schedules?ngay=${formattedDate}`
       );
       setFilteredData(response.data);
     } catch (err) {
@@ -108,7 +107,7 @@ const KeToanPage = () => {
     try {
       const formattedDate = new Date(selectedDate).toISOString().split("T")[0];
       await axios.delete(
-        `https://ctmq.onrender.com/api/schedules?ngay=${formattedDate}`
+        `${API}/schedules?ngay=${formattedDate}`
       );
       alert("Đã xóa thành công!");
       setFilteredData([]);
@@ -125,7 +124,7 @@ const KeToanPage = () => {
       const from = new Date(startDate).toISOString().split("T")[0];
       const to = new Date(endDate).toISOString().split("T")[0];
       const response = await axios.get(
-        `https://ctmq.onrender.com/api/schedules/range?from=${from}&to=${to}`
+        `${API}/schedules/range?from=${from}&to=${to}`
       );
       setFilteredData(response.data);
     } catch (err) {
@@ -147,7 +146,7 @@ const KeToanPage = () => {
       const from = new Date(startDate).toISOString().split("T")[0];
       const to = new Date(endDate).toISOString().split("T")[0];
       await axios.delete(
-        `https://ctmq.onrender.com/api/schedules/range?from=${from}&to=${to}`
+        `${API}/schedules/range?from=${from}&to=${to}`
       );
       alert("Đã xóa thành công!");
       setFilteredData([]);
@@ -197,11 +196,14 @@ const KeToanPage = () => {
 />
             <span className="font-medium">Xin chào, {currentUserState.fullname}</span>
             
-            <button
+          <button 
   onClick={() => setShowProfileModal(true)}
-  className="bg-yellow-400 text-white px-3 py-1 rounded"
+  className="bg-yellow-400 rounded-full border"
 >
-  Chỉnh sửa hồ sơ
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+  <path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+</svg>
+
 </button>
             <button
               onClick={handleLogout}

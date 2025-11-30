@@ -9,6 +9,8 @@ const {
   updateCustomer,
   deleteCustomer,
   importCustomersFromExcel,
+  toggleWarning,
+  exportTripsByCustomer
 } = require("../controllers/customerController");
 
 // --------------------------
@@ -28,5 +30,8 @@ router.delete("/:id", deleteCustomer);
 
 // Import Excel (MemoryStorage)
 router.post("/import", excelUpload.single("file"), importCustomersFromExcel);
+router.put("/warning/:id", toggleWarning)
+
+router.get("/export-trips-customer/:maKH/:month", exportTripsByCustomer)
 
 module.exports = router;

@@ -146,43 +146,80 @@ const deleteVehicle = async (req, res) => {
 };
 
 // ==============================
-// IMPORT EXCEL
+// IMPORT VEHICLES FROM EXCEL
 // ==============================
 const importVehiclesFromExcel = async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ error: "Chưa upload file Excel" });
+    if (!req.file) {
+      return res.status(400).json({ error: "Chưa upload file Excel" });
+    }
+
+    const mode = req.query.mode || "add"; 
+    // mode = add | overwrite
 
     const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(sheet);
 
     let imported = 0;
+    let updated = 0;
+    let skipped = 0;
     const errors = [];
 
     for (const [idx, row] of rows.entries()) {
       try {
-        if (!row["BSX"] && !row["BIỂN SỐ XE"]) continue;
+        // Biển số xe là mã định danh của xe
+        const plate =
+          row["BSX"]?.toString().trim() ||
+          row["BIỂN SỐ XE"]?.toString().trim();
 
-        const vehicleData = {
-          plateNumber: row["BSX"] || row["BIỂN SỐ XE"] || "",
-          company: row["Đơn vị Vận tải"] || "",
+        // Nếu không có biển số → bỏ qua
+        if (!plate) {
+          skipped++;
+          continue;
+        }
+
+        const data = {
+          plateNumber: plate,
+          company: row["Đơn vị Vận tải"] || row["ĐƠN VỊ"] || "",
           vehicleType: row["Loại xe"] || "",
           length: row["Dài"] || "",
-          width: row["rộng"] || "",
-          height: row["cao"] || "",
+          width: row["rộng"] || row["RỘNG"] || "",
+          height: row["cao"] || row["CAO"] || "",
           norm: row["ĐỊNH MỨC"] || "",
           registrationImage: row["Ảnh đăng ký"] || "",
           inspectionImage: row["Ảnh đăng kiểm"] || "",
         };
 
-        await VehiclePlate.create(vehicleData);
-        imported++;
+        // CHECK TRÙNG THEO BIỂN SỐ XE
+        const existing = await VehiclePlate.findOne({ plateNumber: plate });
+
+        if (!existing) {
+          // thêm mới nếu chưa có
+          await VehiclePlate.create(data);
+          imported++;
+        } else if (mode === "overwrite") {
+          // ghi đè nếu mode=overwrite
+          await VehiclePlate.updateOne({ plateNumber: plate }, data);
+          updated++;
+        } else {
+          // nếu mode=add thì bỏ qua xe trùng biển
+          skipped++;
+        }
+
       } catch (err) {
         errors.push({ row: idx + 2, error: err.message });
       }
     }
 
-    res.json({ message: "Import hoàn tất", imported, errors });
+    res.json({
+      message: "Import hoàn tất",
+      imported,
+      updated,
+      skipped,
+      errors,
+    });
+
   } catch (err) {
     console.error("Lỗi import Excel:", err);
     res.status(500).json({ error: err.message });
@@ -199,6 +236,32 @@ const listVehicleNames = async (req, res) => {
   }
 };
 
+// ⚠️ Toggle cảnh báo
+const toggleWarning = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const schedule = await VehiclePlate.findById(id);
+    if (!schedule) {
+      return res.status(404).json({ error: "Không tìm thấy" });
+    }
+
+    // Đảo trạng thái cảnh báo
+    schedule.warning = !schedule.warning;
+    await schedule.save();
+
+    res.json({
+      success: true,
+      message: schedule.warning ? "Đã bật cảnh báo" : "Đã tắt cảnh báo",
+      warning: schedule.warning
+    });
+
+  } catch (err) {
+    console.error("❌ Lỗi toggle cảnh báo:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
 module.exports = {
   listVehicles,
   getVehicle,
@@ -206,5 +269,6 @@ module.exports = {
   updateVehicle,
   deleteVehicle,
   importVehiclesFromExcel,
-  listVehicleNames
+  listVehicleNames,
+  toggleWarning
 };

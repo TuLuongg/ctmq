@@ -5,7 +5,7 @@ const driverSchema = new mongoose.Schema(
   {
     name: { type: String, required: true }, // tên
     nameZalo: { type: String, default: "" }, // tên Zalo
-    birthYear: { type: Number }, // năm sinh
+    birthYear: { type: Date }, // năm sinh
     company: { type: String, default: "" }, // đơn vị vận tải
     bsx: { type: String, default: "" }, // biển số xe
     phone: { type: String, default: "" }, // sđt
@@ -25,6 +25,8 @@ const driverSchema = new mongoose.Schema(
     dayStartWork: { type: Date, default: null }, // ngày bắt đầu làm việc
     dayEndWork: { type: Date, default: null }, // ngày kết thúc làm việc
     createdBy: { type: String, default: "" }, // lưu username/fullname người tạo (tuỳ hệ thống auth)
+    warning: { type: Boolean, default: false }
+
   },
   { timestamps: true }
 );

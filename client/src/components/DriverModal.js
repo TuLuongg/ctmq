@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { format } from "date-fns";
+import API from "../api";
 
-export default function DriverModal({ initialData = null, onClose, onSave, apiBase = "https://ctmq.onrender.com/api/drivers" }) {
-  // Các cột hiển thị với label
+export default function DriverModal({ initialData = null, onClose, onSave, apiBase = `${API}/drivers` }) {
+
   const allColumns = [
     { key: "name", label: "Họ tên lái xe" },
     { key: "nameZalo", label: "Tên Zalo" },
@@ -28,32 +28,46 @@ export default function DriverModal({ initialData = null, onClose, onSave, apiBa
     { key: "note", label: "Ghi chú" },
   ];
 
-  const [form, setForm] = useState(
-    allColumns.reduce((acc, c) => ({ ...acc, [c.key]: "" }), {})
-  );
+  const emptyForm = allColumns.reduce((acc, c) => ({ ...acc, [c.key]: "" }), {});
+
+  const [form, setForm] = useState(emptyForm);
 
   const [licenseImageFile, setLicenseImageFile] = useState(null);
   const [licenseImageCCCDFile, setLicenseImageCCCDFile] = useState(null);
   const [previewLicense, setPreviewLicense] = useState("");
   const [previewCCCD, setPreviewCCCD] = useState("");
 
+  // Convert từ value nhận về → input type="date"
+  const toInputDate = (value) => {
+    if (!value) return "";
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return "";
+    return d.toISOString().substring(0, 10);
+  };
+
   useEffect(() => {
     if (initialData) {
-      const updatedForm = {};
-      allColumns.forEach(c => {
-        if (c.key === "licenseImage" || c.key === "licenseImageCCCD") return;
-        if (c.key.includes("At") || c.key.includes("Work") || c.key === "birthYear") {
-          updatedForm[c.key] = initialData[c.key] ? initialData[c.key].substring(0,10) : "";
+      const updated = {};
+
+      allColumns.forEach((c) => {
+        const val = initialData[c.key];
+
+        // Trường Date
+        if (c.key === "birthYear" ||
+            c.key.includes("At") ||
+            c.key.includes("Work")) {
+          updated[c.key] = toInputDate(val);
         } else {
-          updatedForm[c.key] = initialData[c.key] || "";
+          updated[c.key] = val ?? "";
         }
       });
-      setForm(updatedForm);
+
+      setForm(updated);
 
       setPreviewLicense(initialData.licenseImage ? `${window.location.origin}${initialData.licenseImage}` : "");
       setPreviewCCCD(initialData.licenseImageCCCD ? `${window.location.origin}${initialData.licenseImageCCCD}` : "");
     } else {
-      setForm(allColumns.reduce((acc, c) => ({ ...acc, [c.key]: "" }), {}));
+      setForm(emptyForm);
       setPreviewLicense("");
       setPreviewCCCD("");
     }
@@ -61,7 +75,7 @@ export default function DriverModal({ initialData = null, onClose, onSave, apiBa
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleFile = (e, type) => {
@@ -75,28 +89,46 @@ export default function DriverModal({ initialData = null, onClose, onSave, apiBa
     }
   };
 
+  // Convert input yyyy-MM-dd → Date ISO
+  const normalizeDate = (value) => {
+    if (!value) return null;
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return null;
+    return d.toISOString();
+  };
+
   const submit = async (e) => {
     e.preventDefault();
+
     try {
       const fd = new FormData();
-      Object.keys(form).forEach(k => {
-        if (form[k] !== undefined && form[k] !== null) fd.append(k, form[k]);
+
+      // Normalize dữ liệu trước khi gửi
+      Object.keys(form).forEach((key) => {
+        let val = form[key];
+
+        if (key === "birthYear" ||
+            key.includes("At") ||
+            key.includes("Work")) {
+          val = normalizeDate(val);
+        }
+
+        fd.append(key, val ?? "");
       });
+
       if (licenseImageFile) fd.append("licenseImage", licenseImageFile);
       if (licenseImageCCCDFile) fd.append("licenseImageCCCD", licenseImageCCCDFile);
 
       let res;
       if (initialData && initialData._id) {
-        res = await axios.put(`${apiBase}/${initialData._id}`, fd, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
+        res = await axios.put(`${apiBase}/${initialData._id}`, fd);
       } else {
-        res = await axios.post(apiBase, fd, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
+        res = await axios.post(apiBase, fd);
       }
+
       onSave(res.data);
       onClose();
+
     } catch (err) {
       console.error("Lỗi lưu lái xe:", err.response?.data || err.message);
       alert("Không lưu được: " + (err.response?.data?.error || err.message));
@@ -107,12 +139,19 @@ export default function DriverModal({ initialData = null, onClose, onSave, apiBa
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-start justify-start z-50 p-6">
       <div className="bg-white p-6 rounded-lg w-full max-w-4xl shadow-lg overflow-y-auto max-h-[90vh]">
         <h2 className="text-xl font-bold mb-3">{initialData ? "Sửa lái xe" : "Thêm lái xe"}</h2>
+
         <form onSubmit={submit} className="grid grid-cols-2 gap-3">
-          {allColumns.map(c => {
+
+          {allColumns.map((c) => {
             if (c.key === "licenseImage" || c.key === "licenseImageCCCD") return null;
+
             let type = "text";
-            if (c.key.includes("Year") || c.key.includes("Number")) type = "number";
-            if (c.key.includes("At") || c.key.includes("Work")) type = "date";
+            if (c.key === "birthYear" ||
+                c.key.includes("At") ||
+                c.key.includes("Work")) {
+              type = "date";
+            }
+
             return (
               <div key={c.key}>
                 <label className="block text-sm font-medium">{c.label}</label>
@@ -131,20 +170,23 @@ export default function DriverModal({ initialData = null, onClose, onSave, apiBa
           <div className="col-span-2">
             <label className="block text-sm font-medium mb-1">Ảnh bằng lái</label>
             <input type="file" accept="image/*" onChange={(e) => handleFile(e, "license")} />
-            {previewLicense && <img src={previewLicense} alt="license" className="mt-2 max-h-40 rounded shadow-sm" />}
+            {previewLicense && <img src={previewLicense} className="mt-2 max-h-40 rounded shadow-sm" />}
           </div>
 
           {/* Ảnh CCCD */}
           <div className="col-span-2">
             <label className="block text-sm font-medium mb-1">Ảnh CCCD</label>
             <input type="file" accept="image/*" onChange={(e) => handleFile(e, "cccd")} />
-            {previewCCCD && <img src={previewCCCD} alt="cccd" className="mt-2 max-h-40 rounded shadow-sm" />}
+            {previewCCCD && <img src={previewCCCD} className="mt-2 max-h-40 rounded shadow-sm" />}
           </div>
 
           <div className="col-span-2 flex justify-end gap-3 mt-4">
             <button type="button" onClick={onClose} className="bg-gray-300 px-4 py-2 rounded">Hủy</button>
-            <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded">{initialData ? "Cập nhật" : "Lưu"}</button>
+            <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded">
+              {initialData ? "Cập nhật" : "Lưu"}
+            </button>
           </div>
+
         </form>
       </div>
     </div>

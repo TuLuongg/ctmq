@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
+import API from "../api";
 
 export default function ProfileModal({ onClose, onUpdate }) {
   const [form, setForm] = useState({
@@ -53,7 +54,7 @@ export default function ProfileModal({ onClose, onUpdate }) {
       if (form.passwordNew) fd.append("passwordNew", form.passwordNew);
 
       const res = await axios.put(
-        "https://ctmq.onrender.com/api/auth/profile",
+        `${API}/auth/profile`,
         fd,
         {
           headers: {

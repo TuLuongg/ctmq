@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 import API from "../api";
 
 export default function AdminPage({ onLogout }) {
@@ -13,7 +14,10 @@ export default function AdminPage({ onLogout }) {
 
   const fetchUsers = async () => {
     try {
-      const res = await API.get("/auth/users");
+      const token = localStorage.getItem("token");
+      const res = await axios.get(`${API}/auth/users`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       setUsers(res.data);
     } catch {
       alert("Lỗi tải danh sách người dùng");
@@ -23,9 +27,19 @@ export default function AdminPage({ onLogout }) {
   const handleCreate = async () => {
     if (!username || !password || !fullname)
       return alert("Vui lòng nhập đầy đủ: tên đăng nhập, mật khẩu và tên người dùng");
+
     setLoading(true);
+
     try {
-      await API.post("/auth/register", { username, password, role, fullname });
+      const token = localStorage.getItem("token");
+      await axios.post(
+        `${API}/auth/register`,
+        { username, password, role, fullname },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
       alert("Tạo tài khoản thành công!");
       setUsername("");
       setPassword("");
@@ -40,8 +54,13 @@ export default function AdminPage({ onLogout }) {
 
   const handleDelete = async (id) => {
     if (!window.confirm("Xóa tài khoản này?")) return;
+
     try {
-      await API.delete(`/auth/users/${id}`);
+      const token = localStorage.getItem("token");
+      await axios.delete(`${API}/auth/users/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
       fetchUsers();
     } catch {
       alert("Lỗi khi xóa");
@@ -57,7 +76,15 @@ export default function AdminPage({ onLogout }) {
         ? [...(user.permissions || []), permission]
         : (user.permissions || []).filter((p) => p !== permission);
 
-      await API.put(`/auth/users/${userId}/permissions`, { permissions: updatedPermissions });
+      const token = localStorage.getItem("token");
+
+      await axios.put(
+        `${API}/auth/users/${userId}/permissions`,
+        { permissions: updatedPermissions },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
 
       setUsers((prev) =>
         prev.map((u) => (u._id === userId ? { ...u, permissions: updatedPermissions } : u))

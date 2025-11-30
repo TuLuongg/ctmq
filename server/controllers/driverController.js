@@ -59,7 +59,7 @@ const createDriver = async (req, res) => {
     const driverData = {
       name: body.name,
       nameZalo: body.nameZalo || "",
-      birthYear: body.birthYear ? Number(body.birthYear) : undefined,
+      birthYear: body.birthYear ? new Date(body.birthYear) : null,
       company: body.company || "",
       bsx: body.bsx || "",
       phone: body.phone || "",
@@ -80,16 +80,6 @@ const createDriver = async (req, res) => {
       dayEndWork: body.dayEndWork ? new Date(body.dayEndWork) : null,
       createdBy: req.user?.username || body.createdBy || "",
     };
-
-    if (req.files) {
-  if (req.files.licenseImage && req.files.licenseImage[0]) {
-    driverData.licenseImage = `/uploads/${req.files.licenseImage[0].filename}`;
-  }
-  if (req.files.licenseImageCCCD && req.files.licenseImageCCCD[0]) {
-    driverData.licenseImageCCCD = `/uploads/${req.files.licenseImageCCCD[0].filename}`;
-  }
-}
-
 
     const saved = await new Driver(driverData).save();
     res.status(201).json(saved);
@@ -112,10 +102,12 @@ const updateDriver = async (req, res) => {
     if (!driver) return res.status(404).json({ error: "Không tìm thấy lái xe" });
 
     const body = req.body || {};
+
+    // Cập nhật các trường text
     Object.assign(driver, {
       name: body.name || driver.name,
       nameZalo: body.nameZalo || driver.nameZalo,
-      birthYear: body.birthYear ? Number(body.birthYear) : driver.birthYear,
+      birthYear: body.birthYear ? new Date(body.birthYear) : driver.birthYear,
       company: body.company || driver.company,
       bsx: body.bsx || driver.bsx,
       phone: body.phone || driver.phone,
@@ -125,7 +117,6 @@ const updateDriver = async (req, res) => {
       cccd: body.cccd || driver.cccd,
       cccdIssuedAt: body.cccdIssuedAt ? new Date(body.cccdIssuedAt) : driver.cccdIssuedAt,
       cccdExpiryAt: body.cccdExpiryAt ? new Date(body.cccdExpiryAt) : driver.cccdExpiryAt,
-      licenseImageCCCD: body.licenseImageCCCD || driver.licenseImageCCCD,
       numberClass: body.numberClass || driver.numberClass,
       licenseClass: body.licenseClass || driver.licenseClass,
       licenseIssuedAt: body.licenseIssuedAt ? new Date(body.licenseIssuedAt) : driver.licenseIssuedAt,
@@ -135,39 +126,31 @@ const updateDriver = async (req, res) => {
       dayEndWork: body.dayEndWork ? new Date(body.dayEndWork) : driver.dayEndWork,
     });
 
-if (req.files) {
-  // Cập nhật ảnh bằng lái
-  if (req.files.licenseImage && req.files.licenseImage[0]) {
-    // Xoá ảnh cũ nếu có
-    if (driver.licenseImage) {
-      const oldPath = path.join(process.cwd(), driver.licenseImage.replace(/^\//, ""));
-      if (fs.existsSync(oldPath)) {
-        try { fs.unlinkSync(oldPath); } catch (e) {}
+    // Xử lý file
+    if (req.body.licenseImage) {
+      if (driver.licenseImage) {
+        const oldPath = path.join(process.cwd(), driver.licenseImage.replace(/^\//, ""));
+        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
       }
+      driver.licenseImage = req.body.licenseImage;
     }
-    driver.licenseImage = `/uploads/${req.files.licenseImage[0].filename}`;
-  }
-
-  // Cập nhật ảnh CCCD
-  if (req.files.licenseImageCCCD && req.files.licenseImageCCCD[0]) {
-    if (driver.licenseImageCCCD) {
-      const oldPathCCCD = path.join(process.cwd(), driver.licenseImageCCCD.replace(/^\//, ""));
-      if (fs.existsSync(oldPathCCCD)) {
-        try { fs.unlinkSync(oldPathCCCD); } catch (e) {}
+    if (req.body.licenseImageCCCD) {
+      if (driver.licenseImageCCCD) {
+        const oldPath = path.join(process.cwd(), driver.licenseImageCCCD.replace(/^\//, ""));
+        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
       }
+      driver.licenseImageCCCD = req.body.licenseImageCCCD;
     }
-    driver.licenseImageCCCD = `/uploads/${req.files.licenseImageCCCD[0].filename}`;
-  }
-}
-
 
     await driver.save();
     res.json(driver);
+
   } catch (err) {
     console.error("Lỗi khi cập nhật lái xe:", err);
     res.status(500).json({ error: err.message });
   }
 };
+
 
 // ==============================
 // XOÁ
@@ -203,18 +186,19 @@ const importDriversFromExcel = async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "Chưa upload file Excel" });
 
-    // đọc workbook
+    const mode = req.query.mode || "append"; 
+    // append = thêm hết, KHÔNG kiểm tra trùng
+    // overwrite = ghi đè nếu trùng cccd
+
     const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
-
-    // chuyển sheet thành JSON
     const rows = XLSX.utils.sheet_to_json(sheet);
 
     let imported = 0;
+    let updated = 0;
     const errors = [];
 
-    // hàm parse ngày an toàn
     const getDate = (val) => {
       if (!val) return null;
       const d = new Date(val);
@@ -223,12 +207,12 @@ const importDriversFromExcel = async (req, res) => {
 
     for (const [idx, row] of rows.entries()) {
       try {
-        // bỏ qua row không có tên
         if (!row["HỌ TÊN LÁI XE"] && !row["Tên"]) continue;
 
-        // parse ngày sinh ra năm
         const birthDate = row["Ngày sinh"] ? new Date(row["Ngày sinh"]) : null;
         const birthYear = birthDate && !isNaN(birthDate) ? birthDate.getFullYear() : undefined;
+
+        const cccd = row["SỐ CCCD"] || "";
 
         const driverData = {
           name: row["HỌ TÊN LÁI XE"] || row["Tên"] || "",
@@ -240,7 +224,7 @@ const importDriversFromExcel = async (req, res) => {
           hometown: row["NGUYÊN QUÁN"] || "",
           resHometown: row["NƠI ĐĂNG KÝ HKTT"] || "",
           address: row["NƠI Ở HIỆN TẠI"] || "",
-          cccd: row["SỐ CCCD"] || "",
+          cccd,
           cccdIssuedAt: getDate(row["Ngày cấp CCCD"]),
           cccdExpiryAt: getDate(row["Ngày hết hạn CCCD"]),
           numberClass: row["Số GPLX"] || "",
@@ -252,33 +236,87 @@ const importDriversFromExcel = async (req, res) => {
           dayEndWork: getDate(row["Ngày nghỉ"]),
         };
 
-        // tạo driver
-        await Driver.create(driverData);
-        imported++;
+        // ============================
+        // 1) APPEND: thêm hết, không check trùng
+        // ============================
+        if (mode === "append") {
+          await Driver.create(driverData);
+          imported++;
+          continue;
+        }
+
+        // ============================
+        // 2) OVERWRITE: trùng → update, không trùng → tạo mới
+        // ============================
+        if (mode === "overwrite") {
+          const existing = await Driver.findOne({ cccd });
+
+          if (existing) {
+            await Driver.updateOne({ cccd }, driverData);
+            updated++;
+          } else {
+            await Driver.create(driverData);
+            imported++;
+          }
+          continue;
+        }
+
       } catch (err) {
         errors.push({ row: idx + 2, error: err.message });
       }
     }
 
     res.json({
-      message: `Import hoàn tất`,
+      message: "Import hoàn tất",
+      mode,
       imported,
-      errors,
+      updated,
+      errors
     });
+
   } catch (err) {
     console.error("Lỗi import Excel:", err);
     res.status(500).json({ error: err.message });
   }
 };
+
+
+
 // ==============================
 // Lấy danh sách chỉ gồm _id và name
 // ==============================
 const listDriverNames = async (req, res) => {
   try {
-    const drivers = await Driver.find({}, { name: 1 });
+    const drivers = await Driver.find({}, { name: 1, bsx: 1 });
     res.json(drivers);
   } catch (error) {
     res.status(500).json({ error: "Không thể lấy danh sách lái xe" });
+  }
+};
+
+// ⚠️ Toggle cảnh báo
+const toggleWarning = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const schedule = await Driver.findById(id);
+    if (!schedule) {
+      return res.status(404).json({ error: "Không tìm thấy" });
+    }
+
+    // Đảo trạng thái cảnh báo
+    schedule.warning = !schedule.warning;
+    await schedule.save();
+
+    res.json({
+      success: true,
+      message: schedule.warning ? "Đã bật cảnh báo" : "Đã tắt cảnh báo",
+      warning: schedule.warning
+    });
+
+  } catch (err) {
+    console.error("❌ Lỗi toggle cảnh báo:", err);
+    res.status(500).json({ error: err.message });
   }
 };
 
@@ -290,4 +328,5 @@ module.exports = {
   deleteDriver,
   importDriversFromExcel,
   listDriverNames,
+  toggleWarning
 };

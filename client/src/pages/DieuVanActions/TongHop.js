@@ -4,10 +4,11 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+import API from "../../api";
 
 
-const API_URL = "https://ctmq.onrender.com/api/schedule-admin";
-const USER_API = "https://ctmq.onrender.com/api/auth/dieu-van"; // ✅ API mới lấy danh sách điều vận
+const API_URL = `${API}/schedule-admin`;
+const USER_API = `${API}/auth/dieu-van`; // ✅ API mới lấy danh sách điều vận
 
 export default function TongHop({ user, onLogout }) {
   const [rides, setRides] = useState([]);
@@ -29,21 +30,18 @@ export default function TongHop({ user, onLogout }) {
 
   const mainColumns = [
     { key: "dieuVan", label: "ĐIỀU VẬN" },
-    { key: "createdBy", label: "NGƯỜI NHẬP" },
     { key: "ngayBoc", label: "NGÀY NHẬP" },
-    { key: "tenLaiXe", label: "TÊN LÁI XE" },
     { key: "khachHang", label: "KHÁCH HÀNG" },
+    { key: "dienGiai", label: "DIỄN GIẢI" },
+    { key: "diemXepHang", label: "ĐIỂM XẾP HÀNG" },
+    { key: "diemDoHang", label: "ĐIỂM DỠ HÀNG" },
     { key: "ngayBocHang", label: "NGÀY BỐC HÀNG" },
     { key: "ngayGiaoHang", label: "NGÀY GIAO HÀNG" },
     { key: "bienSoXe", label: "BIỂN SỐ XE" },
-    { key: "keToanPhuTrach", label: "KẾ TOÁN PHỤ TRÁCH" },
     { key: "maChuyen", label: "MÃ CHUYẾN" },
   ];
 
   const extraColumns = [
-    { key: "dienGiai", label: "DIỄN GIẢI" },
-    { key: "diemXepHang", label: "ĐIỂM XẾP HÀNG" },
-    { key: "diemDoHang", label: "ĐIỂM DỠ HÀNG" },
     { key: "soDiem", label: "SỐ ĐIỂM" },
     { key: "trongLuong", label: "TRỌNG LƯỢNG" },
     { key: "cuocPhi", label: "CƯỚC PHÍ" },
@@ -53,7 +51,10 @@ export default function TongHop({ user, onLogout }) {
     { key: "hangVe", label: "HÀNG VỀ" },
     { key: "luuCa", label: "LƯU CA" },
     { key: "luatChiPhiKhac", label: "LUẬT CP KHÁC" },
+    { key: "tenLaiXe", label: "TÊN LÁI XE" },
+    { key: "keToanPhuTrach", label: "KẾ TOÁN PHỤ TRÁCH" },
     { key: "ghiChu", label: "GHI CHÚ" },
+    { key: "createdBy", label: "NGƯỜI NHẬP" },
   ];
 
   const formatDate = (val) => (val ? format(new Date(val), "dd/MM/yyyy") : "");
@@ -184,7 +185,7 @@ const handleSelectExcel = async (e) => {
   if (!file) return alert("Chưa chọn file Excel!");
 
   const data = await file.arrayBuffer();
-  const workbook = XLSX.read(data);
+  const workbook = XLSX.read(data, { type: "array" });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   let rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
 
@@ -226,7 +227,7 @@ const handleSelectExcel = async (e) => {
       ghiChu: r["GHI CHÚ"] || "",
       accountUsername: r["USERNAME"] || "",
     }))
-    .filter((x) => x.maChuyen && x.tenLaiXe); // Chỉ lấy dòng có mã chuyến và lái xe
+    .filter((x) => x.maChuyen && x.maKH); // Chỉ lấy dòng có mã chuyến và lái xe
 
   setExcelData(mapped);
 

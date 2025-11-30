@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import axios from "axios";
 import maQR from "../images/maQR.jpg";
 import { useNavigate } from "react-router-dom";
+import API from "../api";
 
 const columns = [
   "Biển số xe",
@@ -122,7 +123,7 @@ function DriverPage() {
       };
 
       console.log("Dữ liệu gửi đi:", payload);
-      await axios.post("https://ctmq.onrender.com/api/schedules", payload);
+      await axios.post(`${API}/schedules`, payload);
       alert("Dữ liệu đã được gửi lên!");
 
       navigate("/final", { state: payload });

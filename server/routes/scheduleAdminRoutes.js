@@ -9,7 +9,8 @@ const {
   getSchedulesByAccountant,
   addHoaDonToSchedules,
   addBoSung,
-  importSchedulesFromExcel
+  importSchedulesFromExcel,
+  toggleWarning
 } = require("../controllers/scheduleAdminController");
 const authMiddleware = require("../middleware/authMiddleware");
 
@@ -56,5 +57,7 @@ router.post("/add-hoa-don", authMiddleware(["keToan"]), addHoaDonToSchedules);
 
 // Thêm cước phí bổ sung cho chuyến
 router.post("/add-bo-sung", authMiddleware(["keToan"]), addBoSung);
+
+router.put("/warning/:id", authMiddleware(["admin","dieuVan","keToan"]), toggleWarning);
 
 module.exports = router;

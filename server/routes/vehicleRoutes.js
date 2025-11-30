@@ -9,7 +9,8 @@ const {
   updateVehicle,
   deleteVehicle,
   importVehiclesFromExcel,
-  listVehicleNames
+  listVehicleNames,
+  toggleWarning
 } = require("../controllers/vehicleController");
 const cloudinary = require("../config/cloudinary"); // file config cloudinary
 const { Readable } = require("stream");
@@ -105,5 +106,6 @@ const excelUpload = multer({ storage: excelStorage });
 router.post("/import", excelUpload.single("file"), importVehiclesFromExcel);
 
 router.get("/names/list", listVehicleNames);
+router.put("/warning/:id", toggleWarning)
 
 module.exports = router;

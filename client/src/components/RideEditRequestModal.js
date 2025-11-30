@@ -1,27 +1,49 @@
 import { useState, useEffect } from "react";
+import DatePicker from "react-datepicker";
+import { registerLocale } from "react-datepicker";
+import vi from "date-fns/locale/vi";
+import "react-datepicker/dist/react-datepicker.css";
+
+registerLocale("vi", vi);
 
 export default function RideEditModal({
-  ride,                // 🔹 chuyến cần chỉnh sửa
+  ride,
   onClose,
-  onSubmitEdit,        // 🔹 API trực tiếp lưu và cập nhật chuyến
+  onSubmitEdit,
   dieuVanList = [],
   currentUser,
   drivers = [],
   customers = [],
-  vehicles = [],
 }) {
   const [form, setForm] = useState(ride || {});
   const [reason, setReason] = useState("");
 
-  // Cập nhật form khi prop ride thay đổi
   useEffect(() => {
     if (ride) setForm(ride);
   }, [ride]);
 
-  // Thiết lập điều vận & người nhập mặc định
+  // ==============================
+  // SAFE DATE (KHÔNG BAO GIỜ INVALID)
+  // ==============================
+  const safeDate = (val) => {
+    if (!val) return null;
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? null : d;
+  };
+
+  const toISO = (date) => {
+    if (!date) return "";
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+      2,
+      "0"
+    )}-${String(date.getDate()).padStart(2, "0")}`;
+  };
+
+  // Auto gán điều vận
   useEffect(() => {
     if (!currentUser || !dieuVanList.length) return;
-    let selected =
+
+    const selected =
       dieuVanList.find((d) => d._id === currentUser._id) ||
       dieuVanList.find((d) => d.username === currentUser.username);
 
@@ -56,6 +78,18 @@ export default function RideEditModal({
       }
     }
 
+    if (name === "bienSoXe") {
+      const matched = drivers.find(
+        (d) => d.bsx?.toLowerCase() === value.toLowerCase()
+      );
+      setForm((prev) => ({
+        ...prev,
+        bienSoXe: value,
+        tenLaiXe: matched ? matched.name || matched.tenLaiXe : "",
+      }));
+      return;
+    }
+
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -68,17 +102,9 @@ export default function RideEditModal({
     }));
   };
 
-  const handleCreatedByChange = (e) => {
-    const selected = dieuVanList.find((d) => d._id === e.target.value);
-    setForm((prev) => ({
-      ...prev,
-      createdByID: selected?._id || "",
-      createdBy: selected?.fullname || selected?.username || "",
-    }));
-  };
-
   const handleSubmit = (e) => {
     e.preventDefault();
+
     if (!reason.trim()) {
       alert("Vui lòng nhập lý do chỉnh sửa!");
       return;
@@ -92,9 +118,7 @@ export default function RideEditModal({
       reason: reason.trim(),
     };
 
-    // 🔹 Gọi API trực tiếp cập nhật chuyến và lưu lịch sử
     onSubmitEdit(payload);
-
     setForm({});
     setReason("");
   };
@@ -105,14 +129,15 @@ export default function RideEditModal({
     onClose();
   };
 
+  // List fields
   const fields = [
     { name: "tenLaiXe", label: "Tên lái xe", type: "text", list: "driverList" },
-    { name: "bienSoXe", label: "Biển số xe", type: "text", list: "vehicleList" },
+    { name: "bienSoXe", label: "Biển số xe", type: "text", list: "bsxList" },
     { name: "khachHang", label: "Khách hàng", type: "text", list: "customerList" },
     { name: "dienGiai", label: "Diễn giải", type: "text" },
     { name: "ngayBocHang", label: "Ngày bốc hàng", type: "date" },
-    { name: "ngayGiaoHang", label: "Ngày giao hàng", type: "date" },
     { name: "diemXepHang", label: "Điểm xếp hàng", type: "text" },
+    { name: "ngayGiaoHang", label: "Ngày giao hàng", type: "date" },
     { name: "diemDoHang", label: "Điểm dỡ hàng", type: "text" },
     { name: "soDiem", label: "Số điểm", type: "number" },
     { name: "trongLuong", label: "Trọng lượng", type: "text" },
@@ -123,17 +148,8 @@ export default function RideEditModal({
     { name: "hangVe", label: "Hàng về", type: "text" },
     { name: "luuCa", label: "Lưu ca", type: "text" },
     { name: "luatChiPhiKhac", label: "Luật CP khác", type: "text" },
-    { name: "ngayBoc", label: "Ngày nhập", type: "date" },
     { name: "ghiChu", label: "Ghi chú", type: "textarea" },
   ];
-
-  const formatDate = (date) => {
-    if (!date) return "";
-    const d = new Date(date);
-    const month = (d.getMonth() + 1).toString().padStart(2, "0");
-    const day = d.getDate().toString().padStart(2, "0");
-    return `${d.getFullYear()}-${month}-${day}`;
-  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
@@ -159,28 +175,14 @@ export default function RideEditModal({
             </select>
           </div>
 
-          {/* Người nhập */}
-          <div>
-            <label className="block text-sm font-medium mb-1">Người nhập chuyến</label>
-            <select
-              name="createdByID"
-              value={form.createdByID || ""}
-              onChange={handleCreatedByChange}
-              className="border p-2 w-full rounded"
-            >
-              <option value="">-- Chọn người nhập --</option>
-              {dieuVanList.map((d) => (
-                <option key={d._id} value={d._id}>
-                  {d.fullname || d.username}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Các trường khác */}
+          {/* Render fields */}
           {fields.map((f) => (
-            <div key={f.name} className={f.type === "textarea" ? "col-span-2" : ""}>
+            <div
+              key={f.name}
+              className={f.type === "textarea" ? "col-span-2" : ""}
+            >
               <label className="block text-sm font-medium mb-1">{f.label}</label>
+
               {f.type === "textarea" ? (
                 <textarea
                   name={f.name}
@@ -189,14 +191,29 @@ export default function RideEditModal({
                   className="border p-2 w-full rounded"
                   rows={3}
                 />
+              ) : f.type === "date" ? (
+                <DatePicker
+                  locale="vi"
+                  selected={safeDate(form[f.name])}
+                  onChange={(date) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      [f.name]: toISO(date),
+                    }))
+                  }
+                  dateFormat="dd/MM/yyyy"
+                  className="border p-2 w-full rounded"
+                  popperPlacement="right-start"
+                  placeholderText="dd/mm/yyyy"
+                />
               ) : (
                 <>
                   <input
-                    type={f.type}
+                    type="text"
                     name={f.name}
-                    value={f.type === "date" ? formatDate(form[f.name]) : form[f.name] || ""}
+                    value={form[f.name] || ""}
                     onChange={handleChange}
-                    list={f.list || undefined}
+                    list={f.list}
                     className="border p-2 w-full rounded"
                   />
 
@@ -207,6 +224,7 @@ export default function RideEditModal({
                       ))}
                     </datalist>
                   )}
+
                   {f.name === "khachHang" && (
                     <datalist id="customerList">
                       {customers.map((c) => (
@@ -214,11 +232,14 @@ export default function RideEditModal({
                       ))}
                     </datalist>
                   )}
+
                   {f.name === "bienSoXe" && (
-                    <datalist id="vehicleList">
-                      {vehicles.map((v) => (
-                        <option key={v._id} value={v.bienSoXe || v.plateNumber} />
-                      ))}
+                    <datalist id="bsxList">
+                      {drivers
+                        .filter((d) => d.bsx)
+                        .map((d) => (
+                          <option key={d._id} value={d.bsx} />
+                        ))}
                     </datalist>
                   )}
                 </>
@@ -226,7 +247,7 @@ export default function RideEditModal({
             </div>
           ))}
 
-          {/* Lý do chỉnh sửa */}
+          {/* Reason */}
           <div className="col-span-2">
             <label className="block text-sm font-medium mb-1">Lý do chỉnh sửa</label>
             <textarea
@@ -234,12 +255,10 @@ export default function RideEditModal({
               onChange={(e) => setReason(e.target.value)}
               className="border p-2 w-full rounded"
               rows={3}
-              placeholder="Nhập lý do chỉnh sửa chuyến..."
               required
             />
           </div>
 
-          {/* Nút hành động */}
           <div className="col-span-2 flex justify-end gap-3 mt-4">
             <button
               type="button"
@@ -248,7 +267,10 @@ export default function RideEditModal({
             >
               Hủy
             </button>
-            <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded">
+            <button
+              type="submit"
+              className="bg-blue-500 text-white px-4 py-2 rounded"
+            >
               Lưu chỉnh sửa
             </button>
           </div>

@@ -45,6 +45,8 @@ const scheduleAdminSchema = new mongoose.Schema(
     hangVeBS: { type: String, default: "" }, // HÀNG VỀ BỔ SUNG
     luuCaBS: { type: String, default: "" }, // LƯU CA BỔ SUNG
     cpKhacBS: { type: String, default: "" }, // CHI PHÍ KHÁC BỔ SUNG
+    warning: { type: Boolean, default: false },
+
 
     // ⚙️ Trạng thái chuyến
     trangThai: {

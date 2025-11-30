@@ -78,7 +78,7 @@ const deleteScheduleAdmin = async (req, res) => {
 
     if (!schedule) return res.status(404).json({ error: "Không tìm thấy chuyến" });
 
-    if (user.role !== "admin") {
+    if (user.role !== "admin" || user.role !== "dieuVan") {
       return res.status(403).json({ error: "Chỉ admin mới có quyền xóa" });
     }
 
@@ -90,31 +90,63 @@ const deleteScheduleAdmin = async (req, res) => {
   }
 };
 
-// 📋 Lấy tất cả chuyến (dieuVan xem tất cả, điều vận xem tất cả)
 const getAllSchedulesAdmin = async (req, res) => {
   try {
-    const { tenLaiXe, maChuyen, khachHang, bienSoXe, date, dieuVanID } = req.query;
+    const query = req.query;
     const filter = {};
     const andConditions = [];
 
-    const page = parseInt(req.query.page || 1);
-    const limit = parseInt(req.query.limit || 100);
+    // 📌 Phân trang
+    const page = parseInt(query.page || 1);
+    const limit = parseInt(query.limit || 30);
     const skip = (page - 1) * limit;
 
-    if (tenLaiXe) andConditions.push({ tenLaiXe: new RegExp(tenLaiXe, "i") });
-    if (maChuyen) andConditions.push({ maChuyen: new RegExp(maChuyen, "i") });
-    if (khachHang) andConditions.push({ khachHang: new RegExp(khachHang, "i") });
-    if (bienSoXe) andConditions.push({ bienSoXe: new RegExp(bienSoXe, "i") });
-    if (dieuVanID) andConditions.push({ dieuVanID });
+    // ===============================
+    // ⭐ LỌC TỰ ĐỘNG GIỐNG HỆT API KẾ TOÁN
+    // ===============================
 
-    if (date) {
-      const start = new Date(date);
-      const end = new Date(date);
-      end.setHours(23, 59, 59, 999);
-      andConditions.push({ ngayBoc: { $gte: start, $lte: end } });
+    for (const [key, value] of Object.entries(query)) {
+      if (!value) continue;
+
+      // Bỏ field hệ thống
+      if (["page", "limit"].includes(key)) continue;
+
+      // 🔹 Lọc ngày: field chứa chữ “ngay”
+      if (key.toLowerCase().includes("ngay")) {
+        const start = new Date(value);
+        const end = new Date(value);
+        end.setHours(23, 59, 59, 999);
+
+        andConditions.push({
+          [key]: { $gte: start, $lte: end }
+        });
+
+        continue;
+      }
+
+      // 🔹 Boolean
+      if (value === "true" || value === "false") {
+        andConditions.push({ [key]: value === "true" });
+        continue;
+      }
+
+      // 🔹 Number
+      if (!isNaN(value)) {
+        andConditions.push({ [key]: Number(value) });
+        continue;
+      }
+
+      // 🔹 String → chứa
+      andConditions.push({ [key]: new RegExp(value, "i") });
     }
 
-    if (andConditions.length > 0) filter.$and = andConditions;
+    if (andConditions.length > 0) {
+      filter.$and = andConditions;
+    }
+
+    // ===============================
+    // ⭐ TRẢ VỀ DỮ LIỆU
+    // ===============================
 
     const total = await ScheduleAdmin.countDocuments(filter);
 
@@ -132,33 +164,42 @@ const getAllSchedulesAdmin = async (req, res) => {
 
   } catch (err) {
     console.error("❌ Lỗi khi lấy tất cả chuyến:", err);
-    return res.status(500).json({ error: "Lỗi server khi lấy tất cả chuyến" });
+    res.status(500).json({ error: err.message });
   }
 };
 
 
-// 🔍 Lấy lịch trình theo tên điều vận (admin dùng)
+// 🔍 Lấy lịch trình theo tên điều vận
 const getSchedulesByDieuVan = async (req, res) => {
   try {
     const { dieuVanID } = req.params;
-    const { tenLaiXe, maChuyen, khachHang, ngayBoc } = req.query;
 
     if (!dieuVanID) {
       return res.status(400).json({ error: "Thiếu ID điều vận" });
     }
 
+    // Base filter
     const filter = { dieuVanID };
     const andConditions = [];
 
-    if (tenLaiXe) andConditions.push({ tenLaiXe: new RegExp(tenLaiXe, "i") });
-    if (maChuyen) andConditions.push({ maChuyen: new RegExp(maChuyen, "i") });
-    if (khachHang) andConditions.push({ khachHang: new RegExp(khachHang, "i") });
+    // Tự động lấy toàn bộ field từ FE để lọc
+    for (const [key, value] of Object.entries(req.query)) {
+      if (!value) continue;
 
-    if (ngayBoc) {
-      const start = new Date(ngayBoc);
-      const end = new Date(ngayBoc);
-      end.setHours(23, 59, 59, 999);
-      andConditions.push({ ngayBoc: { $gte: start, $lte: end } });
+      // ⚠️ Bỏ page, limit
+      if (["page", "limit"].includes(key)) continue;
+
+      // ⏳ Nếu là trường ngày → tạo range trong ngày
+      if (key.toLowerCase().includes("ngay")) {
+        const start = new Date(value);
+        const end = new Date(value);
+        end.setHours(23, 59, 59, 999);
+        andConditions.push({ [key]: { $gte: start, $lte: end } });
+      }
+      // 🔍 Các trường chuỗi, regex
+      else {
+        andConditions.push({ [key]: new RegExp(value, "i") });
+      }
     }
 
     if (andConditions.length > 0) {
@@ -185,10 +226,11 @@ const getSchedulesByDieuVan = async (req, res) => {
     });
 
   } catch (err) {
-    console.error("❌ Lỗi khi lấy chuyến theo điều vận:", err);
+    console.error("❌ Lỗi lấy chuyến theo điều vận:", err);
     res.status(500).json({ error: "Lỗi server khi lấy chuyến theo điều vận" });
   }
 };
+
 
 
 // 📌 Lấy danh sách chuyến theo kế toán phụ trách
@@ -204,23 +246,25 @@ const getSchedulesByAccountant = async (req, res) => {
       return res.status(403).json({ error: "Chỉ kế toán mới được xem danh sách này" });
     }
 
-    const { tenLaiXe, maChuyen, khachHang, bienSoXe, date } = req.query;
-
     const filter = { accountUsername: user.username };
     const andConditions = [];
 
-    if (tenLaiXe) andConditions.push({ tenLaiXe: new RegExp(tenLaiXe, "i") });
-    if (maChuyen) andConditions.push({ maChuyen: new RegExp(maChuyen, "i") });
-    if (khachHang) andConditions.push({ khachHang: new RegExp(khachHang, "i") });
-    if (bienSoXe) andConditions.push({ bienSoXe: new RegExp(bienSoXe, "i") });
+    // Tự động lọc theo toàn bộ query
+    for (const [key, value] of Object.entries(req.query)) {
+      if (!value) continue;
 
-    if (date) {
-      const start = new Date(date);
-      const end = new Date(date);
-      end.setHours(23, 59, 59, 999);
-      andConditions.push({
-        ngayBoc: { $gte: start, $lte: end }
-      });
+      if (["page", "limit"].includes(key)) continue;
+
+      // Ngày → xử lý range trong ngày
+      if (key.toLowerCase().includes("ngay")) {
+        const start = new Date(value);
+        const end = new Date(value);
+        end.setHours(23, 59, 59, 999);
+        andConditions.push({ [key]: { $gte: start, $lte: end } });
+      } 
+      else {
+        andConditions.push({ [key]: new RegExp(value, "i") });
+      }
     }
 
     if (andConditions.length > 0) {
@@ -229,7 +273,7 @@ const getSchedulesByAccountant = async (req, res) => {
 
     // 📌 Phân trang
     const page = parseInt(req.query.page || 1);
-    const limit = parseInt(req.query.limit || 50);
+    const limit = parseInt(req.query.limit || 30);
     const skip = (page - 1) * limit;
 
     const total = await ScheduleAdmin.countDocuments(filter);
@@ -251,6 +295,7 @@ const getSchedulesByAccountant = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 
 // 🆕 Thêm mã hoá đơn cho 1 hoặc nhiều chuyến
@@ -382,6 +427,33 @@ const importSchedulesFromExcel = async (req, res) => {
   }
 };
 
+// ⚠️ Toggle cảnh báo cho chuyến
+const toggleWarning = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const schedule = await ScheduleAdmin.findById(id);
+    if (!schedule) {
+      return res.status(404).json({ error: "Không tìm thấy chuyến" });
+    }
+
+    // Đảo trạng thái cảnh báo
+    schedule.warning = !schedule.warning;
+    await schedule.save();
+
+    res.json({
+      success: true,
+      message: schedule.warning ? "Đã bật cảnh báo" : "Đã tắt cảnh báo",
+      warning: schedule.warning
+    });
+
+  } catch (err) {
+    console.error("❌ Lỗi toggle cảnh báo:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
 module.exports = {
   createScheduleAdmin,
   updateScheduleAdmin,
@@ -391,5 +463,6 @@ module.exports = {
   getSchedulesByAccountant,
   addHoaDonToSchedules,
   addBoSung,
-  importSchedulesFromExcel
+  importSchedulesFromExcel,
+  toggleWarning
 };

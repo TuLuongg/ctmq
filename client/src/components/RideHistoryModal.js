@@ -30,6 +30,7 @@ const extraColumns = [
   { key: "ghiChu", label: "GHI CHÚ" },
 ];
 
+
 // Tạo map key -> label
 const columnLabels = [...mainColumns, ...extraColumns].reduce((acc, col) => {
   acc[col.key] = col.label;
@@ -37,8 +38,14 @@ const columnLabels = [...mainColumns, ...extraColumns].reduce((acc, col) => {
 }, {});
 
 
-export default function RideHistoryModal({ ride, historyData, onClose }) {
+export default function RideHistoryModal({ ride, historyData, onClose, role }) {
   if (!ride) return null;
+
+  // Danh sách key cho phép xem nếu là điều vận
+  const allowedKeys = [
+    ...mainColumns.map(c => c.key),
+    ...extraColumns.map(c => c.key)
+  ];
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
@@ -63,8 +70,14 @@ export default function RideHistoryModal({ ride, historyData, onClose }) {
                   <td className="border p-2">{new Date(h.createdAt).toLocaleString()}</td>
                   <td className="border p-2">{h.editedBy}</td>
                   <td className="border p-2">{h.reason || "-"}</td>
+                  
                   <td className="border p-2 space-y-1 text-left">
                     {Object.keys(h.newData).map((key) => {
+                      // Nếu role là điều vận → chỉ cho xem trong main + extra
+                      if (role === "dieuVan" && !allowedKeys.includes(key)) {
+                        return null; 
+                      }
+
                       const oldVal = h.previousData[key];
                       const newVal = h.newData[key];
                       if (oldVal !== newVal) {
@@ -79,6 +92,7 @@ export default function RideHistoryModal({ ride, historyData, onClose }) {
                       return null;
                     })}
                   </td>
+
                 </tr>
               ))}
             </tbody>
@@ -97,3 +111,4 @@ export default function RideHistoryModal({ ride, historyData, onClose }) {
     </div>
   );
 }
+

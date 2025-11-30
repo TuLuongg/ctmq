@@ -10,6 +10,7 @@ const vehiclePlateSchema = new mongoose.Schema({
   width: { type: String, default: "" },                          //Chiều rộng xe
   height: { type: String, default: "" },                         //Chiều cao xe
   norm: { type: String, default: "" },                           // Định mức
+  warning: { type: Boolean, default: false }
 }, { timestamps: true });
 
 module.exports = mongoose.model("VehiclePlate", vehiclePlateSchema);
