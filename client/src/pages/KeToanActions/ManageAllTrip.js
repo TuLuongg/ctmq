@@ -969,6 +969,11 @@ const toggleRowHighlight = (id) => {
 <th
   key={col.key}
   data-col={col.key}
+  draggable        // ⭐ BẮT BUỘC ĐỂ KÉO CỘT
+  onDragStart={(e) => onDragStart(e, col.key)}   // ⭐ BẮT ĐẦU KÉO
+  onDragOver={onDragOver}                        // ⭐ ĐỂ MỤC TIÊU NHẬN DROP
+  onDrop={(e) => onDrop(e, col.key)}             // ⭐ THẢ CỘT
+
   className="border p-0 bg-blue-600 text-white relative select-none"
   style={{
     position: "sticky",
@@ -981,8 +986,13 @@ const toggleRowHighlight = (id) => {
     maxWidth: width,
     overflow: "visible"
   }}
+
+  // ⭐ NGĂN VIỆC NHẤP VÀO LẠI CHẶN DRAG
+  onMouseDown={(e) => {
+    if (e.target.tagName !== "TH") e.stopPropagation();
+  }}
 >
-  {/* CLICK VÀO PHẦN LABEL ĐỂ MỞ FILTER */}
+  {/* LABEL */}
   <div
     className="p-2 flex items-center justify-between"
     onClick={(e) => {
@@ -994,10 +1004,12 @@ const toggleRowHighlight = (id) => {
     <span className="truncate">{col.label}</span>
   </div>
 
-  {/* THANH RESIZE (KÉO ĐỂ ĐỔI ĐỘ RỘNG) */}
+  {/* RESIZE HANDLE */}
   <div
-    onMouseDown={(e) => onMouseDownResize(e, col.key)}
-    onClick={(e) => e.stopPropagation()}
+    onMouseDown={(e) => {
+      e.stopPropagation();
+      onMouseDownResize(e, col.key);
+    }}
     style={{
       width: 10,
       cursor: "col-resize",
@@ -1013,44 +1025,43 @@ const toggleRowHighlight = (id) => {
   {openFilter === col.key && (
     <div
       className="absolute bg-white border rounded shadow p-2 z-50"
-      style={{
-        top: "100%",
-        left: 0,
-        width: "200px",
-        zIndex:9999
-      }}
+      style={{ top: "100%", left: 0, width: "200px" }}
       onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
     >
-      {
-  dateFields.includes(col.key) ? (
-    <input
-      type="date"
-      className="w-full border px-2 py-1 rounded text-black"
-      value={filters[col.key] || ""}
-      onChange={(e) =>
-        setFilters((p) => ({ ...p, [col.key]: e.target.value }))
-      }
-    />
-  ) : (
-    <input
-      type="text"
-      className="w-full border px-2 py-1 rounded text-black"
-      placeholder={`${col.label}...`}
-      value={filters[col.key] || ""}
-      onChange={(e) =>
-        setFilters((p) => ({ ...p, [col.key]: e.target.value }))
-      }
-    />
-  )
-}
-
+      {dateFields.includes(col.key) ? (
+        <input
+          type="date"
+          className="w-full border px-2 py-1 rounded text-black"
+          value={filters[col.key] || ""}
+          onChange={(e) =>
+            setFilters((p) => ({ ...p, [col.key]: e.target.value }))
+          }
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+        />
+      ) : (
+        <input
+          type="text"
+          className="w-full border px-2 py-1 rounded text-black"
+          placeholder={`Lọc theo ${col.label}`}
+          value={filters[col.key] || ""}
+          onChange={(e) =>
+            setFilters((p) => ({ ...p, [col.key]: e.target.value }))
+          }
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+        />
+      )}
 
       <div className="flex gap-1 mt-1">
         <button
           className="flex-1 bg-gray-200 px-2 py-1 rounded"
-          onClick={() =>
-            setFilters((p) => ({ ...p, [col.key]: "" }))
-          }
+          onClick={(e) => {
+            e.stopPropagation();
+            setFilters((p) => ({ ...p, [col.key]: "" }));
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
         >
           Xóa
         </button>
@@ -1058,7 +1069,6 @@ const toggleRowHighlight = (id) => {
     </div>
   )}
 </th>
-
 
   );
 })}
