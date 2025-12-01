@@ -382,38 +382,43 @@ const importSchedulesFromExcel = async (req, res) => {
       // Xoá bản ghi cũ
       await ScheduleAdmin.deleteOne({ maChuyen });
 
-      await ScheduleAdmin.create({
-        dieuVan: user.fullname || user.username,
-        dieuVanID: user.id,
-        createdBy: user.fullname || user.username,
+      try {
+  await ScheduleAdmin.create({
+    dieuVan: user.fullname || user.username,
+    dieuVanID: user.id,
+    createdBy: user.fullname || user.username,
 
-        tenLaiXe: r.tenLaiXe || "",
-        maKH: r.maKH || "",
-        khachHang: r.khachHang || "",
-        dienGiai: r.dienGiai || "",
+    tenLaiXe: r.tenLaiXe || "",
+    maKH: r.maKH || "",
+    khachHang: r.khachHang || "",
+    dienGiai: r.dienGiai || "",
 
-        ngayBoc: r.ngayBoc || "",
-        ngayBocHang: r.ngayBocHang || "",
-        ngayGiaoHang: r.ngayGiaoHang || "",
+    ngayBoc: r.ngayBoc ? new Date(r.ngayBoc) : null,
+    ngayBocHang: r.ngayBocHang ? new Date(r.ngayBocHang) : null,
+    ngayGiaoHang: r.ngayGiaoHang ? new Date(r.ngayGiaoHang) : null,
 
-        diemXepHang: r.diemXepHang || "",
-        diemDoHang: r.diemDoHang || "",
-        soDiem: r.soDiem || "",
-        trongLuong: r.trongLuong || "",
-        bienSoXe: r.bienSoXe || "",
-        cuocPhi: r.cuocPhi || "",
-        daThanhToan: r.daThanhToan || "",
-        bocXep: r.bocXep || "",
-        ve: r.ve || "",
-        hangVe: r.hangVe || "",
-        luuCa: r.luuCa || "",
-        luatChiPhiKhac: r.luatChiPhiKhac || "",
-        ghiChu: r.ghiChu || "",
-        maChuyen,
-        accountUsername: r.accountUsername || "",
-      });
+    diemXepHang: r.diemXepHang || "",
+    diemDoHang: r.diemDoHang || "",
+    soDiem: r.soDiem || "",
+    trongLuong: r.trongLuong || "",
+    bienSoXe: r.bienSoXe || "",
+    cuocPhi: r.cuocPhi || "",
+    daThanhToan: r.daThanhToan || "",
+    bocXep: r.bocXep || "",
+    ve: r.ve || "",
+    hangVe: r.hangVe || "",
+    luuCa: r.luuCa || "",
+    luatChiPhiKhac: r.luatChiPhiKhac || "",
+    ghiChu: r.ghiChu || "",
+    maChuyen,
+    accountUsername: r.accountUsername || "",
+  });
 
-      count++;
+  count++;
+
+} catch (err) {
+  console.log("❌ LỖI KHI LƯU CHUYẾN", maChuyen, "→", err.message);
+}
     }
 
     return res.json({
