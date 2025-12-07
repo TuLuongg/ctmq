@@ -1,4 +1,5 @@
 const ScheduleAdmin = require("../models/ScheduleAdmin");
+const Customer = require("../models/Customer");
 const mongoose = require("mongoose");
 
 // 🆕 Tạo chuyến mới
@@ -74,13 +75,8 @@ const deleteScheduleAdmin = async (req, res) => {
   try {
     const { id } = req.params;
     const schedule = await ScheduleAdmin.findById(id);
-    const user = req.user;
 
     if (!schedule) return res.status(404).json({ error: "Không tìm thấy chuyến" });
-
-    if (user.role !== "admin" || user.role !== "dieuVan") {
-      return res.status(403).json({ error: "Chỉ admin mới có quyền xóa" });
-    }
 
     await schedule.deleteOne();
     res.json({ message: "Đã xóa thành công" });
@@ -89,6 +85,40 @@ const deleteScheduleAdmin = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// 🗑️ Xóa chuyến trong khoảng ngày (ngayGiaoHang) - admin hoặc dieuVan
+const deleteSchedulesByDateRange = async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user || !["admin", "dieuVan"].includes(user.role)) {
+      return res.status(403).json({ error: "Chỉ admin hoặc điều vận mới được xóa chuyến" });
+    }
+
+    const { startDate, endDate } = req.body;
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({ error: "Thiếu startDate hoặc endDate" });
+    }
+
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
+    const result = await ScheduleAdmin.deleteMany({
+      ngayGiaoHang: { $gte: start, $lte: end },
+    });
+
+    res.json({
+      message: `Đã xóa ${result.deletedCount} chuyến trong khoảng ${startDate} → ${endDate}`,
+    });
+  } catch (err) {
+    console.error("❌ Lỗi khi xóa chuyến theo khoảng ngày:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
 
 const getAllSchedulesAdmin = async (req, res) => {
   try {
@@ -373,6 +403,7 @@ const importSchedulesFromExcel = async (req, res) => {
 
     for (const r of records) {
       const maChuyen = r.maChuyen?.toString().trim();
+      const maKH = r.maKH?.toString().trim();
 
       if (!maChuyen) {
         console.log("🚫 Bỏ qua dòng vì không có mã chuyến");
@@ -382,55 +413,66 @@ const importSchedulesFromExcel = async (req, res) => {
       // Xoá bản ghi cũ
       await ScheduleAdmin.deleteOne({ maChuyen });
 
+      // Nếu có maKH, tìm Customer
+      let khachHang = r.khachHang || "";
+      let accountUsername = r.accountUsername || "";
+
+      if (maKH) {
+        const customer = await Customer.findOne({code: maKH });
+        if (customer) {
+          khachHang = customer.name || khachHang;
+          accountUsername = customer.accUsername || accountUsername;
+        }
+      }
+
       try {
-  await ScheduleAdmin.create({
-    dieuVan: user.fullname || user.username,
-    dieuVanID: user.id,
-    createdBy: user.fullname || user.username,
+        await ScheduleAdmin.create({
+          dieuVan: user.fullname || user.username,
+          dieuVanID: user.id,
+          createdBy: user.fullname || user.username,
 
-    tenLaiXe: r.tenLaiXe || "",
-    maKH: r.maKH || "",
-    khachHang: r.khachHang || "",
-    dienGiai: r.dienGiai || "",
+          tenLaiXe: r.tenLaiXe || "",
+          maKH: maKH || "",
+          khachHang,
+          dienGiai: r.dienGiai || "",
 
-    ngayBoc: r.ngayBoc ? new Date(r.ngayBoc) : null,
-    ngayBocHang: r.ngayBocHang ? new Date(r.ngayBocHang) : null,
-    ngayGiaoHang: r.ngayGiaoHang ? new Date(r.ngayGiaoHang) : null,
+          ngayBoc: r.ngayBoc ? new Date(r.ngayBoc) : null,
+          ngayBocHang: r.ngayBocHang ? new Date(r.ngayBocHang) : null,
+          ngayGiaoHang: r.ngayGiaoHang ? new Date(r.ngayGiaoHang) : null,
 
-    diemXepHang: r.diemXepHang || "",
-    diemDoHang: r.diemDoHang || "",
-    soDiem: r.soDiem || "",
-    trongLuong: r.trongLuong || "",
-    bienSoXe: r.bienSoXe || "",
-    cuocPhi: r.cuocPhi || "",
-    daThanhToan: r.daThanhToan || "",
-    bocXep: r.bocXep || "",
-    ve: r.ve || "",
-    hangVe: r.hangVe || "",
-    luuCa: r.luuCa || "",
-    luatChiPhiKhac: r.luatChiPhiKhac || "",
-    ghiChu: r.ghiChu || "",
-    maChuyen,
-    accountUsername: r.accountUsername || "",
-  });
+          diemXepHang: r.diemXepHang || "",
+          diemDoHang: r.diemDoHang || "",
+          soDiem: r.soDiem || "",
+          trongLuong: r.trongLuong || "",
+          bienSoXe: r.bienSoXe || "",
+          cuocPhi: r.cuocPhi || "",
+          daThanhToan: r.daThanhToan || "",
+          bocXep: r.bocXep || "",
+          ve: r.ve || "",
+          hangVe: r.hangVe || "",
+          luuCa: r.luuCa || "",
+          luatChiPhiKhac: r.luatChiPhiKhac || "",
+          ghiChu: r.ghiChu || "",
+          maChuyen,
+          accountUsername,
+        });
 
-  count++;
-
-} catch (err) {
-  console.log("❌ LỖI KHI LƯU CHUYẾN", maChuyen, "→", err.message);
-}
+        count++;
+      } catch (err) {
+        console.log("❌ LỖI KHI LƯU CHUYẾN", maChuyen, "→", err.message);
+      }
     }
 
     return res.json({
       success: true,
       message: `Import thành công ${count} chuyến`,
     });
-
   } catch (err) {
     console.error("Lỗi import Excel:", err);
     return res.status(500).json({ error: err.message });
   }
 };
+
 
 // ⚠️ Toggle cảnh báo cho chuyến
 const toggleWarning = async (req, res) => {
@@ -463,6 +505,7 @@ module.exports = {
   createScheduleAdmin,
   updateScheduleAdmin,
   deleteScheduleAdmin,
+  deleteSchedulesByDateRange,
   getAllSchedulesAdmin,
   getSchedulesByDieuVan,
   getSchedulesByAccountant,

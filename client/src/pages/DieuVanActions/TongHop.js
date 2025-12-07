@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
@@ -17,7 +17,6 @@ export default function TongHop({ user, onLogout }) {
   const [date, setDate] = useState("");
   const [filters, setFilters] = useState({
     dieuVanID: "",
-    tenLaiXe: "",
     maChuyen: "",
     khachHang: "",
     bienSoXe: "",
@@ -25,18 +24,35 @@ export default function TongHop({ user, onLogout }) {
   const [showExtra, setShowExtra] = useState(false);
 
   const navigate = useNavigate();
+  const location = useLocation();
   const token = localStorage.getItem("token");
   const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
 
+  const isActive = (path) => location.pathname === path;
+  // 👉 Hàm chuyển sang trang quản lý lái xe
+  const handleGoToDrivers = () => {
+    navigate("/manage-driver-dv", {state: {user}});
+  };
+
+  const handleGoToCustomers = () => {
+    navigate("/manage-customer-dv", {state: {user}});
+  }
+
+  const handleGoToVehicles = () => {
+    navigate("/manage-vehicle-dv", {state: {user}});
+  };
+
+
   const mainColumns = [
-    { key: "dieuVan", label: "ĐIỀU VẬN" },
-    { key: "ngayBoc", label: "NGÀY NHẬP" },
     { key: "khachHang", label: "KHÁCH HÀNG" },
     { key: "dienGiai", label: "DIỄN GIẢI" },
     { key: "diemXepHang", label: "ĐIỂM XẾP HÀNG" },
     { key: "diemDoHang", label: "ĐIỂM DỠ HÀNG" },
     { key: "ngayBocHang", label: "NGÀY BỐC HÀNG" },
     { key: "ngayGiaoHang", label: "NGÀY GIAO HÀNG" },
+    { key: "soDiem", label: "SỐ ĐIỂM" },
+    { key: "trongLuong", label: "TRỌNG LƯỢNG" },
+    { key: "cuocPhi", label: "CƯỚC PHÍ" },
     { key: "bienSoXe", label: "BIỂN SỐ XE" },
     { key: "maChuyen", label: "MÃ CHUYẾN" },
   ];
@@ -54,8 +70,31 @@ export default function TongHop({ user, onLogout }) {
     { key: "tenLaiXe", label: "TÊN LÁI XE" },
     { key: "keToanPhuTrach", label: "KẾ TOÁN PHỤ TRÁCH" },
     { key: "ghiChu", label: "GHI CHÚ" },
+    { key: "dieuVan", label: "ĐIỀU VẬN" },
+    { key: "ngayBoc", label: "NGÀY NHẬP" },
     { key: "createdBy", label: "NGƯỜI NHẬP" },
   ];
+
+  // Format số tiền có dấu chấm hàng nghìn
+const formatMoney = (value) => {
+  if (value === undefined || value === null || value === "") return "";
+  const num = Number(value);
+  if (isNaN(num)) return value;
+  return num.toLocaleString("vi-VN");
+};
+
+// Các trường cần format tiền
+const moneyFields = [
+  "cuocPhi",
+  "laiXeThuCuoc",
+  "bocXep",
+  "ve",
+  "hangVe",
+  "luuCa",
+  "luatChiPhiKhac",
+  "cuocPhiBoSung",
+];
+
 
   const formatDate = (val) => (val ? format(new Date(val), "dd/MM/yyyy") : "");
 
@@ -205,7 +244,6 @@ const handleSelectExcel = async (e) => {
       maChuyen: r["MÃ CHUYẾN"]?.toString().trim() || "",
       tenLaiXe: r["TÊN LÁI XE"] || "",
       maKH: r["MÃ KH"] || "",
-      khachHang: r["KHÁCH HÀNG"] || r["TÊN KH"] || "",
       dienGiai: r["DIỄN GIẢI"] || "",
 
       ngayBocHang: parseExcelDate(r["Ngày đóng hàng"]),
@@ -225,7 +263,6 @@ const handleSelectExcel = async (e) => {
       luuCa: r["LƯU CA"] || "",
       luatChiPhiKhac: r["LUẬT CP KHÁC"] || "",
       ghiChu: r["GHI CHÚ"] || "",
-      accountUsername: r["USERNAME"] || "",
     }))
     .filter((x) => x.maChuyen && x.maKH); // Chỉ lấy dòng có mã chuyến và lái xe
 
@@ -263,9 +300,109 @@ const handleImportSchedules = async () => {
   }
 };
 
+const [rangeStart, setRangeStart] = useState("");
+const [rangeEnd, setRangeEnd] = useState("");
+
+const handleDeleteByDateRange = async () => {
+  if (!rangeStart || !rangeEnd) {
+    return alert("Vui lòng chọn đủ ngày bắt đầu và ngày kết thúc!");
+  }
+
+  if (!window.confirm(`Bạn có chắc muốn xóa tất cả chuyến từ ${rangeStart} → ${rangeEnd}?`)) {
+    return;
+  }
+
+  try {
+    const res = await axios.post(
+      `${API_URL}/delete-by-date-range`,
+      { startDate: rangeStart, endDate: rangeEnd },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    alert(res.data.message || "Đã xóa thành công!");
+    fetchAllRides();
+
+  } catch (err) {
+    console.error("Lỗi xóa chuyến theo khoảng ngày:", err);
+    alert(err.response?.data?.error || "Lỗi khi xóa chuyến!");
+  }
+};
+
+// ==== Cho bảng nâng cao ====
+const allCols = [...mainColumns, ...(showExtra ? extraColumns : [])];
+const [hiddenCols, setHiddenCols] = useState([]);
+const [colOrder, setColOrder] = useState(allCols.map(c => c.key));
+const [colWidths, setColWidths] = useState(
+  Object.fromEntries(allCols.map(c => [c.key, 60]))
+);
+
+const dragCol = useRef(null);
+
+const handleDrop = (key) => {
+  if (!dragCol.current) return;
+  const newOrder = [...colOrder];
+  const from = newOrder.indexOf(dragCol.current);
+  const to = newOrder.indexOf(key);
+
+  newOrder.splice(from, 1);
+  newOrder.splice(to, 0, dragCol.current);
+
+  setColOrder(newOrder);
+  dragCol.current = null;
+};
+
+// Resize cột
+const startResize = (e, key) => {
+  e.preventDefault();
+  const startX = e.clientX;
+  const startW = colWidths[key];
+
+  const onMove = (ev) => {
+    const newW = Math.max(10, startW + (ev.clientX - startX));
+    setColWidths((prev) => ({ ...prev, [key]: newW }));
+  };
+
+  const onUp = () => {
+    window.removeEventListener("mousemove", onMove);
+    window.removeEventListener("mouseup", onUp);
+  };
+
+  window.addEventListener("mousemove", onMove);
+  window.addEventListener("mouseup", onUp);
+};
+
+
 
   return (
-    <div className="p-4 bg-gray-50 min-h-screen">
+    <div className="p-4 bg-gray-50 min-h-screen text-sm">
+<div className="flex gap-2 items-center mb-4">
+  <button
+    onClick={handleGoToDrivers}
+    className={`px-3 py-1 rounded text-white 
+      ${isActive("/manage-driver-dv") ? "bg-green-600" : "bg-blue-500"}
+    `}
+  >
+    Danh sách lái xe
+  </button>
+
+  <button
+    onClick={handleGoToCustomers}
+    className={`px-3 py-1 rounded text-white 
+      ${isActive("/manage-customer-dv") ? "bg-green-600" : "bg-blue-500"}
+    `}
+  >
+    Danh sách khách hàng
+  </button>
+
+  <button
+    onClick={handleGoToVehicles}
+    className={`px-3 py-1 rounded text-white 
+      ${isActive("/manage-vehicle-dv") ? "bg-green-600" : "bg-blue-500"}
+    `}
+  >
+    Danh sách xe
+  </button>
+</div>
       {/* Header */}
       <div className="flex justify-between items-center mb-4">
     <h1 className="text-xl font-bold">TỔNG HỢP TẤT CẢ CÁC CHUYẾN</h1>
@@ -297,14 +434,6 @@ const handleImportSchedules = async () => {
         </option>
       ))}
     </select>
-
-    <input
-      type="text"
-      placeholder="Tên lái xe"
-      value={filters.tenLaiXe}
-      onChange={(e) => setFilters({ ...filters, tenLaiXe: e.target.value })}
-      className="border rounded px-3 py-2"
-    />
 
     <input
       type="text"
@@ -396,45 +525,121 @@ const handleImportSchedules = async () => {
 
       </div>
 
+<div className="m-2">
+        <input
+  type="date"
+  value={rangeStart}
+  onChange={(e) => setRangeStart(e.target.value)}
+  className="border rounded px-3 py-2 mr-2"
+/>
+
+<input
+  type="date"
+  value={rangeEnd}
+  onChange={(e) => setRangeEnd(e.target.value)}
+  className="border rounded px-3 py-2 mr-2"
+/>
+
+<button
+  onClick={handleDeleteByDateRange}
+  className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow-sm"
+>
+  Xóa chuyến theo khoảng ngày giao
+</button>
+</div>
+
+
       {/* Bảng */}
-      <div className="overflow-x-auto">
-        <table
-          className={`border-collapse border w-full text-sm ${
-            showExtra ? "min-w-[2400px]" : "min-w-[1200px]"
-          }`}
-        >
-          <thead className="bg-blue-600 text-white">
-            <tr>
-              {[...mainColumns, ...(showExtra ? extraColumns : [])].map((col) => (
-                <th key={col.key} className="border p-2">
-                  {col.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rides.map((r) => (
-              <tr key={r._id} className="text-center">
-                {mainColumns.map((col) => (
-                  <td key={col.key} className="border p-2">
-                    {["ngayBocHang", "ngayGiaoHang", "ngayBoc"].includes(col.key)
-                      ? formatDate(r[col.key])
-                      : col.key === "dieuVan"
-                      ? getFullName(r.dieuVanID)
-                      : r[col.key] ?? ""}
-                  </td>
-                ))}
-                {showExtra &&
-                  extraColumns.map((col) => (
-                    <td key={col.key} className="border p-2">
-                      {r[col.key] ?? ""}
-                    </td>
-                  ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+{/* ====== CHỌN CỘT ====== */}
+<div className="flex flex-wrap gap-3 p-2 bg-white shadow rounded mb-3">
+  {[...mainColumns, ...(showExtra ? extraColumns : [])].map((c) => (
+    <label key={c.key} className="flex gap-2 items-center text-xs">
+      <input
+        type="checkbox"
+        checked={!hiddenCols?.includes(c.key)}
+        onChange={() => {
+          if (hiddenCols.includes(c.key)) {
+            setHiddenCols(hiddenCols.filter(k => k !== c.key));
+          } else {
+            setHiddenCols([...hiddenCols, c.key]);
+          }
+        }}
+      />
+      {c.label}
+    </label>
+  ))}
+</div>
+
+{/* ====== BẢNG NÂNG CAO ====== */}
+<div className="overflow-auto max-h-[75vh] border bg-white">
+  <table className="border-collapse text-sm w-max">
+    <thead className="sticky top-0 bg-blue-600 text-white z-10">
+      <tr>
+        {colOrder.map((key) => {
+          const col = allCols.find(c => c.key === key);
+          if (!col || hiddenCols.includes(key)) return null;
+
+          return (
+            <th
+              key={key}
+              draggable
+              onDragStart={() => dragCol.current = key}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={() => handleDrop(key)}
+              style={{ width: colWidths[key] }}
+              className="border p-2 relative select-none whitespace-nowrap"
+            >
+              <div className="flex items-center justify-center relative">
+                {col.label}
+
+                {/* Resize handle */}
+                <span
+                  onMouseDown={(e) => startResize(e, key)}
+                  className="cursor-col-resize w-2 h-full absolute right-0 top-0 bg-gray-300 hover:bg-gray-400 z-20"
+                />
+              </div>
+            </th>
+          );
+        })}
+      </tr>
+    </thead>
+
+    <tbody>
+      {rides.map((r) => (
+        <tr key={r._id} className="text-center hover:bg-gray-100">
+          {colOrder.map((key) => {
+            const col = allCols.find(c => c.key === key);
+            if (!col || hiddenCols.includes(key)) return null;
+
+            let value = r[key] ?? "";
+
+            // Format đặc biệt
+            if (["ngayBoc", "ngayBocHang", "ngayGiaoHang"].includes(key)) {
+              value = formatDate(value);
+            }
+            if (moneyFields.includes(key)) {
+              value = formatMoney(value);
+            }
+            if (key === "dieuVan") {
+              value = getFullName(r.dieuVanID);
+            }
+
+            return (
+              <td
+                key={key}
+                className="border px-2 py-1 whitespace-nowrap"
+                style={{ width: colWidths[key] }}
+              >
+                {value}
+              </td>
+            );
+          })}
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+
 
 <div className="flex justify-center items-center gap-3 mt-4">
 

@@ -1,37 +1,43 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
-import CustomerModal from "../../components/CustomerModal";
+import VehicleModal from "../../components/VehicleModal";
 import { format as formatDateFns } from "date-fns";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import API from "../../api";
 
-const apiCustomers = `${API}/customers`;
+const apiVehicles = `${API}/vehicles`;
 
-// columns for customers
+// columns for vehicles (first two columns are locked/sticky)
 export const allColumns = [
-  { key: "code", label: "Mã KH" },
-  { key: "name", label: "Tên khách hàng" },
-  { key: "nameHoaDon", label: "Tên trên hóa đơn" },
-  { key: "mstCCCD", label: "MST / CCCD chủ hộ" },
-  { key: "address", label: "Địa chỉ" },
-  { key: "accountant", label: "Kế toán phụ trách" },
-  { key: "accUsername", label: "Tên đăng nhập" },
+  { key: "plateNumber", label: "Biển số" , stickyIndex: 0 },
+  { key: "company", label: "Đơn vị vận tải", stickyIndex: 1 },
+  { key: "vehicleType", label: "Loại xe" },
+  { key: "length", label: "Dài" },
+  { key: "width", label: "Rộng" },
+  { key: "height", label: "Cao" },
+  { key: "norm", label: "Định mức" },
+  { key: "registrationImage", label: "Ảnh đăng ký" },
+  { key: "resDay", label: "Ngày đăng ký"},
+  { key: "resExpDay", label: "Ngày hết hạn đăng ký"},
+  { key: "inspectionImage", label: "Ảnh đăng kiểm" },
+  { key: "insDay", label: "Ngày đăng kiểm"},
+  { key: "insExpDay", label: "Ngày hết hạn đăng kiểm"},
 ];
 
 // helper để dựng key trong localStorage
-const prefKey = (userId) => `customers_table_prefs_${userId || "guest"}`;
+const prefKey = (userId) => `vehicles_table_prefs_${userId || "guest"}`;
 
-export default function ManageCustomer() {
+export default function ManageVehicle() {
   const navigate = useNavigate();
   const location = useLocation();
   const fileInputRef = useRef(null);
 
-  const [customers, setCustomers] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
   const [q, setQ] = useState("");
   const [showModal, setShowModal] = useState(false);
-  const [editCustomer, setEditCustomer] = useState(null);
+  const [editVehicle, setEditVehicle] = useState(null);
   const [file, setFile] = useState(null);
   const [importing, setImporting] = useState(false);
 
@@ -39,26 +45,15 @@ export default function ManageCustomer() {
   const user = JSON.parse(localStorage.getItem("user") || "null") || location.state?.user;
   const userId = user?._id || "guest";
   const permissions = user?.permissions || [];
-  const canEditCustomer = permissions.includes("edit_customer");
+  const canEditVehicle = permissions.includes("edit_vehicle");
 
   const isActive = (path) => location.pathname === path;
 
-  // navigation helpers (kept from original)
-  const handleGoToDrivers = () => navigate("/manage-driver", { state: { user } });
-  const handleGoToCustomers = () => navigate("/manage-customer", { state: { user } });
-  const handleGoToVehicles = () => navigate("/manage-vehicle", { state: { user } });
-  const handleGoToTrips = () => navigate("/manage-trip", { state: { user } });
-  const handleGoToAllTrips = () => navigate("/manage-all-trip", { state: { user } });
-  const handleGoToAllCustomers = () => {
-    navigate("/customer-debt", {state: {user}});
-  }
-
-  const handleGoToCustomer26 = () => {
-    navigate("/customer-debt-26", {state: {user}});
-  }
-
-  const handleGoToVouchers = () => navigate("/voucher-list", { state: { user } });  
-
+  // navigation helpers (mirrors ManageCustomer)
+  const handleGoToDrivers = () => navigate("/manage-driver-dv", { state: { user } });
+  const handleGoToCustomers = () => navigate("/manage-customer-dv", { state: { user } });
+  const handleGoToVehicles = () => navigate("/manage-vehicle-dv", { state: { user } });
+    
   // visibleColumns khởi tạo mặc định từ allColumns
   const [visibleColumns, setVisibleColumns] = useState(allColumns.map((c) => c.key));
   const [columnWidths, setColumnWidths] = useState({});
@@ -70,17 +65,16 @@ export default function ManageCustomer() {
   const dragColRef = useRef(null);
   const resizingRef = useRef({ columnKey: null, startX: 0, startWidth: 0 });
 
-  // sticky first col refs
+  // sticky first col refs (we keep first sticky width measured)
   const firstColRef = useRef(null);
-  const [firstColWidth, setFirstColWidth] = useState(60);
-
+  const [firstColWidth, setFirstColWidth] = useState(120);
   useEffect(() => {
     if (firstColRef.current) {
       setFirstColWidth(firstColRef.current.offsetWidth);
     }
-  }, [columnWidths, visibleColumns, customers]);
+  }, [columnWidths, visibleColumns, vehicles]);
 
-  // warnings state (keep same behaviour as drivers)
+  // warnings state
   const [warnings, setWarnings] = useState({});
 
   // selected rows highlight
@@ -89,41 +83,38 @@ export default function ManageCustomer() {
     setSelectedRows((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
-  // -------- fetch customers
-const fetch = async (search = "") => {
-  try {
-    const url = search
-      ? `${apiCustomers}?q=${encodeURIComponent(search)}`
-      : apiCustomers;
+  // -------- fetch vehicles (with plateNumber numeric sort asc)
+  const fetch = async (search = "") => {
+    try {
+      const url = search ? `${apiVehicles}?q=${encodeURIComponent(search)}` : apiVehicles;
+      const res = await axios.get(url, { headers: { Authorization: token ? `Bearer ${token}` : undefined } });
+      const data = res.data || [];
 
-    const res = await axios.get(url, {
-      headers: { Authorization: token ? `Bearer ${token}` : undefined },
-    });
+      // sort plateNumber as numeric if possible (strings of digits)
+      const sorted = [...data].sort((a, b) => {
+        const numA = Number((a.plateNumber || "").replace(/\D/g, "") || 0);
+        const numB = Number((b.plateNumber || "").replace(/\D/g, "") || 0);
+        // keep Minh Quân priority after numeric? we'll prefer numerical first, then company priority
+        if (numA !== numB) return numA - numB;
+        // tiebreaker: Minh Quân first
+        if ((a.company || "").trim() === "Minh Quân" && (b.company || "").trim() !== "Minh Quân") return -1;
+        if ((a.company || "").trim() !== "Minh Quân" && (b.company || "").trim() === "Minh Quân") return 1;
+        return 0;
+      });
 
-    const data = res.data || [];
+      setVehicles(sorted);
 
-    // Sắp xếp theo mã code (string chứa số)
-    const sorted = [...data].sort((a, b) => {
-      const numA = Number(a.code || 0);
-      const numB = Number(b.code || 0);
-      return numA - numB; // tăng dần
-    });
-
-    setCustomers(sorted);
-
-    // Cảnh báo
-    const w = {};
-    sorted.forEach((d) => {
-      if (d.warning === true) w[d._id] = true;
-    });
-    setWarnings(w);
-
-  } catch (err) {
-    console.error("Lỗi lấy danh sách KH:", err.response?.data || err.message);
-    setCustomers([]);
-  }
-};
-
+      // set warnings map
+      const w = {};
+      sorted.forEach((d) => {
+        if (d.warning === true) w[d._id] = true;
+      });
+      setWarnings(w);
+    } catch (err) {
+      console.error("Lỗi lấy vehicles:", err.response?.data || err.message || err);
+      setVehicles([]);
+    }
+  };
 
   useEffect(() => {
     fetch();
@@ -140,6 +131,7 @@ const fetch = async (search = "") => {
     try {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed.order)) {
+        // keep only valid keys and append missing columns
         const valid = parsed.order.filter((k) => allColumns.some((ac) => ac.key === k));
         const missing = allColumns.map((c) => c.key).filter((k) => !valid.includes(k));
         setVisibleColumns([...valid, ...missing]);
@@ -182,6 +174,14 @@ const fetch = async (search = "") => {
     const idxSrc = visibleColumns.indexOf(src);
     const idxTarget = visibleColumns.indexOf(targetKey);
     if (idxSrc === -1 || idxTarget === -1) return;
+
+    // ensure locked/sticky two columns remain at start: if either src/target is locked, do nothing
+    const locked = allColumns.filter(c => c.stickyIndex === 0 || c.stickyIndex === 1).map(c => c.key);
+    if (locked.includes(src) || locked.includes(targetKey)) {
+      dragColRef.current = null;
+      return;
+    }
+
     const newOrder = [...visibleColumns];
     newOrder.splice(idxSrc, 1);
     newOrder.splice(idxTarget, 0, src);
@@ -235,54 +235,64 @@ const fetch = async (search = "") => {
   };
 
   // ---------- helpers ----------
-  const formatCellValue = (cKey, value, idx) => {
-    if (cKey === "name" || cKey === "nameHoaDon" || cKey === "accountant" || cKey === "code" || cKey === "accUsername" || cKey === "mstCCCD" || cKey === "address") return value;
+const formatCellValue = (cKey, value) => {
+  if (!value && value !== 0) return "";
+
+  // Giữ nguyên phần hình ảnh
+  if (cKey === "registrationImage" || cKey === "inspectionImage") {
     return value;
-  };
+  }
+
+  // Các cột ngày
+  const dateFields = ["resDay", "resExpDay", "insDay", "insExpDay"];
+
+  // Nếu là ngày → format + tô xanh khi là ngày hết hạn
+  if (dateFields.includes(cKey)) {
+    const d = new Date(value);
+    if (isNaN(d)) return value;
+
+    const formatted = d.toLocaleDateString("vi-VN");
+
+    const isExpiredDate = cKey === "resExpDay" || cKey === "insExpDay";
+
+    return (
+      <span className={isExpiredDate ? "text-blue-500 font-bold" : ""}>
+        {formatted}
+      </span>
+    );
+  }
+
+  // Trả về mặc định
+  return value;
+};
+
 
   // ---------- action handlers (add/edit/delete/import/export) ----------
   const handleAdd = () => {
-    if (!canEditCustomer) return alert("Bạn chưa có quyền thêm khách hàng!");
-    setEditCustomer(null);
+    if (!canEditVehicle) return alert("Bạn chưa có quyền thêm xe!");
+    setEditVehicle(null);
     setShowModal(true);
   };
 
-  const handleEdit = (c) => {
-    if (!canEditCustomer) return alert("Bạn chưa có quyền sửa khách hàng!");
-    setEditCustomer(c);
+  const handleEdit = (v) => {
+    if (!canEditVehicle) return alert("Bạn chưa có quyền sửa xe!");
+    setEditVehicle(v);
     setShowModal(true);
   };
 
   const handleDelete = async (id) => {
-    if (!canEditCustomer) return alert("Bạn chưa có quyền xóa khách hàng!");
-    if (!window.confirm("Xác nhận xóa khách hàng này?")) return;
+    if (!canEditVehicle) return alert("Bạn chưa có quyền xóa xe!");
+    if (!window.confirm("Xác nhận xóa?")) return;
     try {
-      await axios.delete(`${apiCustomers}/${id}`, { headers: { Authorization: token ? `Bearer ${token}` : undefined } });
-      setCustomers((prev) => prev.filter((p) => p._id !== id));
+      await axios.delete(`${apiVehicles}/${id}`, { headers: { Authorization: token ? `Bearer ${token}` : undefined } });
+      setVehicles((prev) => prev.filter((m) => m._id !== id));
     } catch (err) {
-      alert("Không thể xoá: " + (err.response?.data?.error || err.message));
+      alert("Không xóa được: " + (err.response?.data?.error || err.message));
     }
   };
 
-  const handleDeleteAll = async () => {
-  if (!canEditCustomer) return alert("Bạn chưa có quyền xóa khách hàng!");
-  if (!window.confirm("⚠ Xác nhận xóa tất cả khách hàng? Hành động này không thể phục hồi!")) return;
-
-  try {
-    await axios.delete(`${apiCustomers}/all`, {
-      headers: { Authorization: token ? `Bearer ${token}` : undefined },
-    });
-    alert("Đã xóa tất cả khách hàng!");
-    setCustomers([]);
-  } catch (err) {
-    console.error("Xóa tất cả KH thất bại:", err);
-    alert("Không thể xóa tất cả khách hàng: " + (err.response?.data?.error || err.message));
-  }
-};
-
-
   const handleSave = (saved) => {
-    setCustomers((prev) => {
+    setVehicles((prev) => {
       const found = prev.find((p) => p._id === saved._id);
       if (found) return prev.map((p) => (p._id === saved._id ? saved : p));
       return [saved, ...prev];
@@ -298,12 +308,13 @@ const fetch = async (search = "") => {
   const handleImportConfirm = async () => {
     if (!file) return alert("Vui lòng chọn file Excel!");
     setImporting(true);
+
     if (isSubmitting) return;  // tránh double click ngay tức thì
     setIsSubmitting(true);
     const formData = new FormData();
     formData.append("file", file);
     try {
-      const res = await axios.post(`${apiCustomers}/import?mode=${importMode}`, formData, {
+      const res = await axios.post(`${apiVehicles}/import?mode=${importMode}`, formData, {
         headers: { "Content-Type": "multipart/form-data", Authorization: token ? `Bearer ${token}` : undefined },
       });
       const added = res.data.imported || 0;
@@ -319,117 +330,66 @@ const fetch = async (search = "") => {
       setImporting(false);
       setShowImportMode(false);
       setIsSubmitting(false);
-      fetch()
+      fetch();
     }
   };
 
   const exportExcel = () => {
-    if (!customers.length) return alert("Không có dữ liệu để xuất");
+    if (!vehicles.length) return alert("Không có dữ liệu để xuất");
     const headers = allColumns.filter((c) => visibleColumns.includes(c.key)).map((c) => c.label);
-    const data = customers.map((d, idx) => {
+    const data = vehicles.map((d) => {
       const row = {};
       allColumns.forEach((c) => {
         if (!visibleColumns.includes(c.key)) return;
-        else row[c.label] = d[c.key] || "";
+        if (c.key === "registrationImage" || c.key === "inspectionImage") {
+          row[c.label] = d[c.key] ? `${window.location.origin}${d[c.key]}` : "";
+        } else {
+          row[c.label] = d[c.key] || "";
+        }
       });
       return row;
     });
     const ws = XLSX.utils.json_to_sheet(data, { header: headers });
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Customers");
+    XLSX.utils.book_append_sheet(wb, ws, "Vehicles");
     const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    saveAs(new Blob([wbout], { type: "application/octet-stream" }), `customers_${formatDateFns(new Date(), "yyyyMMdd_HHmm")}.xlsx`);
+    saveAs(new Blob([wbout], { type: "application/octet-stream" }), `vehicles_${formatDateFns(new Date(), "yyyyMMdd_HHmm")}.xlsx`);
   };
 
-  // toggle warning per customer
-  const toggleWarning = async (customerId) => {
+  // toggle warning per vehicle
+  const toggleWarning = async (vehicleId) => {
     try {
-      const res = await axios.put(`${apiCustomers}/warning/${customerId}`, {}, { headers: { Authorization: token ? `Bearer ${token}` : undefined } });
+      const res = await axios.put(`${apiVehicles}/warning/${vehicleId}`, {}, { headers: { Authorization: token ? `Bearer ${token}` : undefined } });
       const newWarningState = res.data.warning;
-      setWarnings((prev) => ({ ...prev, [customerId]: newWarningState }));
+      setWarnings((prev) => ({ ...prev, [vehicleId]: newWarningState }));
     } catch (err) {
       console.error("Toggle warning failed", err);
       alert("Không cập nhật được cảnh báo!");
     }
   };
 
-  //In bảng kê
-  const handlePrintBangKe = async (customer) => {
-  const month = new Date().getMonth() + 1; // tháng hiện tại
-  console.log("KH id:", customer.code, month)
-
-  try {
-    const response = await axios.get(
-      `${apiCustomers}/export-trips-customer/${customer.code}/${month}`,
-      {
-        responseType: "blob", 
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      }
-    );
-
-    const blob = new Blob(
-      [response.data],
-      { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }
-    );
-
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `BANG_KE_${customer.code}_T${month}.xlsx`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-
-  } catch (err) {
-    console.error(err);
-    alert("Không xuất được bảng kê!");
-  }
-};
-
-
   return (
     <div className="p-4 bg-gray-50 min-h-screen text-sm">
       <div className="flex gap-2 items-center mb-4">
-        <button onClick={() => navigate("/ke-toan")} className="px-3 py-1 rounded text-white bg-blue-500">Trang chính</button>
+        <button onClick={() => navigate("/tonghop")} className="px-3 py-1 rounded text-white bg-blue-500">Tổng hợp chuyến</button>
 
-        <button onClick={handleGoToDrivers} className={`px-3 py-1 rounded text-white ${isActive("/manage-driver") ? "bg-green-600" : "bg-blue-500"}`}>Danh sách lái xe</button>
-        <button onClick={handleGoToCustomers} className={`px-3 py-1 rounded text-white ${isActive("/manage-customer") ? "bg-green-600" : "bg-blue-500"}`}>Danh sách khách hàng</button>
-        <button onClick={handleGoToVehicles} className={`px-3 py-1 rounded text-white ${isActive("/manage-vehicle") ? "bg-green-600" : "bg-blue-500"}`}>Danh sách xe</button>
-        <button onClick={handleGoToTrips} className={`px-3 py-1 rounded text-white ${isActive("/manage-trip") ? "bg-green-600" : "bg-blue-500"}`}>Danh sách chuyến phụ trách</button>
-        <button onClick={() => { if(!user?.permissions?.includes("edit_trip")) { alert("Bạn không có quyền truy cập!"); return; } handleGoToAllTrips(); }} className={`px-3 py-1 rounded text-white ${isActive("/manage-all-trip") ? "bg-green-600" : "bg-blue-500"}`}>Tất cả các chuyến</button>
-          <button
-    onClick={handleGoToAllCustomers}
-    className={`px-3 py-1 rounded text-white 
-      ${isActive("/customer-debt") ? "bg-green-600" : "bg-blue-500"}
-    `}
-  >
-    Công nợ KH
-  </button>
-
-  <button
-    onClick={handleGoToCustomer26}
-    className={`px-3 py-1 rounded text-white 
-      ${isActive("/customer-debt-26") ? "bg-green-600" : "bg-blue-500"}
-    `}
-  >
-    Công nợ khách lẻ
-  </button>
-  <button onClick={handleGoToVouchers} className={`px-3 py-1 rounded text-white ${isActive("/voucher-list") ? "bg-green-600" : "bg-blue-500"}`}>Sổ phiếu chi</button>
+        <button onClick={handleGoToDrivers} className={`px-3 py-1 rounded text-white ${isActive("/manage-driver-dv") ? "bg-green-600" : "bg-blue-500"}`}>Danh sách lái xe</button>
+        <button onClick={handleGoToCustomers} className={`px-3 py-1 rounded text-white ${isActive("/manage-customer-dv") ? "bg-green-600" : "bg-blue-500"}`}>Danh sách khách hàng</button>
+        <button onClick={handleGoToVehicles} className={`px-3 py-1 rounded text-white ${isActive("/manage-vehicle-dv") ? "bg-green-600" : "bg-blue-500"}`}>Danh sách xe</button>
       </div>
 
       <div className="flex justify-between items-center mb-4 mt-2">
-        <h1 className="text-xl font-bold">Quản lý Khách hàng</h1>
+        <h1 className="text-xl font-bold">Quản lý Xe</h1>
         <div className="flex gap-2 items-center flex-wrap">
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm tên, mã KH, kế toán..." className="border p-2 rounded" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm biển số, đơn vị, loại..." className="border p-2 rounded" />
           <button onClick={() => fetch(q)} className="bg-blue-500 text-white px-3 py-1 rounded">Tìm</button>
           <button onClick={() => { setQ(""); fetch(); }} className="bg-gray-200 px-3 py-1 rounded">Reset</button>
-          <button onClick={handleAdd} className={`bg-green-500 px-3 py-1 text-white rounded ${!canEditCustomer ? "opacity-50 cursor-not-allowed" : ""}`} disabled={!canEditCustomer}>+ Thêm KH</button>
+          <button onClick={handleAdd} className={`bg-green-500 px-3 py-1 text-white rounded ${!canEditVehicle ? "opacity-50 cursor-not-allowed" : ""}`} disabled={!canEditVehicle}>+ Thêm</button>
           <button onClick={exportExcel} className="bg-blue-600 px-3 py-1 text-white rounded">Xuất Excel</button>
 
           <input ref={fileInputRef} id="fileExcelInput" type="file" accept=".xlsx" onChange={(e) => setFile(e.target.files[0])} className="border p-1 rounded" />
 
-          <button onClick={() => { if (!file) return alert("Vui lòng chọn file Excel!"); setShowImportMode(true); }} className={`bg-purple-600 text-white px-3 py-1 rounded ${!canEditCustomer || importing ? "opacity-50 cursor-not-allowed" : ""}`} disabled={!canEditCustomer || importing}>
+          <button onClick={() => { if (!file) return alert("Vui lòng chọn file Excel!"); setShowImportMode(true); }} className={`bg-purple-600 text-white px-3 py-1 rounded ${!canEditVehicle || importing ? "opacity-50 cursor-not-allowed" : ""}`} disabled={!canEditVehicle || importing}>
             {importing ? "Đang import..." : "Import Excel"}
           </button>
         </div>
@@ -439,7 +399,12 @@ const fetch = async (search = "") => {
       <div className="mb-3 flex flex-wrap gap-2">
         {allColumns.map((c) => (
           <label key={c.key} className="flex items-center gap-1 text-sm">
-            <input type="checkbox" checked={visibleColumns.includes(c.key)} onChange={() => setVisibleColumns((prev) => (prev.includes(c.key) ? prev.filter((k) => k !== c.key) : [...prev, c.key]))} />
+            <input
+              type="checkbox"
+              checked={visibleColumns.includes(c.key)}
+              disabled={c.stickyIndex === 0 || c.stickyIndex === 1} // lock first two columns
+              onChange={() => setVisibleColumns((prev) => (prev.includes(c.key) ? prev.filter((k) => k !== c.key) : [...prev, c.key]))}
+            />
             {c.label}
           </label>
         ))}
@@ -447,22 +412,25 @@ const fetch = async (search = "") => {
 
       {/* Table */}
       <div className="overflow-auto border" style={{ maxHeight: "80vh" }}>
-        <table style={{ tableLayout: "fixet", width: "max-content", maxWidth: "max-content", borderCollapse: "separate", borderSpacing: 0 }}>
+        <table style={{ tableLayout: "fixed", width: "max-content", maxWidth: "max-content", borderCollapse: "separate", borderSpacing: 0 }}>
           <thead className="bg-gray-200">
             <tr>
-              {/* Cột cảnh báo */}
-              <th className="border p-1 sticky top-0 bg-gray-200 text-center" style={{ width: 30, zIndex: 50, left: 0 }}></th>
+              {/* Warning column */}
+              <th className="border p-1 sticky top-0 bg-gray-200 text-center" style={{ width: 30, zIndex: 60, left: 0, background: "#f3f4f6" }}></th>
+
               {visibleColumns.map((cKey, index) => {
                 const colMeta = allColumns.find((ac) => ac.key === cKey) || { key: cKey, label: cKey };
                 const widthStyle = columnWidths[cKey] ? { width: columnWidths[cKey], minWidth: columnWidths[cKey], maxWidth: columnWidths[cKey] } : {};
                 const isFirst = index === 0;
                 const isSecond = index === 1;
+                const leftOffset = isSecond ? firstColWidth : undefined;
+
                 return (
                   <th
                     key={cKey}
                     data-col={cKey}
                     ref={index === 0 ? firstColRef : null}
-                    draggable
+                    draggable={!(colMeta.stickyIndex === 0 || colMeta.stickyIndex === 1)}
                     onDragStart={(e) => onDragStart(e, cKey)}
                     onDragOver={onDragOver}
                     onDrop={(e) => onDrop(e, cKey)}
@@ -470,7 +438,7 @@ const fetch = async (search = "") => {
                     style={{
                       top: 0,
                       position: "sticky",
-                      zIndex: isFirst || isSecond ? 40 : 20,
+                      zIndex: isFirst || isSecond ? 50 : 30,
                       left: isFirst ? 35 : isSecond ? 35 + firstColWidth : undefined,
                       background: "#f3f4f6",
                       ...widthStyle,
@@ -481,7 +449,7 @@ const fetch = async (search = "") => {
                       <span className="truncate">{colMeta.label}</span>
                       <div
                         onMouseDown={(e) => onMouseDownResize(e, cKey)}
-                        style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 10, cursor: "col-resize", zIndex: 50 }}
+                        style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 10, cursor: "col-resize", zIndex: 70 }}
                         onDragStart={(ev) => ev.preventDefault()}
                       />
                     </div>
@@ -489,26 +457,28 @@ const fetch = async (search = "") => {
                 );
               })}
 
-              <th className="border p-1 sticky top-0 bg-gray-200" style={{ zIndex: 20, width: 120, boxSizing: "border-box" }}>Hành động</th>
-              <th className="border p-1 sticky top-0 bg-gray-200" style={{ zIndex: 20, width: 120 }}>In bảng kê</th>
-
+              <th className="border p-1 sticky top-0 bg-gray-200" style={{ zIndex: 30, width: 120, boxSizing: "border-box" }}>Hành động</th>
             </tr>
           </thead>
 
           <tbody>
-            {customers.length === 0 && (
+            {vehicles.length === 0 && (
               <tr>
                 <td colSpan={visibleColumns.length + 2} className="p-4 text-center text-gray-500">Không có dữ liệu</td>
               </tr>
             )}
 
-            {customers.map((c, idx) => {
-              const isWarning = warnings[c._id];
+            {vehicles.map((v, idx) => {
+              const isWarning = warnings[v._id];
               return (
-                <tr key={c._id} onClick={() => toggleRowHighlight(c._id)} className={`cursor-pointer ${isWarning ? "bg-red-300" : idx % 2 === 0 ? "bg-white" : "bg-gray-50"} ${selectedRows.includes(c._id) ? "bg-yellow-200" : ""}`}>
-                  {/* Cột cảnh báo */}
-                  <td className="border p-1 text-center" style={{ position: "sticky", left: 0, zIndex: 40, height: 80, width: 30, background: isWarning ? "#fca5a5" : "#fff" }}>
-                    <button onClick={() => toggleWarning(c._id)} className={`px-1 py-1 rounded text-white ${isWarning ? "bg-red-600" : "bg-gray-400"}`}>⚠</button>
+                <tr
+                  key={v._id}
+                  onClick={() => toggleRowHighlight(v._id)}
+                  className={`cursor-pointer ${isWarning ? "bg-red-300" : idx % 2 === 0 ? "bg-white" : "bg-gray-50"} ${selectedRows.includes(v._id) ? "bg-yellow-200" : ""}`}
+                >
+                  {/* Warning cell */}
+                  <td className="border p-1 text-center" style={{ position: "sticky", left: 0, zIndex: 50, width: 30, background: isWarning ? "#fca5a5" : "#fff" }}>
+                    <button onClick={() => toggleWarning(v._id)} className={`px-1 py-1 rounded text-white ${isWarning ? "bg-red-600" : "bg-gray-400"}`}>⚠</button>
                   </td>
 
                   {visibleColumns.map((cKey, colIndex) => {
@@ -518,44 +488,39 @@ const fetch = async (search = "") => {
                     const cellWidthStyle = columnWidths[cKey] ? { width: columnWidths[cKey], minWidth: columnWidths[cKey], maxWidth: columnWidths[cKey], boxSizing: "border-box" } : {};
 
                     return (
-                      <td key={cKey} className="border p-1 align-top" style={{ position: isFirst || isSecond ? "sticky" : "relative", left: stickyLeft, zIndex: isFirst || isSecond ? 30 : 1, background: warnings[c._id] ? "#fca5a5" : selectedRows.includes(c._id) ? "#fde68a" : (idx % 2 === 0 ? "#fff" : "#f9fafb"), ...cellWidthStyle }}>
-                        {formatCellValue(cKey, c[cKey], idx)}
+                      <td
+                        key={cKey}
+                        className="border p-1 align-top"
+                        style={{
+                          position: isFirst || isSecond ? "sticky" : "relative",
+                          left: stickyLeft,
+                          height: 80,
+                          zIndex: isFirst || isSecond ? 40 : 1,
+                          background: isWarning ? "#fca5a5" : selectedRows.includes(v._id) ? "#fde68a" : (idx % 2 === 0 ? "#fff" : "#f9fafb"),
+                          ...cellWidthStyle,
+                        }}
+                      >
+                        {cKey === "registrationImage" ? (
+                          v[cKey] ? <a href={v[cKey]} target="_blank" rel="noreferrer"><img src={v[cKey]} alt="reg" className="w-20 h-14 object-cover rounded border" /></a> : ""
+                        ) : cKey === "inspectionImage" ? (
+                          v[cKey] ? <a href={v[cKey]} target="_blank" rel="noreferrer"><img src={v[cKey]} alt="insp" className="w-20 h-14 object-cover rounded border" /></a> : ""
+                        ) : (
+                          formatCellValue(cKey, v[cKey])
+                        )}
                       </td>
                     );
                   })}
 
                   <td className="border p-1 flex gap-2 justify-center" style={{ minWidth: 120, background: "#fff" }}>
-                    {canEditCustomer ? (
+                    {canEditVehicle ? (
                       <>
-                        <button onClick={() => handleEdit(c)} className="text-blue-600">Sửa</button>
-                        <button onClick={() => handleDelete(c._id)} className="text-red-600">Xóa</button>
+                        <button onClick={() => handleEdit(v)} className="text-blue-600">Sửa</button>
+                        <button onClick={() => handleDelete(v._id)} className="text-red-600">Xóa</button>
                       </>
                     ) : (
                       <span className="text-gray-400">Không có quyền</span>
                     )}
                   </td>
-                  <td
-  className="border p-1 text-center"
-  style={{ minWidth: 120, background: "#fff" }}
-  onClick={(e) => e.stopPropagation()}
->
-<button
-  onClick={() => {
-    // Nếu KH không thuộc về user và không có quyền full
-    if (c.accUsername !== user?.username) {
-      alert("Bạn không có quyền in bảng kê của khách hàng này!");
-      return;
-    }
-
-    handlePrintBangKe(c);
-  }}
-  className="text-green-600 underline"
->
-  Tải xuống
-</button>
-
-</td>
-
                 </tr>
               );
             })}
@@ -563,18 +528,7 @@ const fetch = async (search = "") => {
         </table>
       </div>
 
-<div className="flex justify-end mt-3">
-  <button
-    onClick={handleDeleteAll}
-    className={`px-4 py-2 bg-red-600 text-white rounded shadow hover:bg-red-700 
-      ${!canEditCustomer ? "opacity-50 cursor-not-allowed" : ""}`}
-    disabled={!canEditCustomer}
-  >
-    Xóa tất cả
-  </button>
-</div>
-
-      {showModal && <CustomerModal initialData={editCustomer} onClose={() => { setShowModal(false); setEditCustomer(null); }} onSave={handleSave} apiBase={apiCustomers} />}
+      {showModal && <VehicleModal initialData={editVehicle} onClose={() => { setShowModal(false); setEditVehicle(null); }} onSave={handleSave} apiBase={apiVehicles} />}
 
       {showImportMode && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
@@ -583,12 +537,12 @@ const fetch = async (search = "") => {
 
             <label className="flex items-center gap-2 mb-2">
               <input type="radio" name="importMode" checked={importMode === "append"} onChange={() => setImportMode("append")} />
-              Thêm mới (thêm, trùng mã thì không lấy)
+              Thêm mới (thêm, trùng biển thì không lấy)
             </label>
 
             <label className="flex items-center gap-2 mb-4">
               <input type="radio" name="importMode" checked={importMode === "overwrite"} onChange={() => setImportMode("overwrite")} />
-              Ghi đè (cập nhật nếu trùng mã)
+              Ghi đè (cập nhật nếu trùng biển)
             </label>
 
             <div className="flex justify-end gap-2">

@@ -57,7 +57,7 @@ function formatDateSafe(value) {
   return "";
 }
 
-export default function ManageDriver() {
+export default function ManageDriverDV() {
   const navigate = useNavigate();
   const location = useLocation();
   const fileInputRef = useRef(null);
@@ -78,36 +78,17 @@ export default function ManageDriver() {
   const isActive = (path) => location.pathname === path;
   // 👉 Hàm chuyển sang trang quản lý lái xe
   const handleGoToDrivers = () => {
-    navigate("/manage-driver", {state: {user}});
+    navigate("/manage-driver-dv", {state: {user}});
   };
 
   const handleGoToCustomers = () => {
-    navigate("/manage-customer", {state: {user}});
+    navigate("/manage-customer-dv", {state: {user}});
   }
 
   const handleGoToVehicles = () => {
-    navigate("/manage-vehicle", {state: {user}});
+    navigate("/manage-vehicle-dv", {state: {user}});
   };
 
-  const handleGoToTrips = () => {
-    navigate("/manage-trip", {state: {user}});
-  }
-
-  const handleGoToAllTrips = () => {
-    navigate("/manage-all-trip", {state: {user}});
-  }
-
-  const handleGoToSumAllCustomers = () => {
-    navigate("/customer-debt", {state: {user}});
-  };
-
-  const handleGoToSumKH26 = () => {
-    navigate("/customer-debt-26", {state: {user}});
-  };
-
-  const handleGoToVouchers = () => {  
-    navigate("/voucher-list", {state: {user}});
-  };
 
   // visibleColumns khởi tạo mặc định từ allColumns
   const [visibleColumns, setVisibleColumns] = useState(allColumns.map(c => c.key));
@@ -331,23 +312,6 @@ export default function ManageDriver() {
     });
   };
 
-  const handleDeleteAll = async () => {
-  if (!canEditDriver) return alert("Bạn chưa có quyền xóa lái xe!");
-  if (!window.confirm("Xác nhận xóa tất cả lái xe? Hành động này không thể hoàn tác!")) return;
-
-  try {
-    await axios.delete(`${apiDrivers}/all`, {
-      headers: { Authorization: token ? `Bearer ${token}` : undefined },
-    });
-    setDrivers([]); // xóa toàn bộ khỏi UI
-    alert("Đã xóa tất cả lái xe thành công!");
-  } catch (err) {
-    console.error("Xóa tất cả thất bại:", err.response?.data?.error || err.message);
-    alert("Không thể xóa tất cả lái xe!");
-  }
-};
-
-
   // import modal logic omitted here for brevity — keep your existing handlers
   const [showImportMode, setShowImportMode] = useState(false);
   const [importMode, setImportMode] = useState("append");
@@ -451,18 +415,18 @@ const toggleRowHighlight = (id) => {
   // ---------- UI render (giữ nguyên layout của bạn) ----------
   return (
     <div className="p-4 bg-gray-50 min-h-screen text-sm">
-            <div className="flex gap-2 items-center mb-4">
+<div className="flex gap-2 items-center mb-4">
           <button
-    onClick={() => navigate("/ke-toan")}
+    onClick={() => navigate("/tonghop")}
     className="px-3 py-1 rounded text-white bg-blue-500"
   >
-    Trang chính
+    Tổng hợp chuyến
   </button>
 
   <button
     onClick={handleGoToDrivers}
     className={`px-3 py-1 rounded text-white 
-      ${isActive("/manage-driver") ? "bg-green-600" : "bg-blue-500"}
+      ${isActive("/manage-driver-dv") ? "bg-green-600" : "bg-blue-500"}
     `}
   >
     Danh sách lái xe
@@ -471,7 +435,7 @@ const toggleRowHighlight = (id) => {
   <button
     onClick={handleGoToCustomers}
     className={`px-3 py-1 rounded text-white 
-      ${isActive("/manage-customer") ? "bg-green-600" : "bg-blue-500"}
+      ${isActive("/manage-customer-dv") ? "bg-green-600" : "bg-blue-500"}
     `}
   >
     Danh sách khách hàng
@@ -480,54 +444,11 @@ const toggleRowHighlight = (id) => {
   <button
     onClick={handleGoToVehicles}
     className={`px-3 py-1 rounded text-white 
-      ${isActive("/manage-vehicle") ? "bg-green-600" : "bg-blue-500"}
+      ${isActive("/manage-vehicle-dv") ? "bg-green-600" : "bg-blue-500"}
     `}
   >
     Danh sách xe
   </button>
-
-  <button
-    onClick={handleGoToTrips}
-    className={`px-3 py-1 rounded text-white 
-      ${isActive("/manage-trip") ? "bg-green-600" : "bg-blue-500"}
-    `}
-  >
-    Danh sách chuyến phụ trách
-  </button>
-
-  <button
-    onClick={() => {
-      if(!user?.permissions?.includes("edit_trip")) {
-        alert("Bạn không có quyền truy cập!");
-        return;
-      }
-      handleGoToAllTrips();
-    }}
-    className={`px-3 py-1 rounded text-white 
-      ${isActive("/manage-all-trip") ? "bg-green-600" : "bg-blue-500"}
-    `}
-  >
-    Tất cả các chuyến
-  </button>
-
-  <button
-    onClick={handleGoToSumAllCustomers}
-    className={`px-3 py-1 rounded text-white 
-      ${isActive("/customer-debt") ? "bg-green-600" : "bg-blue-500"}
-    `}
-  >
-    Công nợ KH
-  </button>
-
-  <button
-    onClick={handleGoToSumKH26}
-    className={`px-3 py-1 rounded text-white 
-      ${isActive("/customer-debt-26") ? "bg-green-600" : "bg-blue-500"}
-    `}
-  >
-    Công nợ khách lẻ
-  </button>
-  <button onClick={handleGoToVouchers} className={`px-3 py-1 rounded text-white ${isActive("/voucher-list") ? "bg-green-600" : "bg-blue-500"}`}>Sổ phiếu chi</button>
 </div>
 
       <div className="flex justify-between items-center mb-4 mt-2">
@@ -796,18 +717,6 @@ const toggleRowHighlight = (id) => {
     </tbody>
   </table>
 </div>
-
-<div className="flex justify-end mt-3">
-  <button
-    onClick={handleDeleteAll}
-    className={`px-4 py-2 bg-red-600 text-white rounded shadow hover:bg-red-700 
-      ${!canEditDriver ? "opacity-50 cursor-not-allowed" : ""}`}
-    disabled={!canEditDriver}
-  >
-    Xóa tất cả
-  </button>
-</div>
-
 
 
 

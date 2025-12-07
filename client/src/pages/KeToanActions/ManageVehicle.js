@@ -14,12 +14,16 @@ export const allColumns = [
   { key: "plateNumber", label: "Biển số" , stickyIndex: 0 },
   { key: "company", label: "Đơn vị vận tải", stickyIndex: 1 },
   { key: "vehicleType", label: "Loại xe" },
-  { key: "registrationImage", label: "Ảnh đăng ký" },
-  { key: "inspectionImage", label: "Ảnh đăng kiểm" },
-  { key: "length", label: "Chiều dài" },
-  { key: "width", label: "Chiều rộng" },
-  { key: "height", label: "Chiều cao" },
+  { key: "length", label: "Dài" },
+  { key: "width", label: "Rộng" },
+  { key: "height", label: "Cao" },
   { key: "norm", label: "Định mức" },
+  { key: "registrationImage", label: "Ảnh đăng ký" },
+  { key: "resDay", label: "Ngày đăng ký"},
+  { key: "resExpDay", label: "Ngày hết hạn đăng ký"},
+  { key: "inspectionImage", label: "Ảnh đăng kiểm" },
+  { key: "insDay", label: "Ngày đăng kiểm"},
+  { key: "insExpDay", label: "Ngày hết hạn đăng kiểm"},
 ];
 
 // helper để dựng key trong localStorage
@@ -51,6 +55,15 @@ export default function ManageVehicle() {
   const handleGoToVehicles = () => navigate("/manage-vehicle", { state: { user } });
   const handleGoToTrips = () => navigate("/manage-trip", { state: { user } });
   const handleGoToAllTrips = () => navigate("/manage-all-trip", { state: { user } });
+  const handleGoToAllCustomers = () => {
+    navigate("/customer-debt", {state: {user}});
+  }
+
+  const handleGoToCustomer26 = () => {
+    navigate("/customer-debt-26", {state: {user}});
+  }
+
+  const handleGoToVouchers = () => navigate("/voucher-list", { state: { user } });
 
   // visibleColumns khởi tạo mặc định từ allColumns
   const [visibleColumns, setVisibleColumns] = useState(allColumns.map((c) => c.key));
@@ -233,11 +246,37 @@ export default function ManageVehicle() {
   };
 
   // ---------- helpers ----------
-  const formatCellValue = (cKey, value) => {
-    if (!value && value !== 0) return "";
-    if (cKey === "registrationImage" || cKey === "inspectionImage") return value;
+const formatCellValue = (cKey, value) => {
+  if (!value && value !== 0) return "";
+
+  // Giữ nguyên phần hình ảnh
+  if (cKey === "registrationImage" || cKey === "inspectionImage") {
     return value;
-  };
+  }
+
+  // Các cột ngày
+  const dateFields = ["resDay", "resExpDay", "insDay", "insExpDay"];
+
+  // Nếu là ngày → format + tô xanh khi là ngày hết hạn
+  if (dateFields.includes(cKey)) {
+    const d = new Date(value);
+    if (isNaN(d)) return value;
+
+    const formatted = d.toLocaleDateString("vi-VN");
+
+    const isExpiredDate = cKey === "resExpDay" || cKey === "insExpDay";
+
+    return (
+      <span className={isExpiredDate ? "text-blue-500 font-bold" : ""}>
+        {formatted}
+      </span>
+    );
+  }
+
+  // Trả về mặc định
+  return value;
+};
+
 
   // ---------- action handlers (add/edit/delete/import/export) ----------
   const handleAdd = () => {
@@ -263,6 +302,20 @@ export default function ManageVehicle() {
     }
   };
 
+  const handleDeleteAll = async () => {
+  if (!canEditVehicle) return alert("Bạn chưa có quyền xóa xe!");
+  if (!window.confirm("Xác nhận xóa tất cả xe?")) return;
+  try {
+    await axios.delete(`${apiVehicles}/all`, { headers: { Authorization: token ? `Bearer ${token}` : undefined } });
+    alert("Đã xóa tất cả xe!");
+    setVehicles([]);
+  } catch (err) {
+    console.error("Xóa tất cả thất bại:", err);
+    alert("Không thể xóa tất cả: " + (err.response?.data?.error || err.message));
+  }
+};
+
+
   const handleSave = (saved) => {
     setVehicles((prev) => {
       const found = prev.find((p) => p._id === saved._id);
@@ -275,10 +328,14 @@ export default function ManageVehicle() {
   const [showImportMode, setShowImportMode] = useState(false);
   const [importMode, setImportMode] = useState("append");
   const importFileRef = fileInputRef;
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleImportConfirm = async () => {
     if (!file) return alert("Vui lòng chọn file Excel!");
     setImporting(true);
+
+    if (isSubmitting) return;  // tránh double click ngay tức thì
+    setIsSubmitting(true);
     const formData = new FormData();
     formData.append("file", file);
     try {
@@ -297,6 +354,8 @@ export default function ManageVehicle() {
     } finally {
       setImporting(false);
       setShowImportMode(false);
+      setIsSubmitting(false);
+      fetch();
     }
   };
 
@@ -335,7 +394,7 @@ export default function ManageVehicle() {
   };
 
   return (
-    <div className="p-4 bg-gray-50 min-h-screen">
+    <div className="p-4 bg-gray-50 min-h-screen text-sm">
       <div className="flex gap-2 items-center mb-4">
         <button onClick={() => navigate("/ke-toan")} className="px-3 py-1 rounded text-white bg-blue-500">Trang chính</button>
 
@@ -344,6 +403,24 @@ export default function ManageVehicle() {
         <button onClick={handleGoToVehicles} className={`px-3 py-1 rounded text-white ${isActive("/manage-vehicle") ? "bg-green-600" : "bg-blue-500"}`}>Danh sách xe</button>
         <button onClick={handleGoToTrips} className={`px-3 py-1 rounded text-white ${isActive("/manage-trip") ? "bg-green-600" : "bg-blue-500"}`}>Danh sách chuyến phụ trách</button>
         <button onClick={() => { if(!user?.permissions?.includes("edit_trip")) { alert("Bạn không có quyền truy cập!"); return; } handleGoToAllTrips(); }} className={`px-3 py-1 rounded text-white ${isActive("/manage-all-trip") ? "bg-green-600" : "bg-blue-500"}`}>Tất cả các chuyến</button>
+        <button
+    onClick={handleGoToAllCustomers}
+    className={`px-3 py-1 rounded text-white 
+      ${isActive("/customer-debt") ? "bg-green-600" : "bg-blue-500"}
+    `}
+  >
+    Công nợ KH
+  </button>
+
+  <button
+    onClick={handleGoToCustomer26}
+    className={`px-3 py-1 rounded text-white 
+      ${isActive("/customer-debt-26") ? "bg-green-600" : "bg-blue-500"}
+    `}
+  >
+    Công nợ khách lẻ
+  </button>
+  <button onClick={handleGoToVouchers} className={`px-3 py-1 rounded text-white ${isActive("/voucher-list") ? "bg-green-600" : "bg-blue-500"}`}>Sổ phiếu chi</button>
       </div>
 
       <div className="flex justify-between items-center mb-4 mt-2">
@@ -380,7 +457,7 @@ export default function ManageVehicle() {
 
       {/* Table */}
       <div className="overflow-auto border" style={{ maxHeight: "80vh" }}>
-        <table className="border-collapse" style={{ tableLayout: "fixed", width: "max-content", maxWidth: "max-content" }}>
+        <table style={{ tableLayout: "fixed", width: "max-content", maxWidth: "max-content", borderCollapse: "separate", borderSpacing: 0 }}>
           <thead className="bg-gray-200">
             <tr>
               {/* Warning column */}
@@ -407,13 +484,13 @@ export default function ManageVehicle() {
                       top: 0,
                       position: "sticky",
                       zIndex: isFirst || isSecond ? 50 : 30,
-                      left: isFirst ? 40 : isSecond ? 40 + firstColWidth : undefined,
+                      left: isFirst ? 35 : isSecond ? 35 + firstColWidth : undefined,
                       background: "#f3f4f6",
                       ...widthStyle,
                       boxSizing: "border-box",
                     }}
                   >
-                    <div className="relative flex items-center justify-between">
+                    <div className="relative flex items-center justify-center">
                       <span className="truncate">{colMeta.label}</span>
                       <div
                         onMouseDown={(e) => onMouseDownResize(e, cKey)}
@@ -452,7 +529,7 @@ export default function ManageVehicle() {
                   {visibleColumns.map((cKey, colIndex) => {
                     const isFirst = colIndex === 0;
                     const isSecond = colIndex === 1;
-                    const stickyLeft = isFirst ? 40 : isSecond ? 40 + firstColWidth : undefined;
+                    const stickyLeft = isFirst ? 35 : isSecond ? 35 + firstColWidth : undefined;
                     const cellWidthStyle = columnWidths[cKey] ? { width: columnWidths[cKey], minWidth: columnWidths[cKey], maxWidth: columnWidths[cKey], boxSizing: "border-box" } : {};
 
                     return (
@@ -462,6 +539,7 @@ export default function ManageVehicle() {
                         style={{
                           position: isFirst || isSecond ? "sticky" : "relative",
                           left: stickyLeft,
+                          height: 80,
                           zIndex: isFirst || isSecond ? 40 : 1,
                           background: isWarning ? "#fca5a5" : selectedRows.includes(v._id) ? "#fde68a" : (idx % 2 === 0 ? "#fff" : "#f9fafb"),
                           ...cellWidthStyle,
@@ -495,6 +573,17 @@ export default function ManageVehicle() {
         </table>
       </div>
 
+      <div className="flex justify-end mt-3">
+  <button
+    onClick={handleDeleteAll}
+    className={`px-4 py-2 bg-red-600 text-white rounded shadow hover:bg-red-700 
+      ${!canEditVehicle ? "opacity-50 cursor-not-allowed" : ""}`}
+    disabled={!canEditVehicle}
+  >
+    Xóa tất cả
+  </button>
+</div>
+
       {showModal && <VehicleModal initialData={editVehicle} onClose={() => { setShowModal(false); setEditVehicle(null); }} onSave={handleSave} apiBase={apiVehicles} />}
 
       {showImportMode && (
@@ -514,7 +603,7 @@ export default function ManageVehicle() {
 
             <div className="flex justify-end gap-2">
               <button onClick={() => setShowImportMode(false)} className="px-4 py-1 bg-gray-300 rounded">Hủy</button>
-              <button onClick={handleImportConfirm} className="px-4 py-1 bg-purple-600 text-white rounded">Xác nhận</button>
+              <button onClick={handleImportConfirm} className="px-4 py-1 bg-purple-600 text-white rounded" disabled={isSubmitting}>Xác nhận</button>
             </div>
           </div>
         </div>

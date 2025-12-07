@@ -10,7 +10,8 @@ const {
   deleteVehicle,
   importVehiclesFromExcel,
   listVehicleNames,
-  toggleWarning
+  toggleWarning,
+  deleteAllVehicles,
 } = require("../controllers/vehicleController");
 const cloudinary = require("../config/cloudinary"); // file config cloudinary
 const { Readable } = require("stream");
@@ -99,6 +100,7 @@ router.put(
 );
 
 router.delete("/:id", deleteVehicle);
+router.delete("/all", deleteAllVehicles);
 
 // Import Excel (MemoryStorage)
 const excelStorage = multer.memoryStorage();

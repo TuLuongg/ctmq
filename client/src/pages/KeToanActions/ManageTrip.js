@@ -54,6 +54,15 @@ export default function ManageTrip({ user, onLogout }) {
     navigate("/manage-all-trip", {state: {user}});
   }
 
+  const handleGoToAllCustomers = () => {
+    navigate("/customer-debt", {state: {user}});
+  }
+
+  const handleGoToCustomer26 = () => {
+    navigate("/customer-debt-26", {state: {user}});
+  }
+  const handleGoToVouchers = () => navigate("/voucher-list", { state: { user } });
+
 
   // -------------------------------------
   // CÁC CỘT CHÍNH + MỞ RỘNG → GỘP 1 LIST
@@ -186,6 +195,34 @@ export default function ManageTrip({ user, onLogout }) {
       console.error("Lỗi lấy danh sách điều vận:", err.response?.data || err.message);
     }
   };
+
+  //Lấy thông số xe
+const [vehicleList, setVehicleList] = useState([]);
+const [hoverVehicle, setHoverVehicle] = useState(null);
+
+useEffect(() => {
+  const loadVehicles = async () => {
+    try {
+      const res = await axios.get(`${API}/vehicles/names/list`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      console.log("DANH SÁCH XE:", res.data);
+      setVehicleList(res.data || []);
+    } catch (err) {
+      console.error("Lỗi tải danh sách xe", err);
+    }
+  };
+
+  loadVehicles();
+}, []);
+
+const getVehicleInfo = (plate) => {
+  return vehicleList.find(
+    (v) => v.plateNumber?.trim().toLowerCase() === plate?.trim().toLowerCase()
+  );
+};
+
+
 
   const [page, setPage] = useState(1);
   const [limit] = useState(30);
@@ -673,7 +710,7 @@ const toggleRowHighlight = (id) => {
 
   // ---------- Render ----------
   return (
-    <div className="p-4 bg-gray-50 min-h-screen">
+    <div className="p-4 bg-gray-50 min-h-screen text-sm">
       <div className="flex gap-2 items-center mb-4">
           <button
     onClick={() => navigate("/ke-toan")}
@@ -732,7 +769,24 @@ const toggleRowHighlight = (id) => {
   >
     Tất cả các chuyến
   </button>
+    <button
+    onClick={handleGoToAllCustomers}
+    className={`px-3 py-1 rounded text-white 
+      ${isActive("/customer-debt") ? "bg-green-600" : "bg-blue-500"}
+    `}
+  >
+    Công nợ KH
+  </button>
 
+  <button
+    onClick={handleGoToCustomer26}
+    className={`px-3 py-1 rounded text-white 
+      ${isActive("/customer-debt-26") ? "bg-green-600" : "bg-blue-500"}
+    `}
+  >
+    Công nợ khách lẻ
+  </button>
+  <button onClick={handleGoToVouchers} className={`px-3 py-1 rounded text-white ${isActive("/voucher-list") ? "bg-green-600" : "bg-blue-500"}`}>Sổ phiếu chi</button>
 </div>
 
       {/* Header */}
@@ -878,8 +932,7 @@ const toggleRowHighlight = (id) => {
       {/* BẢNG */}
 <div className="overflow-auto border" style={{ maxHeight: "80vh"}}>
   <table
-    className="border-collapse"
-    style={{ tableLayout: "fixed", width: "max-content", maxWidth: "max-content", }}
+    style={{ tableLayout: "fixed", width: "max-content", maxWidth: "max-content", borderCollapse: "separate", borderSpacing: 0 }}
   >
     <thead className="bg-blue-600 text-white">
       <tr>
@@ -977,33 +1030,34 @@ const toggleRowHighlight = (id) => {
   }}
 >
   {/* LABEL */}
-  <div
-    className="p-2 flex items-center justify-between"
-    onClick={(e) => {
-      e.stopPropagation();
-      setOpenFilter(col.key);
-    }}
-    style={{ cursor: "pointer" }}
-  >
-    <span className="truncate">{col.label}</span>
-  </div>
+<div
+  className="p-2 flex items-center justify-center w-full text-center text-xs"
+  onClick={(e) => {
+    e.stopPropagation();
+    setOpenFilter(col.key);
+  }}
+  style={{ cursor: "pointer" }}
+>
+  <span className="truncate">{col.label}</span>
+</div>
 
-  {/* RESIZE HANDLE */}
-  <div
-    onMouseDown={(e) => {
-      e.stopPropagation();
-      onMouseDownResize(e, col.key);
-    }}
-    style={{
-      width: 10,
-      cursor: "col-resize",
-      height: "100%",
-      position: "absolute",
-      right: 0,
-      top: 0,
-      zIndex: 80,
-    }}
-  />
+{/* RESIZE HANDLE */}
+<div
+  onMouseDown={(e) => {
+    e.stopPropagation();
+    onMouseDownResize(e, col.key);
+  }}
+  style={{
+    width: 10,
+    cursor: "col-resize",
+    height: "100%",
+    position: "absolute",
+    right: 0,
+    top: 0,
+    zIndex: 80,
+  }}
+/>
+
 
   {/* FILTER POPUP */}
   {openFilter === col.key && (
@@ -1205,6 +1259,7 @@ if (stickyIndex >= 0) {
                 style={{
                   position: leftOffset !== null ? "sticky" : "static",
                   left: stickyIndex >= 0 ? leftOffset : undefined,
+                  height: 60,
                   zIndex: stickyIndex >= 0 ? 45 : 1,
                   background: warnings[r._id]
   ? "#fecaca"
@@ -1219,13 +1274,53 @@ if (stickyIndex >= 0) {
                 }}
               >
                 
-                <div className="truncate"><div className="truncate">
-  { numberColumns.includes(col.key)
-      ? formatNumber(cellValue)
-      : cellValue
-  }
-</div>
-</div>
+{/* ⭐ NẾU LÀ CỘT BIỂN SỐ XE → THÊM HOVER TOOLTIP */}
+  {col.key === "bienSoXe" ? (
+    <div
+      className="truncate text-black underline cursor-help"
+      onMouseEnter={(e) => {
+        const info = getVehicleInfo(r.bienSoXe);
+        if (info)
+          setHoverVehicle({
+            ...info,
+            x: e.clientX + 15,
+            y: e.clientY + 15,
+          });
+      }}
+      onMouseMove={(e) => {
+        setHoverVehicle((prev) =>
+          prev
+            ? { ...prev, x: e.clientX + 15, y: e.clientY + 15 }
+            : null
+        );
+      }}
+      onMouseLeave={() => setHoverVehicle(null)}
+    >
+      {r.bienSoXe}
+    </div>
+  ) : (
+    <div className="truncate">
+      {numberColumns.includes(col.key)
+        ? formatNumber(cellValue)
+        : cellValue}
+    </div>
+  )}
+  {hoverVehicle && (
+  <div
+    className="fixed bg-white border p-3 rounded-lg text-sm z-[9999]"
+    style={{
+      top: hoverVehicle.y,
+      left: hoverVehicle.x,
+      width: 240,
+    }}
+  >
+    <div><strong>Biển số:</strong> {hoverVehicle.plateNumber}</div>
+    <div><strong>Loại xe:</strong> {hoverVehicle.vehicleType}</div>
+    <div><strong>Kích thước:</strong> {hoverVehicle.length} × {hoverVehicle.width} × {hoverVehicle.height}</div>
+    <div><strong>Định mức:</strong> {hoverVehicle.norm}</div>
+  </div>
+)}
+
               </td>
             );
           })}
@@ -1274,7 +1369,7 @@ if (stickyIndex >= 0) {
       </div>
 
       {showEditModal && (
-        <div className="fixed z-[99999]">
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40 w-full">
         <RideEditModal
           ride={editingRide}
           allColumns={allColumns}

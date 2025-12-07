@@ -15,6 +15,13 @@ import ManageTrip from "./pages/KeToanActions/ManageTrip";
 import ManageAllTrip from "./pages/KeToanActions/ManageAllTrip";
 import ManageTripAdmin from "./pages/AdminActions/ManageTripAdmin";
 import FinalPage from "./pages/FinalPage"
+import CustomerDebtPage from "./pages/KeToanActions/CustomerDebtPage";
+import CustomerDebt26Page from "./pages/KeToanActions/CustomerDebt26Page";
+import VoucherListPage from "./pages/KeToanActions/VoucherListPage";
+import ManageDriverDV from "./pages/DieuVanActions/ManageDiverDV";
+import ManageCustomerDV from "./pages/DieuVanActions/MaganeCustomerDV";
+import ManageVehicleDV from "./pages/DieuVanActions/ManageVehicleDV";
+import VoucherPrintPage from "./components/VoucherActions/VoucherPrintPage";
 
 
 function App() {
@@ -68,6 +75,30 @@ function App() {
             </PrivateRoute>
           }
         />
+        <Route
+          path="/customer-debt"
+          element={
+            <PrivateRoute roles={["keToan"]}>
+              <CustomerDebtPage user={user} onLogout={handleLogout} />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/customer-debt-26"
+          element={
+            <PrivateRoute roles={["keToan"]}>
+              <CustomerDebt26Page user={user} onLogout={handleLogout} />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/voucher-list"
+          element={
+            <PrivateRoute roles={["keToan"]}>
+              <VoucherListPage user={user} onLogout={handleLogout} />
+            </PrivateRoute>
+          }
+        />
 
         {/* Điều vận */}
         <Route
@@ -83,6 +114,30 @@ function App() {
           element={
             <PrivateRoute roles={["dieuVan"]}>
               <TongHop user={user} onLogout={handleLogout} />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/manage-driver-dv"
+          element={
+            <PrivateRoute roles={["dieuVan"]}>
+              <ManageDriverDV user={user} onLogout={handleLogout} />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/manage-customer-dv"
+          element={
+            <PrivateRoute roles={["dieuVan"]}>
+              <ManageCustomerDV user={user} onLogout={handleLogout} />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/manage-vehicle-dv"
+          element={
+            <PrivateRoute roles={["dieuVan"]}>
+              <ManageVehicleDV user={user} onLogout={handleLogout} />
             </PrivateRoute>
           }
         />
@@ -134,6 +189,14 @@ function App() {
           element={
             <PrivateRoute roles={["keToan"]}>
               <ManageAllTrip user={user}/>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/voucher/:id/print"
+          element={
+            <PrivateRoute roles={["keToan"]}>
+              <VoucherPrintPage user={user}/>
             </PrivateRoute>
           }
         />

@@ -218,6 +218,8 @@ export default function AdminPage({ onLogout }) {
                 <th className="px-4 py-2 border-b text-center">Quản lý xe</th>
                 <th className="px-4 py-2 border-b text-center">Quản lý chuyến ban đầu</th>
                 <th className="px-4 py-2 border-b text-center">Quản lý toàn bộ dữ liệu chuyến</th>
+                <th className="px-4 py-2 border-b text-center">Quản lý phiếu chi</th>
+                <th className="px-4 py-2 border-b text-center">Duyệt phiếu chi</th>
                 <th className="px-4 py-2 border-b text-center">Thao tác</th>
               </tr>
             </thead>
@@ -231,7 +233,7 @@ export default function AdminPage({ onLogout }) {
                   <td className="px-4 py-2 border-b">{u.fullname || "—"}</td>
                   <td className="px-4 py-2 border-b capitalize">{getRoleName(u.role)}</td>
 
-                  {["edit_driver", "edit_customer", "edit_vehicle", "edit_trip", "edit_trip_full"].map((perm) => (
+                  {["edit_driver", "edit_customer", "edit_vehicle", "edit_trip", "edit_trip_full", "edit_voucher", "approve_voucher"].map((perm) => (
                     <td key={perm} className="px-4 py-2 border-b text-center">
                       <input
                         type="checkbox"

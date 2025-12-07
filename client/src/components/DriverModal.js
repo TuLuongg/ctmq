@@ -136,7 +136,7 @@ export default function DriverModal({ initialData = null, onClose, onSave, apiBa
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-start justify-start z-50 p-6">
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-6">
       <div className="bg-white p-6 rounded-lg w-full max-w-4xl shadow-lg overflow-y-auto max-h-[90vh]">
         <h2 className="text-xl font-bold mb-3">{initialData ? "Sửa lái xe" : "Thêm lái xe"}</h2>
 

@@ -23,7 +23,7 @@ export const allColumns = [
 // helper để dựng key trong localStorage
 const prefKey = (userId) => `customers_table_prefs_${userId || "guest"}`;
 
-export default function ManageCustomer() {
+export default function ManageCustomerDV() {
   const navigate = useNavigate();
   const location = useLocation();
   const fileInputRef = useRef(null);
@@ -44,20 +44,9 @@ export default function ManageCustomer() {
   const isActive = (path) => location.pathname === path;
 
   // navigation helpers (kept from original)
-  const handleGoToDrivers = () => navigate("/manage-driver", { state: { user } });
-  const handleGoToCustomers = () => navigate("/manage-customer", { state: { user } });
-  const handleGoToVehicles = () => navigate("/manage-vehicle", { state: { user } });
-  const handleGoToTrips = () => navigate("/manage-trip", { state: { user } });
-  const handleGoToAllTrips = () => navigate("/manage-all-trip", { state: { user } });
-  const handleGoToAllCustomers = () => {
-    navigate("/customer-debt", {state: {user}});
-  }
-
-  const handleGoToCustomer26 = () => {
-    navigate("/customer-debt-26", {state: {user}});
-  }
-
-  const handleGoToVouchers = () => navigate("/voucher-list", { state: { user } });  
+  const handleGoToDrivers = () => navigate("/manage-driver-dv", { state: { user } });
+  const handleGoToCustomers = () => navigate("/manage-customer-dv", { state: { user } });
+  const handleGoToVehicles = () => navigate("/manage-vehicle-dv", { state: { user } });
 
   // visibleColumns khởi tạo mặc định từ allColumns
   const [visibleColumns, setVisibleColumns] = useState(allColumns.map((c) => c.key));
@@ -264,23 +253,6 @@ const fetch = async (search = "") => {
     }
   };
 
-  const handleDeleteAll = async () => {
-  if (!canEditCustomer) return alert("Bạn chưa có quyền xóa khách hàng!");
-  if (!window.confirm("⚠ Xác nhận xóa tất cả khách hàng? Hành động này không thể phục hồi!")) return;
-
-  try {
-    await axios.delete(`${apiCustomers}/all`, {
-      headers: { Authorization: token ? `Bearer ${token}` : undefined },
-    });
-    alert("Đã xóa tất cả khách hàng!");
-    setCustomers([]);
-  } catch (err) {
-    console.error("Xóa tất cả KH thất bại:", err);
-    alert("Không thể xóa tất cả khách hàng: " + (err.response?.data?.error || err.message));
-  }
-};
-
-
   const handleSave = (saved) => {
     setCustomers((prev) => {
       const found = prev.find((p) => p._id === saved._id);
@@ -391,31 +363,11 @@ const fetch = async (search = "") => {
   return (
     <div className="p-4 bg-gray-50 min-h-screen text-sm">
       <div className="flex gap-2 items-center mb-4">
-        <button onClick={() => navigate("/ke-toan")} className="px-3 py-1 rounded text-white bg-blue-500">Trang chính</button>
+        <button onClick={() => navigate("/tonghop")} className="px-3 py-1 rounded text-white bg-blue-500">Tổng hợp chuyến</button>
 
-        <button onClick={handleGoToDrivers} className={`px-3 py-1 rounded text-white ${isActive("/manage-driver") ? "bg-green-600" : "bg-blue-500"}`}>Danh sách lái xe</button>
-        <button onClick={handleGoToCustomers} className={`px-3 py-1 rounded text-white ${isActive("/manage-customer") ? "bg-green-600" : "bg-blue-500"}`}>Danh sách khách hàng</button>
-        <button onClick={handleGoToVehicles} className={`px-3 py-1 rounded text-white ${isActive("/manage-vehicle") ? "bg-green-600" : "bg-blue-500"}`}>Danh sách xe</button>
-        <button onClick={handleGoToTrips} className={`px-3 py-1 rounded text-white ${isActive("/manage-trip") ? "bg-green-600" : "bg-blue-500"}`}>Danh sách chuyến phụ trách</button>
-        <button onClick={() => { if(!user?.permissions?.includes("edit_trip")) { alert("Bạn không có quyền truy cập!"); return; } handleGoToAllTrips(); }} className={`px-3 py-1 rounded text-white ${isActive("/manage-all-trip") ? "bg-green-600" : "bg-blue-500"}`}>Tất cả các chuyến</button>
-          <button
-    onClick={handleGoToAllCustomers}
-    className={`px-3 py-1 rounded text-white 
-      ${isActive("/customer-debt") ? "bg-green-600" : "bg-blue-500"}
-    `}
-  >
-    Công nợ KH
-  </button>
-
-  <button
-    onClick={handleGoToCustomer26}
-    className={`px-3 py-1 rounded text-white 
-      ${isActive("/customer-debt-26") ? "bg-green-600" : "bg-blue-500"}
-    `}
-  >
-    Công nợ khách lẻ
-  </button>
-  <button onClick={handleGoToVouchers} className={`px-3 py-1 rounded text-white ${isActive("/voucher-list") ? "bg-green-600" : "bg-blue-500"}`}>Sổ phiếu chi</button>
+        <button onClick={handleGoToDrivers} className={`px-3 py-1 rounded text-white ${isActive("/manage-driver-dv") ? "bg-green-600" : "bg-blue-500"}`}>Danh sách lái xe</button>
+        <button onClick={handleGoToCustomers} className={`px-3 py-1 rounded text-white ${isActive("/manage-customer-dv") ? "bg-green-600" : "bg-blue-500"}`}>Danh sách khách hàng</button>
+        <button onClick={handleGoToVehicles} className={`px-3 py-1 rounded text-white ${isActive("/manage-vehicle-dv") ? "bg-green-600" : "bg-blue-500"}`}>Danh sách xe</button>
       </div>
 
       <div className="flex justify-between items-center mb-4 mt-2">
@@ -562,17 +514,6 @@ const fetch = async (search = "") => {
           </tbody>
         </table>
       </div>
-
-<div className="flex justify-end mt-3">
-  <button
-    onClick={handleDeleteAll}
-    className={`px-4 py-2 bg-red-600 text-white rounded shadow hover:bg-red-700 
-      ${!canEditCustomer ? "opacity-50 cursor-not-allowed" : ""}`}
-    disabled={!canEditCustomer}
-  >
-    Xóa tất cả
-  </button>
-</div>
 
       {showModal && <CustomerModal initialData={editCustomer} onClose={() => { setShowModal(false); setEditCustomer(null); }} onSave={handleSave} apiBase={apiCustomers} />}
 

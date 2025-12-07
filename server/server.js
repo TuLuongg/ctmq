@@ -10,7 +10,9 @@ const scheduleAdminRoutes = require('./routes/scheduleAdminRoutes')
 const scheduleRoutes = require('./routes/scheduleRoutes')
 const driverRoutes = require('./routes/driverRoutes')
 const customerRoutes = require('./routes/customerRoutes');
-const vehicleRoutes = require('./routes/vehicleRoutes')
+const vehicleRoutes = require('./routes/vehicleRoutes');
+const paymentHistoryRoutes = require('./routes/paymentHistoryRoutes')
+const voucherRoutes = require('./routes/voucherRoutes');
 
 const app = express();
 app.use(cors());
@@ -31,6 +33,8 @@ app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 app.use("/api/drivers", driverRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api/vehicles", vehicleRoutes);
+app.use("/api/payment-history", paymentHistoryRoutes);
+app.use("/api/vouchers", voucherRoutes);
 
 app.get('/', (req, res) => {
   res.send('Server hoạt động!');

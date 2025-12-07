@@ -10,7 +10,8 @@ const {
   deleteDriver,
   importDriversFromExcel,
   listDriverNames,
-  toggleWarning
+  toggleWarning,
+  deleteAllDrivers
 } = require("../controllers/driverController");
 
 const cloudinary = require("../config/cloudinary");
@@ -100,6 +101,9 @@ router.put(
 
 // Delete
 router.delete("/:id", deleteDriver);
+
+// Delete all drivers
+router.delete("/all", deleteAllDrivers);
 
 // Import Excel
 router.post("/import", excelUpload.single("file"), importDriversFromExcel);

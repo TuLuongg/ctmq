@@ -57,6 +57,18 @@ const KeToanPage = () => {
     navigate("/manage-all-trip", {state: {user}});
   }
 
+  const handleGoToAllCustomers = () => {
+    navigate("/customer-debt", {state: {user}});
+  }
+
+  const handleGoToCustomer26 = () => {
+    navigate("/customer-debt-26", {state: {user}});
+  }
+
+  const handleGoToVoucher = () => {
+    navigate("/voucher-list", {state: {user}});
+  }
+
   const handleExport = async () => {
     if (!selectedDate) return alert("Vui lòng chọn ngày.");
     try {
@@ -183,7 +195,7 @@ const KeToanPage = () => {
   };
 
   return (
-    <div className="p-4">
+    <div className="p-4 text-sm">
       {/* Header hiển thị user và các nút */}
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-xl font-bold">TRANG QUẢN LÝ CỦA KẾ TOÁN</h1>
@@ -251,6 +263,26 @@ const KeToanPage = () => {
               className="bg-blue-500 text-white px-3 py-1 rounded"
             >
               Tất cả các chuyến
+            </button>
+
+            <button
+              onClick={handleGoToAllCustomers}
+              className="bg-blue-500 text-white px-3 py-1 rounded"
+            >
+              Công nợ KH
+            </button>
+
+            <button
+              onClick={handleGoToCustomer26}
+              className="bg-blue-500 text-white px-3 py-1 rounded"
+            >
+              Công nợ khách lẻ
+            </button>
+            <button
+              onClick={handleGoToVoucher}
+              className="bg-blue-500 text-white px-3 py-1 rounded"
+            >
+              Sổ phiếu chi
             </button>
       </div>
 

@@ -17,9 +17,9 @@ const mainColumns = [
   { key: "ngayBoc", label: "NGÀY NHẬP" },
   { key: "khachHang", label: "KHÁCH HÀNG" },
   { key: "dienGiai", label: "DIỄN GIẢI" },
-  { key: "diemXepHang", label: "ĐIỂM XẾP HÀNG" },
-  { key: "diemDoHang", label: "ĐIỂM DỠ HÀNG" },
-  { key: "ngayBocHang", label: "NGÀY BỐC HÀNG" },
+  { key: "diemXepHang", label: "ĐIỂM ĐÓNG HÀNG" },
+  { key: "diemDoHang", label: "ĐIỂM GIAO HÀNG" },
+  { key: "ngayBocHang", label: "NGÀY ĐÓNG HÀNG" },
   { key: "ngayGiaoHang", label: "NGÀY GIAO HÀNG" },
   { key: "bienSoXe", label: "BIỂN SỐ XE" },
   { key: "maChuyen", label: "MÃ CHUYẾN" },
@@ -158,7 +158,6 @@ useEffect(() => {
   // 🧹 Xoá lọc
   const clearFilters = () => {
     setFilters({
-      tenLaiXe: "",
       maChuyen: "",
       khachHang: "",
       ngayBoc: "",
@@ -288,9 +287,45 @@ const handleViewHistory = async (ride) => {
   }
 };
 
+const [visibleColumns, setVisibleColumns] = useState({});
+const [showColumnSelector, setShowColumnSelector] = useState(false);
+
+// Thêm state quản lý chiều rộng cột
+const allColumns = [...mainColumns, ...extraColumns];
+const [columnWidths, setColumnWidths] = useState(
+  allColumns.reduce((acc, col) => ({ ...acc, [col.key]: 150 }), {})
+);
+
+// Hàm kéo cột
+const handleMouseDown = (e, key) => {
+  const startX = e.clientX;
+  const startWidth = columnWidths[key];
+
+  const onMouseMove = (e) => {
+    const newWidth = startWidth + (e.clientX - startX);
+    setColumnWidths((prev) => ({ ...prev, [key]: Math.max(newWidth, 50) }));
+  };
+
+  const onMouseUp = () => {
+    document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("mouseup", onMouseUp);
+  };
+
+  document.addEventListener("mousemove", onMouseMove);
+  document.addEventListener("mouseup", onMouseUp);
+};
+
+const formatMoney = (value) => {
+  if (value === undefined || value === null || value === "") return "";
+  const num = Number(value);
+  if (isNaN(num)) return value;
+  return num.toLocaleString("vi-VN"); // 👉 Tự động thành 100.000 – 1.200.000
+};
+
+
 
   return (
-    <div className="p-4 bg-gray-50 min-h-screen">
+    <div className="p-4 bg-gray-50 min-h-screen text-sm">
       {/* Header */}
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-xl font-bold">QUẢN LÝ ĐIỀU CHUYẾN XE</h1>
@@ -350,13 +385,6 @@ const handleViewHistory = async (ride) => {
       <div className="w-2/3 grid grid-cols-5 gap-1 mb-3">
         <input
           type="text"
-          placeholder="Tên lái xe..."
-          value={filters.tenLaiXe}
-          onChange={(e) => setFilters((f) => ({ ...f, tenLaiXe: e.target.value }))}
-          className="border p-2 rounded"
-        />
-        <input
-          type="text"
           placeholder="Mã chuyến..."
           value={filters.maChuyen}
           onChange={(e) => setFilters((f) => ({ ...f, maChuyen: e.target.value }))}
@@ -405,97 +433,151 @@ const handleViewHistory = async (ride) => {
         >
           {showExtra ? "Ẩn bớt" : "Hiển thị đầy đủ"}
         </button>
+              <button
+  onClick={() => setShowColumnSelector(!showColumnSelector)}
+  className="bg-gray-500 text-white px-4 py-2 rounded"
+>
+  {showColumnSelector ? "Đóng tuỳ chọn cột" : "Tuỳ chọn cột"}
+</button>
       </div>
 
-      {/* Bảng dữ liệu */}
-      <div className="overflow-x-auto">
-        <table
-          className={`border-collapse border w-full text-sm ${
-            showExtra ? "min-w-[2400px]" : "min-w-[1200px]"
-          }`}
-        >
-          <thead className="bg-blue-600 text-white">
-            <tr>
-              {mainColumns.map((col) => (
-                <th key={col.key} className="border p-2">
-                  {col.label}
-                </th>
-              ))}
-              {showExtra &&
-                extraColumns.map((col) => (
-                  <th key={col.key} className="border p-2">
-                    {col.label}
-                  </th>
-                ))}
-              <th className="border p-2">Hành động</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rides.map((r) => (
-              <tr key={r._id} className="text-center">
-                {mainColumns.map((col) => (
-                  <td key={col.key} className="border p-2">
-  {["ngayBocHang", "ngayGiaoHang", "ngayBoc"].includes(col.key)
-    ? formatDate(r[col.key])
-    : col.key === "dieuVan"
-    ? // Nếu r.dieuVan là ID, thì tìm tên trong danh sách managers
-      managers.find((m) => m._id === r.dieuVanID)?.fullname ||
-      managers.find((m) => m._id === r.dieuVanID)?.username ||
-      r.dieuVan ||
-      "-"
-    : col.key === "createdBy"
-    ? r.createdBy || "-"
-    : r[col.key]}
-</td>
 
-                ))}
-                {showExtra &&
-                  extraColumns.map((col) => (
-                    <td key={col.key} className="border p-2">
-                      {r[col.key]}
-                    </td>
-                  ))}
-                <td className="border p-2">
-  <div className="flex justify-center items-center gap-2">
-    {/* Sửa */}
-    <button
-      onClick={() => handleEdit(r)}
-      className="text-blue-500 flex items-center justify-center w-8 h-8 rounded hover:bg-blue-100"
-      title="Chỉnh sửa"
-    >
-      <FaEdit />
-    </button>
-
-    {/* Xoá */}
-    <button
-      onClick={() => handleDelete(r._id)}
-      className="text-red-500 flex items-center justify-center w-8 h-8 rounded hover:bg-red-100"
-      title="Xoá"
-    >
-      <FaTrash />
-    </button>
-
-    {/* Lịch sử */}
-    {editCounts[r._id] > 0 && (
-      <div
-        onClick={() => handleViewHistory(r)}
-        className="relative cursor-pointer w-8 h-8 flex items-center justify-center rounded hover:bg-green-100"
-        title="Lịch sử chỉnh sửa"
-      >
-        <FaHistory className="text-green-600 w-5 h-5" />
-        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">
-          {editCounts[r._id]}
-        </span>
-      </div>
-    )}
+{showColumnSelector && (
+  <div className="mb-2 flex flex-wrap gap-2 border p-2 rounded bg-gray-100">
+    {allColumns.map((col) => (
+      <label key={col.key} className="flex items-center gap-1 px-2 py-1 rounded cursor-pointer hover:bg-gray-200">
+        <input
+          type="checkbox"
+          checked={visibleColumns[col.key] ?? true}
+          onChange={() =>
+            setVisibleColumns((prev) => ({ ...prev, [col.key]: !prev[col.key] }))
+          }
+        />
+        {col.label}
+      </label>
+    ))}
   </div>
+)}
+
+
+
+{/* Container scroll cả ngang và dọc */}
+<div className="border rounded shadow-lg h-[600px] overflow-auto">
+  <table
+    className={`border-collapse border w-max text-sm`}
+  >
+    <thead className="bg-blue-600 text-white sticky top-0 z-20">
+      <tr>
+        {mainColumns.map((col) => (
+          <th
+  key={col.key}
+  className="border p-2 text-center relative"
+  style={{ width: columnWidths[col.key] }}
+>
+  {col.label}
+  <div
+    onMouseDown={(e) => handleMouseDown(e, col.key)}
+    className="absolute top-0 right-0 h-full w-1 cursor-col-resize z-10"
+  ></div>
+</th>
+
+        ))}
+        {showExtra &&
+          extraColumns.map(
+            (col) =>
+              visibleColumns[col.key] !== false && (
+                <th
+  key={col.key}
+  className="border p-2 text-center relative"
+  style={{ width: columnWidths[col.key] }}
+>
+  {col.label}
+  <div
+    onMouseDown={(e) => handleMouseDown(e, col.key)}
+    className="absolute top-0 right-0 h-full w-1 cursor-col-resize z-10"
+  ></div>
+</th>
+
+              )
+          )}
+        <th className="border p-2 text-center">Hành động</th>
+      </tr>
+    </thead>
+    <tbody className="bg-white">
+      {rides.map((r) => (
+        <tr key={r._id} className="text-center h-[60px]">
+          {mainColumns.map((col) => (
+            <td key={col.key} className="border p-2 h-[60px] overflow-hidden">
+              {["ngayBocHang", "ngayGiaoHang", "ngayBoc"].includes(col.key)
+                ? formatDate(r[col.key])
+                : col.key === "dieuVan"
+                ? managers.find((m) => m._id === r.dieuVanID)?.fullname ||
+                  managers.find((m) => m._id === r.dieuVanID)?.username ||
+                  r.dieuVan ||
+                  "-"
+                : r[col.key]}
+            </td>
+          ))}
+          {showExtra &&
+            extraColumns.map(
+              (col) =>
+                visibleColumns[col.key] !== false && (
+                  <td key={col.key} className="border p-2 h-[60px] overflow-hidden">
+  {[
+    "cuocPhi",
+    "laiXeThuCuoc",
+    "bocXep",
+    "ve",
+    "hangVe",
+    "luuCa",
+    "luatChiPhiKhac",
+    "cuocPhiBoSung"
+  ].includes(col.key)
+    ? formatMoney(r[col.key])
+    : r[col.key]
+  }
 </td>
 
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                )
+            )}
+          <td className="border p-2 h-[60px]">
+            {/* Hành động */}
+            <div className="flex justify-center items-center gap-2">
+              <button
+                onClick={() => handleEdit(r)}
+                className="text-blue-500 flex items-center justify-center w-8 h-8 rounded hover:bg-blue-100"
+              >
+                <FaEdit />
+              </button>
+              <button
+                onClick={() => handleDelete(r._id)}
+                className="text-red-500 flex items-center justify-center w-8 h-8 rounded hover:bg-red-100"
+              >
+                <FaTrash />
+              </button>
+              <div
+                onClick={() => editCounts[r._id] > 0 && handleViewHistory(r)}
+                className="relative cursor-pointer w-8 h-8 flex items-center justify-center rounded hover:bg-green-100"
+              >
+                {editCounts[r._id] > 0 ? (
+                  <>
+                    <FaHistory className="text-green-600 w-5 h-5" />
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">
+                      {editCounts[r._id]}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-gray-400">-</span>
+                )}
+              </div>
+            </div>
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+
 
 <div className="flex justify-center items-center gap-3 mt-4">
 

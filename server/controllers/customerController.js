@@ -360,6 +360,21 @@ sheet.getCell(`G${lastRow + 2}`).value = Math.round(sumO * 1.08);
   }
 };
 
+// ==============================
+// XOÁ TẤT CẢ KHÁCH HÀNG
+// ==============================
+const deleteAllCustomers = async (req, res) => {
+  try {
+    // Nếu muốn kiểm soát quyền, có thể check ở đây: req.user?.permissions
+    await Customer.deleteMany({});
+    res.json({ message: "Đã xóa tất cả khách hàng" });
+  } catch (err) {
+    console.error("Lỗi khi xóa tất cả khách hàng:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
 
 module.exports = {
   listCustomers,
@@ -369,5 +384,6 @@ module.exports = {
   deleteCustomer,
   importCustomersFromExcel,
   toggleWarning,
-  exportTripsByCustomer
+  exportTripsByCustomer,
+  deleteAllCustomers
 };

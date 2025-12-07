@@ -4,6 +4,7 @@ const {
   createScheduleAdmin,
   updateScheduleAdmin,
   deleteScheduleAdmin,
+  deleteSchedulesByDateRange,
   getAllSchedulesAdmin,
   getSchedulesByDieuVan,
   getSchedulesByAccountant,
@@ -21,6 +22,7 @@ router.post("/", authMiddleware(["admin", "dieuVan"]), createScheduleAdmin);
 router.get("/all", authMiddleware(["admin", "dieuVan", "keToan"]), getAllSchedulesAdmin);
 router.put("/:id", authMiddleware(["admin", "dieuVan", "keToan"]), updateScheduleAdmin);
 router.delete("/:id", authMiddleware(["admin", "dieuVan"]), deleteScheduleAdmin);
+router.post("/delete-by-date-range", authMiddleware(["admin", "dieuVan"]), deleteSchedulesByDateRange);
 router.get("/dieuvan/:dieuVanID", authMiddleware(["admin", "dieuVan"]), getSchedulesByDieuVan);
 
 //chỉnh sửa + lưu lại lịch sử chuyến

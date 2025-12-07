@@ -199,25 +199,34 @@ const importDriversFromExcel = async (req, res) => {
     let updated = 0;
     const errors = [];
 
-    const getDate = (val) => {
-      if (!val) return null;
-      const d = new Date(val);
-      return isNaN(d) ? null : d;
-    };
+    const parseExcelDate = (str) => {
+  if (!str) return null;
+  // Nếu Excel trả về số thì giữ nguyên (Excel đôi khi trả kiểu số cho date)
+  if (typeof str === "number") {
+    // XLSX.SSF.parse_date_code có thể dùng nếu cần, nhưng hầu hết XLSX.utils.sheet_to_json sẽ trả về string
+    return new Date(Math.round((str - 25569)*86400*1000));
+  }
+  if (typeof str === "string") {
+    const parts = str.split("/");
+    if (parts.length !== 3) return null;
+    const [day, month, year] = parts.map(Number);
+    if (!day || !month || !year) return null;
+    return new Date(year, month - 1, day);
+  }
+  return null;
+};
+
 
     for (const [idx, row] of rows.entries()) {
       try {
         if (!row["HỌ TÊN LÁI XE"] && !row["Tên"]) continue;
-
-        const birthDate = row["Ngày sinh"] ? new Date(row["Ngày sinh"]) : null;
-        const birthYear = birthDate && !isNaN(birthDate) ? birthDate.getFullYear() : undefined;
-
+        
         const cccd = row["SỐ CCCD"] || "";
 
         const driverData = {
           name: row["HỌ TÊN LÁI XE"] || row["Tên"] || "",
           nameZalo: row["TÊN ZALO"] || "",
-          birthYear,
+          birthYear: parseExcelDate(row["Ngày sinh"]),
           company: row["ĐƠN VỊ"] || row["Đơn vị"] || "",
           bsx: row["BSX"] || row["bsx"] || "",
           phone: row["SĐT"] || "",
@@ -225,15 +234,15 @@ const importDriversFromExcel = async (req, res) => {
           resHometown: row["NƠI ĐĂNG KÝ HKTT"] || "",
           address: row["NƠI Ở HIỆN TẠI"] || "",
           cccd,
-          cccdIssuedAt: getDate(row["Ngày cấp CCCD"]),
-          cccdExpiryAt: getDate(row["Ngày hết hạn CCCD"]),
+          cccdIssuedAt: parseExcelDate(row["Ngày cấp CCCD"]),
+          cccdExpiryAt: parseExcelDate(row["Ngày hết hạn CCCD"]),
           numberClass: row["Số GPLX"] || "",
           licenseClass: row["Hạng bằng lái xe"] || row["HẠNG BL"] || "",
-          licenseIssuedAt: getDate(row["Ngày cấp GPLX"] || row["Ngày cấp BL"]),
-          licenseExpiryAt: getDate(row["Ngày hết hạn GPLX"] || row["Ngày hết hạn BL"]),
+          licenseIssuedAt: parseExcelDate(row["Ngày cấp GPLX"] || row["Ngày cấp BL"]),
+          licenseExpiryAt: parseExcelDate(row["Ngày hết hạn GPLX"] || row["Ngày hết hạn BL"]),
           numberHDLD: row["Số HĐLĐ"] || "",
-          dayStartWork: getDate(row["Ngày vào làm"]),
-          dayEndWork: getDate(row["Ngày nghỉ"]),
+          dayStartWork: parseExcelDate(row["Ngày vào làm"]),
+          dayEndWork: parseExcelDate(row["Ngày nghỉ"]),
         };
 
         // ============================
@@ -320,6 +329,38 @@ const toggleWarning = async (req, res) => {
   }
 };
 
+// ==============================
+// XOÁ TẤT CẢ LÁI XE
+// ==============================
+const deleteAllDrivers = async (req, res) => {
+  try {
+    const drivers = await Driver.find({});
+    
+    for (const driver of drivers) {
+      if (driver.licenseImage) {
+        const imgPath = path.join(process.cwd(), driver.licenseImage.replace(/^\//, ""));
+        if (fs.existsSync(imgPath)) {
+          try { fs.unlinkSync(imgPath); } catch (e) {}
+        }
+      }
+      if (driver.licenseImageCCCD) {
+        const imgCCCDPath = path.join(process.cwd(), driver.licenseImageCCCD.replace(/^\//, ""));
+        if (fs.existsSync(imgCCCDPath)) {
+          try { fs.unlinkSync(imgCCCDPath); } catch (e) {}
+        }
+      }
+    }
+
+    // Xóa tất cả driver
+    await Driver.deleteMany({});
+    res.json({ message: "Đã xóa tất cả lái xe thành công" });
+  } catch (err) {
+    console.error("Lỗi khi xóa tất cả lái xe:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
 module.exports = {
   listDrivers,
   getDriver,
@@ -328,5 +369,6 @@ module.exports = {
   deleteDriver,
   importDriversFromExcel,
   listDriverNames,
-  toggleWarning
+  toggleWarning,
+  deleteAllDrivers
 };
