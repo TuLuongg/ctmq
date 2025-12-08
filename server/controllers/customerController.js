@@ -138,7 +138,7 @@ const importCustomersFromExcel = async (req, res) => {
 
     for (const [idx, row] of rows.entries()) {
       try {
-        const code = row["STT"];
+        const code = row["MÃ KH"];
 
         if (code === undefined || code === null || code === "") {
           skipped++;
