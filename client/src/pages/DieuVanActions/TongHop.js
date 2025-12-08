@@ -44,6 +44,7 @@ export default function TongHop({ user, onLogout }) {
 
 
   const mainColumns = [
+    { key: "maKH", label: "MÃ KH" },
     { key: "khachHang", label: "KHÁCH HÀNG" },
     { key: "dienGiai", label: "DIỄN GIẢI" },
     { key: "diemXepHang", label: "ĐIỂM XẾP HÀNG" },
@@ -58,9 +59,6 @@ export default function TongHop({ user, onLogout }) {
   ];
 
   const extraColumns = [
-    { key: "soDiem", label: "SỐ ĐIỂM" },
-    { key: "trongLuong", label: "TRỌNG LƯỢNG" },
-    { key: "cuocPhi", label: "CƯỚC PHÍ" },
     { key: "laiXeThuCuoc", label: "LÁI XE THU CƯỚC" },
     { key: "bocXep", label: "BỐC XẾP" },
     { key: "ve", label: "VÉ" },
@@ -74,6 +72,38 @@ export default function TongHop({ user, onLogout }) {
     { key: "ngayBoc", label: "NGÀY NHẬP" },
     { key: "createdBy", label: "NGƯỜI NHẬP" },
   ];
+
+  const [allCols, setAllCols] = useState([...mainColumns]);
+
+  useEffect(() => {
+  const cols = [...mainColumns, ...(showExtra ? extraColumns : [])];
+  setAllCols(cols);
+
+  // Cập nhật thứ tự cột nếu thiếu
+  setColOrder(prev => {
+    const keys = cols.map(c => c.key);
+    const newOrder = prev.filter(k => keys.includes(k));
+
+    // Thêm các cột mới vào cuối
+    keys.forEach(k => {
+      if (!newOrder.includes(k)) newOrder.push(k);
+    });
+
+    return newOrder;
+  });
+
+  // Cập nhật width cho cột mới
+  setColWidths(prev => {
+    const next = { ...prev };
+    cols.forEach(c => {
+      if (!next[c.key]) next[c.key] = 80; // width mặc định
+    });
+    return next;
+  });
+
+}, [showExtra]);
+
+
 
   // Format số tiền có dấu chấm hàng nghìn
 const formatMoney = (value) => {
@@ -329,7 +359,6 @@ const handleDeleteByDateRange = async () => {
 };
 
 // ==== Cho bảng nâng cao ====
-const allCols = [...mainColumns, ...(showExtra ? extraColumns : [])];
 const [hiddenCols, setHiddenCols] = useState([]);
 const [colOrder, setColOrder] = useState(allCols.map(c => c.key));
 const [colWidths, setColWidths] = useState(
@@ -552,7 +581,7 @@ const startResize = (e, key) => {
       {/* Bảng */}
 {/* ====== CHỌN CỘT ====== */}
 <div className="flex flex-wrap gap-3 p-2 bg-white shadow rounded mb-3">
-  {[...mainColumns, ...(showExtra ? extraColumns : [])].map((c) => (
+  {allCols.map((c) => (
     <label key={c.key} className="flex gap-2 items-center text-xs">
       <input
         type="checkbox"
