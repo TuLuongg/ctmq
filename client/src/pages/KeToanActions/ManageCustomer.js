@@ -208,6 +208,9 @@ const fetch = async (search = "") => {
     setColumnWidths((prev) => ({ ...prev, [r.columnKey]: `${newWidth}px` }));
   };
 
+  const isResizingRef = useRef(false);
+
+
   const onMouseUpResize = () => {
     const colKey = resizingRef.current.columnKey;
     if (!colKey) {
@@ -231,6 +234,7 @@ const fetch = async (search = "") => {
     });
     window.removeEventListener("mousemove", onMouseMoveResize);
     window.removeEventListener("mouseup", onMouseUpResize);
+    isResizingRef.current = false;
     resizingRef.current = { columnKey: null, startX: 0, startWidth: 0 };
   };
 
@@ -448,52 +452,125 @@ const fetch = async (search = "") => {
       {/* Table */}
       <div className="overflow-auto border" style={{ maxHeight: "80vh" }}>
         <table style={{ tableLayout: "fixet", width: "max-content", maxWidth: "max-content", borderCollapse: "separate", borderSpacing: 0 }}>
-          <thead className="bg-gray-200">
-            <tr>
-              {/* Cột cảnh báo */}
-              <th className="border p-1 sticky top-0 bg-gray-200 text-center" style={{ width: 30, zIndex: 50, left: 0 }}></th>
-              {visibleColumns.map((cKey, index) => {
-                const colMeta = allColumns.find((ac) => ac.key === cKey) || { key: cKey, label: cKey };
-                const widthStyle = columnWidths[cKey] ? { width: columnWidths[cKey], minWidth: columnWidths[cKey], maxWidth: columnWidths[cKey] } : {};
-                const isFirst = index === 0;
-                const isSecond = index === 1;
-                return (
-                  <th
-                    key={cKey}
-                    data-col={cKey}
-                    ref={index === 0 ? firstColRef : null}
-                    draggable
-                    onDragStart={(e) => onDragStart(e, cKey)}
-                    onDragOver={onDragOver}
-                    onDrop={(e) => onDrop(e, cKey)}
-                    className="border p-1 text-left align-top bg-gray-200"
-                    style={{
-                      top: 0,
-                      position: "sticky",
-                      zIndex: isFirst || isSecond ? 40 : 20,
-                      left: isFirst ? 35 : isSecond ? 35 + firstColWidth : undefined,
-                      background: "#f3f4f6",
-                      ...widthStyle,
-                      boxSizing: "border-box",
-                    }}
-                  >
-                    <div className="relative flex items-center justify-center">
-                      <span className="truncate">{colMeta.label}</span>
-                      <div
-                        onMouseDown={(e) => onMouseDownResize(e, cKey)}
-                        style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 10, cursor: "col-resize", zIndex: 50 }}
-                        onDragStart={(ev) => ev.preventDefault()}
-                      />
-                    </div>
-                  </th>
-                );
-              })}
+<thead className="bg-gray-200">
+  <tr>
+    {/* Cột cảnh báo (sticky left col 0) */}
+    <th
+      className="border p-1 sticky top-0 text-center"
+      style={{
+        width: 30,
+        minWidth: 30,
+        left: 0,
+        zIndex: 50,
+        background: "#f3f4f6",
+        boxSizing: "border-box",
+        transform: "translateZ(0)",
+      }}
+    />
 
-              <th className="border p-1 sticky top-0 bg-gray-200" style={{ zIndex: 20, width: 120, boxSizing: "border-box" }}>Hành động</th>
-              <th className="border p-1 sticky top-0 bg-gray-200" style={{ zIndex: 20, width: 120 }}>In bảng kê</th>
+    {/* Các cột dữ liệu */}
+    {visibleColumns.map((cKey, index) => {
+      const colMeta =
+        allColumns.find((c) => c.key === cKey) || { key: cKey, label: cKey };
 
-            </tr>
-          </thead>
+      const widthStyle = columnWidths[cKey]
+        ? {
+            width: columnWidths[cKey],
+            minWidth: columnWidths[cKey],
+            maxWidth: columnWidths[cKey],
+          }
+        : {};
+
+      const isFirst = index === 0;
+      const isSecond = index === 1;
+
+      // sticky position
+      const leftOffset = isFirst
+        ? 35
+        : isSecond
+        ? 35 + firstColWidth
+        : undefined;
+
+      return (
+        <th
+          key={cKey}
+          data-col={cKey}
+          ref={isFirst ? firstColRef : null}
+          draggable={!isResizingRef.current}
+          onDragStart={(e) => {
+            if (!isResizingRef.current) onDragStart(e, cKey);
+            else e.preventDefault();
+          }}
+          onDragOver={onDragOver}
+          onDrop={(e) => onDrop(e, cKey)}
+          className="border p-0 text-center bg-gray-200 relative select-none"
+          style={{
+            position: "sticky",
+            top: 0,
+            left: leftOffset,
+            zIndex: leftOffset !== undefined ? 40 : 20,
+            background: "#f3f4f6",
+            overflow: "visible",
+            boxSizing: "border-box",
+            ...widthStyle,
+          }}
+        >
+          {/* LABEL */}
+          <div className="p-2 text-xs truncate">{colMeta.label}</div>
+
+          {/* Resize handle */}
+          <div
+            onMouseDown={(e) => {
+              isResizingRef.current = true;
+              e.preventDefault();
+              e.stopPropagation();
+              onMouseDownResize(e, cKey);
+            }}
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+            style={{
+              position: "absolute",
+              top: 0,
+              right: 0,
+              bottom: 0,
+              width: 10,
+              cursor: "col-resize",
+              zIndex: 200,
+              userSelect: "none",
+            }}
+          />
+        </th>
+      );
+    })}
+
+    {/* Hành động */}
+    <th
+      className="border p-1 sticky top-0 text-center"
+      style={{
+        zIndex: 40,
+        width: 120,
+        minWidth: 120,
+        background: "#f3f4f6",
+      }}
+    >
+      Hành động
+    </th>
+
+    {/* In bảng kê */}
+    <th
+      className="border p-1 sticky top-0 text-center"
+      style={{
+        zIndex: 40,
+        width: 120,
+        minWidth: 120,
+        background: "#f3f4f6",
+      }}
+    >
+      In bảng kê
+    </th>
+  </tr>
+</thead>
+
 
           <tbody>
             {customers.length === 0 && (
@@ -524,7 +601,7 @@ const fetch = async (search = "") => {
                     );
                   })}
 
-                  <td className="border p-1 flex gap-2 justify-center" style={{ minWidth: 120, background: "#fff" }}>
+                  <td className="border p-1 flex gap-2 justify-center" style={{ minWidth: 120, background: "#fff" }} onClick={(e) => {e.stopPropagation();}}>
                     {canEditCustomer ? (
                       <>
                         <button onClick={() => handleEdit(c)} className="text-blue-600">Sửa</button>

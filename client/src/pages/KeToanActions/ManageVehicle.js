@@ -219,6 +219,8 @@ export default function ManageVehicle() {
     setColumnWidths((prev) => ({ ...prev, [r.columnKey]: `${newWidth}px` }));
   };
 
+  const isResizingRef = useRef(false);
+
   const onMouseUpResize = () => {
     const colKey = resizingRef.current.columnKey;
     if (!colKey) {
@@ -240,6 +242,7 @@ export default function ManageVehicle() {
       }
       return updated;
     });
+    isResizingRef.current = false;
     window.removeEventListener("mousemove", onMouseMoveResize);
     window.removeEventListener("mouseup", onMouseUpResize);
     resizingRef.current = { columnKey: null, startX: 0, startWidth: 0 };
@@ -456,55 +459,107 @@ const formatCellValue = (cKey, value) => {
       </div>
 
       {/* Table */}
-      <div className="overflow-auto border" style={{ maxHeight: "80vh" }}>
+      <div className="overflow-auto border" style={{ maxHeight: "80vh", position: "relative" }}>
         <table style={{ tableLayout: "fixed", width: "max-content", maxWidth: "max-content", borderCollapse: "separate", borderSpacing: 0 }}>
-          <thead className="bg-gray-200">
-            <tr>
-              {/* Warning column */}
-              <th className="border p-1 sticky top-0 bg-gray-200 text-center" style={{ width: 30, zIndex: 60, left: 0, background: "#f3f4f6" }}></th>
+<thead className="bg-gray-200">
+  <tr>
+    {/* Warning column */}
+    <th
+      className="border p-1 sticky top-0 text-center"
+      style={{
+        width: 30,
+        minWidth: 30,
+        left: 0,
+        zIndex: 50,
+        background: "#f3f4f6",
+        boxSizing: "border-box",
+      }}
+    />
 
-              {visibleColumns.map((cKey, index) => {
-                const colMeta = allColumns.find((ac) => ac.key === cKey) || { key: cKey, label: cKey };
-                const widthStyle = columnWidths[cKey] ? { width: columnWidths[cKey], minWidth: columnWidths[cKey], maxWidth: columnWidths[cKey] } : {};
-                const isFirst = index === 0;
-                const isSecond = index === 1;
-                const leftOffset = isSecond ? firstColWidth : undefined;
+    {visibleColumns.map((cKey, index) => {
+      const colMeta = allColumns.find((c) => c.key === cKey) || {
+        key: cKey,
+        label: cKey,
+      };
 
-                return (
-                  <th
-                    key={cKey}
-                    data-col={cKey}
-                    ref={index === 0 ? firstColRef : null}
-                    draggable={!(colMeta.stickyIndex === 0 || colMeta.stickyIndex === 1)}
-                    onDragStart={(e) => onDragStart(e, cKey)}
-                    onDragOver={onDragOver}
-                    onDrop={(e) => onDrop(e, cKey)}
-                    className="border p-1 text-left align-top bg-gray-200"
-                    style={{
-                      top: 0,
-                      position: "sticky",
-                      zIndex: isFirst || isSecond ? 50 : 30,
-                      left: isFirst ? 35 : isSecond ? 35 + firstColWidth : undefined,
-                      background: "#f3f4f6",
-                      ...widthStyle,
-                      boxSizing: "border-box",
-                    }}
-                  >
-                    <div className="relative flex items-center justify-center">
-                      <span className="truncate">{colMeta.label}</span>
-                      <div
-                        onMouseDown={(e) => onMouseDownResize(e, cKey)}
-                        style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 10, cursor: "col-resize", zIndex: 70 }}
-                        onDragStart={(ev) => ev.preventDefault()}
-                      />
-                    </div>
-                  </th>
-                );
-              })}
+      const widthStyle = columnWidths[cKey]
+        ? {
+            width: columnWidths[cKey],
+            minWidth: columnWidths[cKey],
+            maxWidth: columnWidths[cKey],
+          }
+        : {};
 
-              <th className="border p-1 sticky top-0 bg-gray-200" style={{ zIndex: 30, width: 120, boxSizing: "border-box" }}>Hành động</th>
-            </tr>
-          </thead>
+      const isFirst = index === 0;
+      const isSecond = index === 1;
+      const leftOffset = isSecond
+        ? 35 + firstColWidth
+        : isFirst
+        ? 35
+        : undefined;
+
+      return (
+        <th
+          key={cKey}
+          data-col={cKey}
+          ref={isFirst ? firstColRef : null}
+          draggable={!isResizingRef.current}
+          onDragStart={(e) => {
+            if (!isResizingRef.current) onDragStart(e, cKey);
+            else e.preventDefault();
+          }}
+          onDragOver={onDragOver}
+          onDrop={(e) => onDrop(e, cKey)}
+          className="border p-0 text-center bg-gray-200 relative select-none"
+          style={{
+            position: "sticky",
+            top: 0,
+            left: leftOffset,
+            zIndex: leftOffset !== undefined ? 40 : 20,
+            background: "#f3f4f6",
+            overflow: "visible",
+            boxSizing: "border-box",
+            ...widthStyle,
+          }}
+        >
+          <div className="p-2 text-xs truncate">
+            {colMeta.label}
+          </div>
+
+          {/* Resize handle */}
+          <div
+            onMouseDown={(e) => {
+              isResizingRef.current = true;
+              e.preventDefault();
+              e.stopPropagation();
+              onMouseDownResize(e, cKey);
+            }}
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+            style={{
+              position: "absolute",
+              right: 0,
+              top: 0,
+              bottom: 0,
+              width: 10,
+              cursor: "col-resize",
+              zIndex: 200,
+              userSelect: "none",
+            }}
+          />
+        </th>
+      );
+    })}
+
+    <th
+      className="border p-1 sticky top-0 text-center bg-gray-200"
+      style={{ width: 120, minWidth: 120, zIndex: 40 }}
+    >
+      Hành động
+    </th>
+  </tr>
+</thead>
+
 
           <tbody>
             {vehicles.length === 0 && (

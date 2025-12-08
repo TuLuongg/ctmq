@@ -247,6 +247,9 @@ export default function ManageDriver() {
     setColumnWidths(prev => ({ ...prev, [r.columnKey]: `${newWidth}px` }));
   };
 
+  const isResizing = useRef(false);
+
+
   const onMouseUpResize = () => {
     const colKey = resizingRef.current.columnKey;
     if (!colKey) {
@@ -257,6 +260,7 @@ export default function ManageDriver() {
 
     const th = document.querySelector(`th[data-col="${colKey}"]`);
     if (!th) {
+      isResizing.current = false;
       window.removeEventListener("mousemove", onMouseMoveResize);
       window.removeEventListener("mouseup", onMouseUpResize);
       resizingRef.current = { columnKey: null, startX: 0, startWidth: 0 };
@@ -573,104 +577,125 @@ const toggleRowHighlight = (id) => {
       borderSpacing: 0,
     }}
   >
-    <thead className="bg-gray-200">
-      <tr>
-        {/* Cột cảnh báo (sticky col 0) */}
+<thead className="bg-gray-200">
+  <tr>
+    {/* Cột cảnh báo (sticky col 0) */}
+    <th
+      className="border p-1 sticky top-0 bg-gray-200 text-center relative"
+      style={{
+        width: 30,
+        zIndex: 40,
+        left: 0,
+        boxSizing: "border-box",
+        background: "#f3f4f6",
+        transform: "translateZ(0)",
+        backgroundClip: "padding-box",
+      }}
+    />
+
+    {/* Các cột dữ liệu */}
+    {visibleColumns.map((cKey, index) => {
+      const colMeta =
+        allColumns.find((ac) => ac.key === cKey) || {
+          key: cKey,
+          label: cKey,
+        };
+
+      const widthStyle = columnWidths[cKey]
+        ? {
+            width: columnWidths[cKey],
+            minWidth: columnWidths[cKey],
+            maxWidth: columnWidths[cKey],
+          }
+        : {};
+
+      const isFirst = index === 0;
+      const isSecond = index === 1;
+
+      // left offset cho sticky
+      const leftOffset = isFirst
+        ? 35
+        : isSecond
+        ? 35 + firstColWidth
+        : undefined;
+
+      return (
         <th
-          className="border p-1 sticky top-0 bg-gray-200 text-center"
-          style={{
-            width: 30,
-            zIndex: 40,               // header above everything
-            left: 0,
-            boxSizing: "border-box",
-            background: "#f3f4f6",
-            transform: "translateZ(0)", // new stacking context
-            WebkitTransform: "translateZ(0)",
-            backgroundClip: "padding-box",
-            borderRight: "1px solid #e5e7eb", // hide seam
+          key={cKey}
+          data-col={cKey}
+          ref={index === 0 ? firstColRef : null}
+          draggable={!isResizing.current}
+          onDragStart={(e) => {
+            if (!isResizing.current) onDragStart(e, cKey);
+            else e.preventDefault();
           }}
-        />
-        {visibleColumns.map((cKey, index) => {
-          const colMeta =
-            allColumns.find((ac) => ac.key === cKey) || {
-              key: cKey,
-              label: cKey,
-            };
-          const widthStyle = columnWidths[cKey]
-            ? {
-                width: columnWidths[cKey],
-                minWidth: columnWidths[cKey],
-                maxWidth: columnWidths[cKey],
-              }
-            : {};
-
-          const isFirst = index === 0;
-          const isSecond = index === 1;
-
-          // header left offset (sticky)
-          const leftOffset = isFirst ? 35 : isSecond ? 35 + firstColWidth : undefined;
-
-          return (
-            <th
-              key={cKey}
-              data-col={cKey}
-              ref={index === 0 ? firstColRef : null}
-              draggable
-              onDragStart={(e) => onDragStart(e, cKey)}
-              onDragOver={onDragOver}
-              onDrop={(e) => onDrop(e, cKey)}
-              className="border p-1 text-left align-top"
-              style={{
-                top: 0,
-                position: "sticky",
-                zIndex: isFirst || isSecond ? 40 : 20, // header above body sticky
-                left: isFirst || isSecond ? leftOffset : undefined,
-                background: "#f3f4f6",
-                boxSizing: "border-box",
-                transform: "translateZ(0)",
-                WebkitTransform: "translateZ(0)",
-                backgroundClip: "padding-box",
-                borderRight: isFirst || isSecond ? "1px solid #e5e7eb" : undefined,
-                ...widthStyle,
-              }}
-            >
-              <div className="relative flex items-center justify-center">
-                <span className="truncate">{colMeta.label}</span>
-                <div
-                  onMouseDown={(e) => onMouseDownResize(e, cKey)}
-                  style={{
-                    position: "absolute",
-                    right: 0,
-                    top: 0,
-                    bottom: 0,
-                    width: 10,
-                    cursor: "col-resize",
-                    zIndex: 10,
-                  }}
-                  onDragStart={(ev) => ev.preventDefault()}
-                />
-              </div>
-            </th>
-          );
-        })}
-
-        <th
-          className="border p-1 sticky top-0"
+          onDragOver={onDragOver}
+          onDrop={(e) => onDrop(e, cKey)}
+          className="border p-0 relative bg-gray-200 select-none"
           style={{
-            zIndex: 40,
-            width: 120,
-            boxSizing: "border-box",
+            position: "sticky",
+            top: 0,
+            left: leftOffset,
+            zIndex: leftOffset !== undefined ? 40 : 20,
             background: "#f3f4f6",
-            transform: "translateZ(0)",
-            WebkitTransform: "translateZ(0)",
-            backgroundClip: "padding-box",
-            borderLeft: "1px solid #e5e7eb",
+            overflow: "visible",
+            ...widthStyle, // ⭐ FIX QUAN TRỌNG: không gán width = object
           }}
         >
-          Hành động
+          {/* LABEL */}
+          <div
+            className="p-2 flex items-center justify-center w-full text-center text-xs"
+            style={{ cursor: "pointer", userSelect: "none" }}
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+          >
+            <span className="truncate">{colMeta.label}</span>
+          </div>
+
+          {/* RESIZE HANDLE */}
+          <div
+            onMouseDown={(e) => {
+              isResizing.current = true;
+              e.preventDefault();
+              e.stopPropagation();
+              onMouseDownResize(e, cKey);
+            }}
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+            style={{
+              position: "absolute",
+              right: 0,
+              top: 0,
+              bottom: 0,
+              width: 10,
+              cursor: "col-resize",
+              zIndex: 200,
+              userSelect: "none",
+            }}
+          ></div>
         </th>
-      </tr>
-    </thead>
+      );
+    })}
+
+    {/* Cột hành động */}
+    <th
+      className="border p-1 sticky top-0"
+      style={{
+        zIndex: 40,
+        width: 120,
+        boxSizing: "border-box",
+        background: "#f3f4f6",
+        transform: "translateZ(0)",
+        backgroundClip: "padding-box",
+        borderLeft: "1px solid #e5e7eb",
+      }}
+    >
+      Hành động
+    </th>
+  </tr>
+</thead>
+
 
     <tbody>
       {drivers.length === 0 && (
