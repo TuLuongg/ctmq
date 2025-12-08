@@ -636,7 +636,7 @@ const toggleRowHighlight = (id) => {
             position: "sticky",
             top: 0,
             left: leftOffset,
-            zIndex: leftOffset !== undefined ? 40 : 20,
+            zIndex: leftOffset !== undefined ? 40 : 30,
             background: "#f3f4f6",
             overflow: "visible",
             ...widthStyle, // ⭐ FIX QUAN TRỌNG: không gán width = object
@@ -682,7 +682,7 @@ const toggleRowHighlight = (id) => {
     <th
       className="border p-1 sticky top-0"
       style={{
-        zIndex: 40,
+        zIndex: 20,
         width: 120,
         boxSizing: "border-box",
         background: "#f3f4f6",
@@ -725,7 +725,7 @@ const toggleRowHighlight = (id) => {
               style={{
                 position: "sticky",
                 left: 0,
-                zIndex: 40, // body sticky under header but above other cells
+                zIndex: 20, // body sticky under header but above other cells
                 width: 30,
                 height: 80,
                 boxSizing: "border-box",
@@ -769,7 +769,7 @@ const toggleRowHighlight = (id) => {
                   style={{
                     position: isFirst || isSecond ? "sticky" : "relative",
                     left: isFirst || isSecond ? stickyLeft : undefined,
-                    zIndex: isFirst || isSecond ? 40 : 20,
+                    zIndex: isFirst || isSecond ? 20 : 10,
                     height: 80,
                     background:
                       warnings[d._id]
@@ -836,10 +836,10 @@ const toggleRowHighlight = (id) => {
 
 
 
-      {showModal && <div className="z-[100]"><DriverModal initialData={editDriver} onClose={() => { setShowModal(false); setEditDriver(null); }} onSave={handleSave} apiBase={apiDrivers} /></div>}
+      {showModal && <div className="z-[999]" style={{zIndex: 999}}><DriverModal initialData={editDriver} onClose={() => { setShowModal(false); setEditDriver(null); }} onSave={handleSave} apiBase={apiDrivers} /></div>}
 
       {showImportMode && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-90">
           <div className="bg-white rounded p-5 shadow-lg w-80">
             <h2 className="text-lg font-bold mb-3">Chọn chế độ Import</h2>
 

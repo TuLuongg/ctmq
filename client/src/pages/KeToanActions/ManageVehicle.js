@@ -577,7 +577,7 @@ const formatCellValue = (cKey, value) => {
                   className={`cursor-pointer ${isWarning ? "bg-red-300" : idx % 2 === 0 ? "bg-white" : "bg-gray-50"} ${selectedRows.includes(v._id) ? "bg-yellow-200" : ""}`}
                 >
                   {/* Warning cell */}
-                  <td className="border p-1 text-center" style={{ position: "sticky", left: 0, zIndex: 50, width: 30, background: isWarning ? "#fca5a5" : "#fff" }}>
+                  <td className="border p-1 text-center" style={{ position: "sticky", left: 0, zIndex: 20, width: 30, background: isWarning ? "#fca5a5" : "#fff" }}>
                     <button onClick={() => toggleWarning(v._id)} className={`px-1 py-1 rounded text-white ${isWarning ? "bg-red-600" : "bg-gray-400"}`}>⚠</button>
                   </td>
 
@@ -595,7 +595,7 @@ const formatCellValue = (cKey, value) => {
                           position: isFirst || isSecond ? "sticky" : "relative",
                           left: stickyLeft,
                           height: 80,
-                          zIndex: isFirst || isSecond ? 40 : 1,
+                          zIndex: isFirst || isSecond ? 20 : 1,
                           background: isWarning ? "#fca5a5" : selectedRows.includes(v._id) ? "#fde68a" : (idx % 2 === 0 ? "#fff" : "#f9fafb"),
                           ...cellWidthStyle,
                         }}
