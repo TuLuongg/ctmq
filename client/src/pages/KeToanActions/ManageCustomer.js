@@ -11,13 +11,13 @@ const apiCustomers = `${API}/customers`;
 
 // columns for customers
 export const allColumns = [
-  { key: "code", label: "Mã KH" },
-  { key: "name", label: "Tên khách hàng" },
-  { key: "nameHoaDon", label: "Tên trên hóa đơn" },
-  { key: "mstCCCD", label: "MST / CCCD chủ hộ" },
-  { key: "address", label: "Địa chỉ" },
-  { key: "accountant", label: "Kế toán phụ trách" },
-  { key: "accUsername", label: "Tên đăng nhập" },
+  { key: "code", label: "MÃ KH" },
+  { key: "name", label: "DANH SÁCH KHÁCH HÀNG" },
+  { key: "nameHoaDon", label: "TÊN KHÁCH HÀNG TRÊN HOÁ ĐƠN" },
+  { key: "mstCCCD", label: "MST/CCCD CHỦ HỘ" },
+  { key: "address", label: "ĐỊA CHỈ" },
+  { key: "accountant", label: "KẾ TOÁN PHỤ TRÁCH" },
+  { key: "accUsername", label: "User" },
 ];
 
 // helper để dựng key trong localStorage
