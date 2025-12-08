@@ -99,8 +99,8 @@ router.put(
   updateVehicle
 );
 
-router.delete("/:id", deleteVehicle);
 router.delete("/all", deleteAllVehicles);
+router.delete("/:id", deleteVehicle);
 
 // Import Excel (MemoryStorage)
 const excelStorage = multer.memoryStorage();

@@ -306,7 +306,7 @@ const formatCellValue = (cKey, value) => {
   if (!canEditVehicle) return alert("Bạn chưa có quyền xóa xe!");
   if (!window.confirm("Xác nhận xóa tất cả xe?")) return;
   try {
-    await axios.delete(`${apiVehicles}/all`, { headers: { Authorization: token ? `Bearer ${token}` : undefined } });
+    await axios.delete(`${apiVehicles}/all`, { data: {}, headers: { Authorization: token ? `Bearer ${token}` : undefined } });
     alert("Đã xóa tất cả xe!");
     setVehicles([]);
   } catch (err) {

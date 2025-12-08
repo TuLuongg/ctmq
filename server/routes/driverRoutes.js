@@ -99,11 +99,11 @@ router.put(
   updateDriver
 );
 
-// Delete
-router.delete("/:id", deleteDriver);
-
 // Delete all drivers
 router.delete("/all", deleteAllDrivers);
+
+// Delete
+router.delete("/:id", deleteDriver);
 
 // Import Excel
 router.post("/import", excelUpload.single("file"), importDriversFromExcel);
