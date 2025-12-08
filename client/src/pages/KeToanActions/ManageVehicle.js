@@ -11,7 +11,7 @@ const apiVehicles = `${API}/vehicles`;
 
 // columns for vehicles (first two columns are locked/sticky)
 export const allColumns = [
-  { key: "plateNumber", label: "Biển số" , stickyIndex: 0 },
+  { key: "plateNumber", label: "BSX" , stickyIndex: 0 },
   { key: "company", label: "Đơn vị vận tải", stickyIndex: 1 },
   { key: "vehicleType", label: "Loại xe" },
   { key: "length", label: "Dài" },

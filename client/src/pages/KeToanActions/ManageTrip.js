@@ -982,7 +982,7 @@ const toggleRowHighlight = (id) => {
         {visibleColumns.map((colKey, index) => {
           if (hiddenColumns.includes(colKey)) return null;
   const col = allColumns.find((c) => c.key === colKey) || { key: colKey, label: colKey };
-  const width = columnWidths[col.key] || 120;
+  const width = columnWidths[col.key] || 10;
   const fieldType = filterFields.find(f => f.key === col.key)?.type || "text";
   const dateFields = ["ngayBoc", "ngayBocHang", "ngayGiaoHang"];
 
