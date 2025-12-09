@@ -57,7 +57,10 @@ export default function Login({ setUser }) {
   // Giao diện bước hỏi
   if (step === "question") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
+              <h1 className="text-3xl font-bold text-black-700 mb-10 text-center">
+  Công ty TNHH TM & DV Minh Quân
+</h1>
         <div className="bg-white shadow-xl rounded-2xl px-8 py-10 w-full max-w-sm text-center">
           <h2 className="text-2xl font-semibold mb-6 text-gray-700">
             🚚 Bạn có phải là lái xe không?
@@ -83,7 +86,11 @@ export default function Login({ setUser }) {
 
   // Giao diện đăng nhập
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
+      <h1 className="text-3xl font-bold text-black-700 mb-10 text-center">
+  Công ty TNHH TM & DV Minh Quân
+</h1>
+
       <div className="bg-white shadow-xl rounded-2xl px-8 py-10 w-full max-w-sm">
         <h2 className="text-2xl font-semibold text-center mb-8 text-gray-700">
           🔐 Đăng nhập hệ thống
