@@ -1302,11 +1302,24 @@ if (stickyIndex >= 0) {
       {r.bienSoXe}
     </div>
   ) : (
-    <div className="truncate">
-      {numberColumns.includes(col.key)
-        ? formatNumber(cellValue)
-        : cellValue}
-    </div>
+<div
+  className="truncate"
+  style={{
+    fontWeight:
+      ["cuocPhiBS","bocXepBS","veBS","hangVeBS","luuCaBS","cpKhacBS"].includes(col.key)
+        ? "700"
+        : "normal",
+    color:
+      ["cuocPhiBS","bocXepBS","veBS","hangVeBS","luuCaBS","cpKhacBS"].includes(col.key)
+        ? "#1766ddff"
+        : "black",
+  }}
+>
+  {numberColumns.includes(col.key)
+    ? formatNumber(cellValue)
+    : cellValue}
+</div>
+
   )}
   {hoverVehicle && (
   <div
