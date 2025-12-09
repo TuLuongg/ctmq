@@ -225,7 +225,8 @@ const getVehicleInfo = (plate) => {
 
 
   const [page, setPage] = useState(1);
-  const [limit] = useState(30);
+  const [limit, setLimit] = useState(30);
+
   const [totalPages, setTotalPages] = useState(1);
 
   const filterFields = allColumns
@@ -284,7 +285,7 @@ const fetchAllRides = async () => {
   useEffect(() => {
     fetchAllRides();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters, date, page]);
+  }, [filters, date, page, limit]);
 
   // 🔹 Lấy fullname từ id
   const getFullName = (id) => {
@@ -548,7 +549,7 @@ const fetchAllRides = async () => {
     if (!r.columnKey) return;
     const delta = e.clientX - r.startX;
     let newWidth = r.startWidth + delta;
-    if (newWidth < 60) newWidth = 60;
+    if (newWidth < 10) newWidth = 10;
     setColumnWidths((prev) => ({ ...prev, [r.columnKey]: `${newWidth}px` }));
   };
 
@@ -932,7 +933,7 @@ const toggleRowHighlight = (id) => {
       {/* BẢNG */}
 <div className="overflow-auto border" style={{ maxHeight: "80vh"}}>
   <table
-    style={{ tableLayout: "fixed", width: "max-content", maxWidth: "max-content", borderCollapse: "separate", borderSpacing: 0 }}
+    style={{ tableLayout: "auto", width: "max-content", maxWidth: "max-content", borderCollapse: "separate", borderSpacing: 0 }}
   >
     <thead className="bg-blue-600 text-white">
       <tr>
@@ -943,11 +944,8 @@ const toggleRowHighlight = (id) => {
           style={{
             position: "sticky",
             top: 0,
-            left: 0,
             zIndex: 60,
             width: 90,
-            minWidth: 90,
-            maxWidth: 90,
             textAlign: "center",
             background: "#2563eb",
           }}
@@ -959,11 +957,9 @@ const toggleRowHighlight = (id) => {
           style={{
             position: "sticky",
             top: 0,
-            left: 90,
+            left: 0,
             zIndex: 60,
             width: 40,
-            minWidth: 40,
-            maxWidth: 40,
             textAlign: "center",
             background: "#2563eb",
           }}
@@ -982,20 +978,20 @@ const toggleRowHighlight = (id) => {
         {visibleColumns.map((colKey, index) => {
           if (hiddenColumns.includes(colKey)) return null;
   const col = allColumns.find((c) => c.key === colKey) || { key: colKey, label: colKey };
-  const width = columnWidths[col.key] || 10;
+  const width = columnWidths[col.key] || 1 + "px";
   const fieldType = filterFields.find(f => f.key === col.key)?.type || "text";
   const dateFields = ["ngayBoc", "ngayBocHang", "ngayGiaoHang"];
 
 
   // LEFT OFFSET CHO 2 CỘT CỐ ĐỊNH TIẾP THEO
   let leftOffset = null;
-  if (index === 0) leftOffset = 130;
-  if (index === 1) leftOffset = 130 + width;
+  if (index === 0) leftOffset = 40;
+  if (index === 1) leftOffset = 40 + width;
 
   const stickyColumns = ["tenLaiXe", "maKH"];
   const stickyIndex = stickyColumns.indexOf(col.key);
   if (stickyIndex >= 0) {
-    leftOffset = 130;
+    leftOffset = 40;
     for (let i = 0; i < stickyIndex; i++) {
       const key = stickyColumns[i];
       leftOffset += parseInt(columnWidths[key] || 120);
@@ -1019,9 +1015,11 @@ const toggleRowHighlight = (id) => {
     zIndex: stickyIndex >= 0 ? 60 : 50,
     background: "#2563eb",
     width,
-    minWidth: width,
+    minWidth: ["ltState", "offState", "onlState"].includes(col.key) ? 5 : width,
     maxWidth: width,
-    overflow: "visible"
+    overflow: "visible",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
   }}
 
   // ⭐ NGĂN VIỆC NHẤP VÀO LẠI CHẶN DRAG
@@ -1038,7 +1036,20 @@ const toggleRowHighlight = (id) => {
   }}
   style={{ cursor: "pointer" }}
 >
-  <span className="truncate">{col.label}</span>
+  <span
+  className="text-center"
+  style={{
+    whiteSpace: "normal",
+    wordBreak: "break-word",
+    lineHeight: "14px",
+    display: "block",
+    maxHeight: "28px",   // = 2 dòng
+    overflow: "hidden",
+  }}
+>
+  {col.label}
+</span>
+
 </div>
 
 {/* RESIZE HANDLE */}
@@ -1107,10 +1118,6 @@ const toggleRowHighlight = (id) => {
     </div>
   )}
 </th>
-
-
-
-
   );
 })}
 
@@ -1146,10 +1153,7 @@ const toggleRowHighlight = (id) => {
   className="border p-2 bg-white"
   style={{
     position: "sticky",
-    left: 0,
     zIndex: 50,
-    width: 90,
-    minWidth: 90,
     background: "#fff",
   }}
   onClick={(e) => e.stopPropagation()}
@@ -1203,10 +1207,9 @@ const toggleRowHighlight = (id) => {
             className="border p-2 bg-white"
             style={{
               position: "sticky",
-              left: 90,
+              left: 0,
               zIndex: 50,
               width: 40,
-              minWidth: 40,
               background: "#fff",
             }}
             onClick={(e) => e.stopPropagation()}
@@ -1238,14 +1241,14 @@ const toggleRowHighlight = (id) => {
                 : r[col.key] ?? "";
 
             let leftOffset = null;
-            if (colIndex === 0) leftOffset =130;
-            if (colIndex === 1) leftOffset = 130 + width;
+            if (colIndex === 0) leftOffset =40;
+            if (colIndex === 1) leftOffset = 40 + width;
 
                       const stickyColumns = ["tenLaiXe", "maKH"];
           const stickyIndex = stickyColumns.indexOf(col.key);
 
 if (stickyIndex >= 0) {
-  leftOffset = 130; // 90 sửa + 40 checkbox
+  leftOffset = 40; // 40 checkbox
   for (let i = 0; i < stickyIndex; i++) {
     const key = stickyColumns[i];
     leftOffset += parseInt(columnWidths[key] || 120);
@@ -1259,7 +1262,7 @@ if (stickyIndex >= 0) {
                 style={{
                   position: leftOffset !== null ? "sticky" : "static",
                   left: stickyIndex >= 0 ? leftOffset : undefined,
-                  height: 60,
+                  height: 40,
                   zIndex: stickyIndex >= 0 ? 45 : 1,
                   background: warnings[r._id]
   ? "#fecaca"
@@ -1364,9 +1367,20 @@ if (stickyIndex >= 0) {
         </button>
       </div>
 
-      <div className="mt-3 text-right font-semibold text-gray-700">
-        Tổng số chuyến hiển thị: {rides.length.toLocaleString()}
-      </div>
+<div className="flex items-center gap-3 text-sm text-gray-600 justify-end mt-2">
+  <span>Tổng số chuyến hiển thị: {rides.length}</span>
+
+  <select
+    value={limit}
+    onChange={(e) => setLimit(Number(e.target.value))}
+    className="border px-2 py-1 rounded text-black"
+  >
+    {[30, 35, 40, 45, 50].map((n) => (
+      <option key={n} value={n}>{n} / trang</option>
+    ))}
+  </select>
+</div>
+
 
       {showEditModal && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40 w-full">

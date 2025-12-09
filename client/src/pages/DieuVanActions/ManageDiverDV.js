@@ -13,23 +13,24 @@ const apiDrivers = `${API}/drivers`;
 // ---- allColumns ở ngoài component (bạn đã làm rồi) ----
 export const allColumns = [
   { key: "stt", label: "STT" },
-  { key: "name", label: "Họ tên lái xe" },
-  { key: "nameZalo", label: "Tên Zalo" },
+  { key: "name", label: "HỌ TÊN LÁI XE" },
+  { key: "nameZalo", label: "TÊN ZALO" },
   { key: "birthYear", label: "Ngày sinh" },
-  { key: "company", label: "Đơn vị" },
-  { key: "bsx", label: "Biển số xe" },
+  { key: "company", label: "ĐƠN VỊ" },
+  { key: "bsx", label: "BSX" },
   { key: "phone", label: "SĐT" },
-  { key: "hometown", label: "Quê quán" },
-  { key: "resHometown", label: "HKTT" },
-  { key: "address", label: "Nơi ở hiện tại" },
+  { key: "hometown", label: "QUÊ QUÁN" },
+  { key: "resHometown", label: "NƠI ĐĂNG KÝ HKTT" },
+  { key: "address", label: "NƠI Ở HIỆN TẠI" },
   { key: "cccd", label: "CCCD" },
   { key: "cccdIssuedAt", label: "Ngày cấp CCCD" },
   { key: "cccdExpiryAt", label: "Ngày hết hạn CCCD" },
   { key: "licenseImageCCCD", label: "Ảnh CCCD" },
-  { key: "licenseClass", label: "Hạng BL" },
-  { key: "licenseIssuedAt", label: "Ngày cấp BL" },
-  { key: "licenseExpiryAt", label: "Ngày hết hạn BL" },
-  { key: "licenseImage", label: "Ảnh BL" },
+  { key: "numberClass", label: "Số GPLX" },
+  { key: "licenseClass", label: "HẠNG BL" },
+  { key: "licenseIssuedAt", label: "Ngày cấp GPLX" },
+  { key: "licenseExpiryAt", label: "Ngày hết hạn GPLX" },
+  { key: "licenseImage", label: "Ảnh GPLX" },
   { key: "numberHDLD", label: "Số HĐLĐ" },
   { key: "dayStartWork", label: "Ngày vào làm" },
   { key: "dayEndWork", label: "Ngày nghỉ" },
@@ -57,7 +58,7 @@ function formatDateSafe(value) {
   return "";
 }
 
-export default function ManageDriverDV() {
+export default function ManageDriver() {
   const navigate = useNavigate();
   const location = useLocation();
   const fileInputRef = useRef(null);
@@ -228,6 +229,9 @@ export default function ManageDriverDV() {
     setColumnWidths(prev => ({ ...prev, [r.columnKey]: `${newWidth}px` }));
   };
 
+  const isResizing = useRef(false);
+
+
   const onMouseUpResize = () => {
     const colKey = resizingRef.current.columnKey;
     if (!colKey) {
@@ -238,6 +242,7 @@ export default function ManageDriverDV() {
 
     const th = document.querySelector(`th[data-col="${colKey}"]`);
     if (!th) {
+      isResizing.current = false;
       window.removeEventListener("mousemove", onMouseMoveResize);
       window.removeEventListener("mouseup", onMouseUpResize);
       resizingRef.current = { columnKey: null, startX: 0, startWidth: 0 };
@@ -311,6 +316,23 @@ export default function ManageDriverDV() {
       return [saved, ...prev];
     });
   };
+
+  const handleDeleteAll = async () => {
+  if (!canEditDriver) return alert("Bạn chưa có quyền xóa lái xe!");
+  if (!window.confirm("Xác nhận xóa tất cả lái xe? Hành động này không thể hoàn tác!")) return;
+
+  try {
+    await axios.delete(`${apiDrivers}/all`, {
+      headers: { Authorization: token ? `Bearer ${token}` : undefined },
+    });
+    setDrivers([]); // xóa toàn bộ khỏi UI
+    alert("Đã xóa tất cả lái xe thành công!");
+  } catch (err) {
+    console.error("Xóa tất cả thất bại:", err.response?.data?.error || err.message);
+    alert("Không thể xóa tất cả lái xe!");
+  }
+};
+
 
   // import modal logic omitted here for brevity — keep your existing handlers
   const [showImportMode, setShowImportMode] = useState(false);
@@ -415,12 +437,12 @@ const toggleRowHighlight = (id) => {
   // ---------- UI render (giữ nguyên layout của bạn) ----------
   return (
     <div className="p-4 bg-gray-50 min-h-screen text-sm">
-<div className="flex gap-2 items-center mb-4">
+            <div className="flex gap-2 items-center mb-4">
           <button
     onClick={() => navigate("/tonghop")}
     className="px-3 py-1 rounded text-white bg-blue-500"
   >
-    Tổng hợp chuyến
+    Trang chính
   </button>
 
   <button
@@ -494,104 +516,125 @@ const toggleRowHighlight = (id) => {
       borderSpacing: 0,
     }}
   >
-    <thead className="bg-gray-200">
-      <tr>
-        {/* Cột cảnh báo (sticky col 0) */}
+<thead className="bg-gray-200">
+  <tr>
+    {/* Cột cảnh báo (sticky col 0) */}
+    <th
+      className="border p-1 sticky top-0 bg-gray-200 text-center relative"
+      style={{
+        width: 30,
+        zIndex: 40,
+        left: 0,
+        boxSizing: "border-box",
+        background: "#f3f4f6",
+        transform: "translateZ(0)",
+        backgroundClip: "padding-box",
+      }}
+    />
+
+    {/* Các cột dữ liệu */}
+    {visibleColumns.map((cKey, index) => {
+      const colMeta =
+        allColumns.find((ac) => ac.key === cKey) || {
+          key: cKey,
+          label: cKey,
+        };
+
+      const widthStyle = columnWidths[cKey]
+        ? {
+            width: columnWidths[cKey],
+            minWidth: columnWidths[cKey],
+            maxWidth: columnWidths[cKey],
+          }
+        : {};
+
+      const isFirst = index === 0;
+      const isSecond = index === 1;
+
+      // left offset cho sticky
+      const leftOffset = isFirst
+        ? 35
+        : isSecond
+        ? 35 + firstColWidth
+        : undefined;
+
+      return (
         <th
-          className="border p-1 sticky top-0 bg-gray-200 text-center"
-          style={{
-            width: 30,
-            zIndex: 40,               // header above everything
-            left: 0,
-            boxSizing: "border-box",
-            background: "#f3f4f6",
-            transform: "translateZ(0)", // new stacking context
-            WebkitTransform: "translateZ(0)",
-            backgroundClip: "padding-box",
-            borderRight: "1px solid #e5e7eb", // hide seam
+          key={cKey}
+          data-col={cKey}
+          ref={index === 0 ? firstColRef : null}
+          draggable={!isResizing.current}
+          onDragStart={(e) => {
+            if (!isResizing.current) onDragStart(e, cKey);
+            else e.preventDefault();
           }}
-        />
-        {visibleColumns.map((cKey, index) => {
-          const colMeta =
-            allColumns.find((ac) => ac.key === cKey) || {
-              key: cKey,
-              label: cKey,
-            };
-          const widthStyle = columnWidths[cKey]
-            ? {
-                width: columnWidths[cKey],
-                minWidth: columnWidths[cKey],
-                maxWidth: columnWidths[cKey],
-              }
-            : {};
-
-          const isFirst = index === 0;
-          const isSecond = index === 1;
-
-          // header left offset (sticky)
-          const leftOffset = isFirst ? 35 : isSecond ? 35 + firstColWidth : undefined;
-
-          return (
-            <th
-              key={cKey}
-              data-col={cKey}
-              ref={index === 0 ? firstColRef : null}
-              draggable
-              onDragStart={(e) => onDragStart(e, cKey)}
-              onDragOver={onDragOver}
-              onDrop={(e) => onDrop(e, cKey)}
-              className="border p-1 text-left align-top"
-              style={{
-                top: 0,
-                position: "sticky",
-                zIndex: isFirst || isSecond ? 40 : 20, // header above body sticky
-                left: isFirst || isSecond ? leftOffset : undefined,
-                background: "#f3f4f6",
-                boxSizing: "border-box",
-                transform: "translateZ(0)",
-                WebkitTransform: "translateZ(0)",
-                backgroundClip: "padding-box",
-                borderRight: isFirst || isSecond ? "1px solid #e5e7eb" : undefined,
-                ...widthStyle,
-              }}
-            >
-              <div className="relative flex items-center justify-center">
-                <span className="truncate">{colMeta.label}</span>
-                <div
-                  onMouseDown={(e) => onMouseDownResize(e, cKey)}
-                  style={{
-                    position: "absolute",
-                    right: 0,
-                    top: 0,
-                    bottom: 0,
-                    width: 10,
-                    cursor: "col-resize",
-                    zIndex: 10,
-                  }}
-                  onDragStart={(ev) => ev.preventDefault()}
-                />
-              </div>
-            </th>
-          );
-        })}
-
-        <th
-          className="border p-1 sticky top-0"
+          onDragOver={onDragOver}
+          onDrop={(e) => onDrop(e, cKey)}
+          className="border p-0 relative bg-gray-200 select-none"
           style={{
-            zIndex: 40,
-            width: 120,
-            boxSizing: "border-box",
+            position: "sticky",
+            top: 0,
+            left: leftOffset,
+            zIndex: leftOffset !== undefined ? 40 : 30,
             background: "#f3f4f6",
-            transform: "translateZ(0)",
-            WebkitTransform: "translateZ(0)",
-            backgroundClip: "padding-box",
-            borderLeft: "1px solid #e5e7eb",
+            overflow: "visible",
+            ...widthStyle, // ⭐ FIX QUAN TRỌNG: không gán width = object
           }}
         >
-          Hành động
+          {/* LABEL */}
+          <div
+            className="p-2 flex items-center justify-center w-full text-center text-xs"
+            style={{ cursor: "pointer", userSelect: "none" }}
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+          >
+            <span className="truncate">{colMeta.label}</span>
+          </div>
+
+          {/* RESIZE HANDLE */}
+          <div
+            onMouseDown={(e) => {
+              isResizing.current = true;
+              e.preventDefault();
+              e.stopPropagation();
+              onMouseDownResize(e, cKey);
+            }}
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+            style={{
+              position: "absolute",
+              right: 0,
+              top: 0,
+              bottom: 0,
+              width: 10,
+              cursor: "col-resize",
+              zIndex: 200,
+              userSelect: "none",
+            }}
+          ></div>
         </th>
-      </tr>
-    </thead>
+      );
+    })}
+
+    {/* Cột hành động */}
+    <th
+      className="border p-1 sticky top-0"
+      style={{
+        zIndex: 20,
+        width: 120,
+        boxSizing: "border-box",
+        background: "#f3f4f6",
+        transform: "translateZ(0)",
+        backgroundClip: "padding-box",
+        borderLeft: "1px solid #e5e7eb",
+      }}
+    >
+      Hành động
+    </th>
+  </tr>
+</thead>
+
 
     <tbody>
       {drivers.length === 0 && (
@@ -613,7 +656,7 @@ const toggleRowHighlight = (id) => {
             key={d._id}
             onClick={() => toggleRowHighlight(d._id)}
             className={`cursor-pointer ${isWarning ? "bg-red-300" : idx % 2 === 0 ? "bg-white" : "bg-gray-50"} ${selectedRows.includes(d._id) ? "bg-yellow-200" : ""}`}
-            style={{ height: 80 }}
+            style={{ height: 20 }}
           >
             {/* Cột cảnh báo (sticky left) */}
             <td
@@ -621,9 +664,13 @@ const toggleRowHighlight = (id) => {
               style={{
                 position: "sticky",
                 left: 0,
-                zIndex: 40, // body sticky under header but above other cells
+                zIndex: 20, // body sticky under header but above other cells
                 width: 30,
-                height: 80,
+                height: 20,
+                lineHeight: "20px",        // ⭐ canh giữa theo chiều dọc
+                whiteSpace: "nowrap",      // ⭐ không xuống dòng
+                overflow: "hidden",        // ⭐ ẩn phần vượt quá
+                textOverflow: "ellipsis",  // ⭐ thêm ...
                 boxSizing: "border-box",
                 background: isWarning ? "#fca5a5" : "#fff",
                 transform: "translateZ(0)",
@@ -640,62 +687,81 @@ const toggleRowHighlight = (id) => {
               </button>
             </td>
 
-            {visibleColumns.map((cKey, colIndex) => {
-              const dateColumnsBlue = ["cccdExpiryAt", "licenseExpiryAt", "dayEndWork"];
-              const isFirst = colIndex === 0;
-              const isSecond = colIndex === 1;
+{visibleColumns.map((cKey, colIndex) => {
+  const dateColumns = ["cccdExpiryAt", "licenseExpiryAt", "dayEndWork"];
 
-              const stickyLeft = isFirst ? 35 : isSecond ? 35 + firstColWidth : undefined;
-                // style text màu xanh cho cột ngày
-              const textColorStyle = dateColumnsBlue.includes(cKey) ? { color: "blue", fontWeight: "bold" } : {};
+  let dateStyle = {};
+  if (dateColumns.includes(cKey) && d[cKey]) {
+    const today = new Date();
+    const cellDate = new Date(d[cKey]);
 
-              const cellWidthStyle = columnWidths[cKey]
-                ? {
-                    width: columnWidths[cKey],
-                    minWidth: columnWidths[cKey],
-                    maxWidth: columnWidths[cKey],
-                    boxSizing: "border-box",
-                  }
-                : {};
+    if (cellDate <= today) {
+      dateStyle = { color: "red", fontWeight: "bold" };
+    } else {
+      dateStyle = { color: "blue", fontWeight: "bold" };
+    }
+  }
 
-              return (
-                <td
-                  key={cKey}
-                  className="border p-1 align-top"
-                  style={{
-                    position: isFirst || isSecond ? "sticky" : "relative",
-                    left: isFirst || isSecond ? stickyLeft : undefined,
-                    zIndex: isFirst || isSecond ? 40 : 20,
-                    height: 80,
-                    background:
-                      warnings[d._id]
-                        ? "#fca5a5"
-                        : selectedRows.includes(d._id)
-                        ? "#fde68a"
-                        : idx % 2 === 0
-                        ? "#ffffff"
-                        : "#f9fafb",
-                    transform: "translateZ(0)",
-                    WebkitTransform: "translateZ(0)",
-                    backgroundClip: "padding-box",
-                    borderRight: isFirst || isSecond ? "1px solid #e5e7eb" : undefined,
-                    ...cellWidthStyle,
-                    ...textColorStyle
-                  }}
-                >
-                  {cKey === "stt"
-                    ? idx + 1
-                    : cKey === "licenseImage" ||
-                      cKey === "licenseImageCCCD"
-                    ? d[cKey] && (
-                        <a href={d[cKey]} target="_blank" rel="noreferrer">
-                          <img src={d[cKey]} alt="img" className="w-16 h-16 object-cover rounded border" />
-                        </a>
-                      )
-                    : formatCellValue(cKey, d[cKey])}
-                </td>
-              );
-            })}
+  const isFirst = colIndex === 0;
+  const isSecond = colIndex === 1;
+
+  const stickyLeft = isFirst ? 35 : isSecond ? 35 + firstColWidth : undefined;
+
+  const cellWidthStyle = columnWidths[cKey]
+    ? {
+        width: columnWidths[cKey],
+        minWidth: columnWidths[cKey],
+        maxWidth: columnWidths[cKey],
+        boxSizing: "border-box",
+      }
+    : {};
+
+  return (
+    <td
+      key={cKey}
+      className="border p-1 align-top"
+      style={{
+        position: isFirst || isSecond ? "sticky" : "relative",
+        left: isFirst || isSecond ? stickyLeft : undefined,
+        zIndex: isFirst || isSecond ? 20 : 10,
+        height: 20,
+        lineHeight: "20px",        // ⭐ canh giữa theo chiều dọc
+        whiteSpace: "nowrap",      // ⭐ không xuống dòng
+        overflow: "hidden",        // ⭐ ẩn phần vượt quá
+        textOverflow: "ellipsis",  // ⭐ thêm ...
+        background:
+          warnings[d._id]
+            ? "#fca5a5"
+            : selectedRows.includes(d._id)
+            ? "#fde68a"
+            : idx % 2 === 0
+            ? "#ffffff"
+            : "#f9fafb",
+        transform: "translateZ(0)",
+        WebkitTransform: "translateZ(0)",
+        backgroundClip: "padding-box",
+        borderRight: isFirst || isSecond ? "1px solid #e5e7eb" : undefined,
+        ...cellWidthStyle,
+        ...dateStyle,
+      }}
+    >
+      {cKey === "stt"
+        ? idx + 1
+        : cKey === "licenseImage" || cKey === "licenseImageCCCD"
+        ? d[cKey] && (
+            <a href={d[cKey]} target="_blank" rel="noreferrer">
+              <img
+                src={d[cKey]}
+                alt="img"
+                className="w-[42px] h-[28px] object-cover rounded border"
+              />
+            </a>
+          )
+        : formatCellValue(cKey, d[cKey])}
+    </td>
+  );
+})}
+
 
             <td
               className="border p-1 flex gap-2 justify-center"
@@ -718,12 +784,24 @@ const toggleRowHighlight = (id) => {
   </table>
 </div>
 
+<div className="flex justify-end mt-3">
+  <button
+    onClick={handleDeleteAll}
+    className={`px-4 py-2 bg-red-600 text-white rounded shadow hover:bg-red-700 
+      ${!canEditDriver ? "opacity-50 cursor-not-allowed" : ""}`}
+    disabled={!canEditDriver}
+  >
+    Xóa tất cả
+  </button>
+</div>
 
 
-      {showModal && <div className="z-[100]"><DriverModal initialData={editDriver} onClose={() => { setShowModal(false); setEditDriver(null); }} onSave={handleSave} apiBase={apiDrivers} /></div>}
+
+
+      {showModal && <div className="z-[999]" style={{zIndex: 999}}><DriverModal initialData={editDriver} onClose={() => { setShowModal(false); setEditDriver(null); }} onSave={handleSave} apiBase={apiDrivers} /></div>}
 
       {showImportMode && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-90">
           <div className="bg-white rounded p-5 shadow-lg w-80">
             <h2 className="text-lg font-bold mb-3">Chọn chế độ Import</h2>
 

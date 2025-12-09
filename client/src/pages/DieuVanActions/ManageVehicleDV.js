@@ -11,7 +11,7 @@ const apiVehicles = `${API}/vehicles`;
 
 // columns for vehicles (first two columns are locked/sticky)
 export const allColumns = [
-  { key: "plateNumber", label: "Biển số" , stickyIndex: 0 },
+  { key: "plateNumber", label: "BSX" , stickyIndex: 0 },
   { key: "company", label: "Đơn vị vận tải", stickyIndex: 1 },
   { key: "vehicleType", label: "Loại xe" },
   { key: "length", label: "Dài" },
@@ -53,7 +53,7 @@ export default function ManageVehicle() {
   const handleGoToDrivers = () => navigate("/manage-driver-dv", { state: { user } });
   const handleGoToCustomers = () => navigate("/manage-customer-dv", { state: { user } });
   const handleGoToVehicles = () => navigate("/manage-vehicle-dv", { state: { user } });
-    
+
   // visibleColumns khởi tạo mặc định từ allColumns
   const [visibleColumns, setVisibleColumns] = useState(allColumns.map((c) => c.key));
   const [columnWidths, setColumnWidths] = useState({});
@@ -208,6 +208,8 @@ export default function ManageVehicle() {
     setColumnWidths((prev) => ({ ...prev, [r.columnKey]: `${newWidth}px` }));
   };
 
+  const isResizingRef = useRef(false);
+
   const onMouseUpResize = () => {
     const colKey = resizingRef.current.columnKey;
     if (!colKey) {
@@ -229,6 +231,7 @@ export default function ManageVehicle() {
       }
       return updated;
     });
+    isResizingRef.current = false;
     window.removeEventListener("mousemove", onMouseMoveResize);
     window.removeEventListener("mouseup", onMouseUpResize);
     resizingRef.current = { columnKey: null, startX: 0, startWidth: 0 };
@@ -290,6 +293,20 @@ const formatCellValue = (cKey, value) => {
       alert("Không xóa được: " + (err.response?.data?.error || err.message));
     }
   };
+
+  const handleDeleteAll = async () => {
+  if (!canEditVehicle) return alert("Bạn chưa có quyền xóa xe!");
+  if (!window.confirm("Xác nhận xóa tất cả xe?")) return;
+  try {
+    await axios.delete(`${apiVehicles}/all`, { data: {}, headers: { Authorization: token ? `Bearer ${token}` : undefined } });
+    alert("Đã xóa tất cả xe!");
+    setVehicles([]);
+  } catch (err) {
+    console.error("Xóa tất cả thất bại:", err);
+    alert("Không thể xóa tất cả: " + (err.response?.data?.error || err.message));
+  }
+};
+
 
   const handleSave = (saved) => {
     setVehicles((prev) => {
@@ -371,11 +388,12 @@ const formatCellValue = (cKey, value) => {
   return (
     <div className="p-4 bg-gray-50 min-h-screen text-sm">
       <div className="flex gap-2 items-center mb-4">
-        <button onClick={() => navigate("/tonghop")} className="px-3 py-1 rounded text-white bg-blue-500">Tổng hợp chuyến</button>
+        <button onClick={() => navigate("/tonghop")} className="px-3 py-1 rounded text-white bg-blue-500">Trang chính</button>
 
         <button onClick={handleGoToDrivers} className={`px-3 py-1 rounded text-white ${isActive("/manage-driver-dv") ? "bg-green-600" : "bg-blue-500"}`}>Danh sách lái xe</button>
         <button onClick={handleGoToCustomers} className={`px-3 py-1 rounded text-white ${isActive("/manage-customer-dv") ? "bg-green-600" : "bg-blue-500"}`}>Danh sách khách hàng</button>
         <button onClick={handleGoToVehicles} className={`px-3 py-1 rounded text-white ${isActive("/manage-vehicle-dv") ? "bg-green-600" : "bg-blue-500"}`}>Danh sách xe</button>
+  
       </div>
 
       <div className="flex justify-between items-center mb-4 mt-2">
@@ -411,55 +429,107 @@ const formatCellValue = (cKey, value) => {
       </div>
 
       {/* Table */}
-      <div className="overflow-auto border" style={{ maxHeight: "80vh" }}>
+      <div className="overflow-auto border" style={{ maxHeight: "80vh", position: "relative" }}>
         <table style={{ tableLayout: "fixed", width: "max-content", maxWidth: "max-content", borderCollapse: "separate", borderSpacing: 0 }}>
-          <thead className="bg-gray-200">
-            <tr>
-              {/* Warning column */}
-              <th className="border p-1 sticky top-0 bg-gray-200 text-center" style={{ width: 30, zIndex: 60, left: 0, background: "#f3f4f6" }}></th>
+<thead className="bg-gray-200">
+  <tr>
+    {/* Warning column */}
+    <th
+      className="border p-1 sticky top-0 text-center"
+      style={{
+        width: 30,
+        minWidth: 30,
+        left: 0,
+        zIndex: 50,
+        background: "#f3f4f6",
+        boxSizing: "border-box",
+      }}
+    />
 
-              {visibleColumns.map((cKey, index) => {
-                const colMeta = allColumns.find((ac) => ac.key === cKey) || { key: cKey, label: cKey };
-                const widthStyle = columnWidths[cKey] ? { width: columnWidths[cKey], minWidth: columnWidths[cKey], maxWidth: columnWidths[cKey] } : {};
-                const isFirst = index === 0;
-                const isSecond = index === 1;
-                const leftOffset = isSecond ? firstColWidth : undefined;
+    {visibleColumns.map((cKey, index) => {
+      const colMeta = allColumns.find((c) => c.key === cKey) || {
+        key: cKey,
+        label: cKey,
+      };
 
-                return (
-                  <th
-                    key={cKey}
-                    data-col={cKey}
-                    ref={index === 0 ? firstColRef : null}
-                    draggable={!(colMeta.stickyIndex === 0 || colMeta.stickyIndex === 1)}
-                    onDragStart={(e) => onDragStart(e, cKey)}
-                    onDragOver={onDragOver}
-                    onDrop={(e) => onDrop(e, cKey)}
-                    className="border p-1 text-left align-top bg-gray-200"
-                    style={{
-                      top: 0,
-                      position: "sticky",
-                      zIndex: isFirst || isSecond ? 50 : 30,
-                      left: isFirst ? 35 : isSecond ? 35 + firstColWidth : undefined,
-                      background: "#f3f4f6",
-                      ...widthStyle,
-                      boxSizing: "border-box",
-                    }}
-                  >
-                    <div className="relative flex items-center justify-center">
-                      <span className="truncate">{colMeta.label}</span>
-                      <div
-                        onMouseDown={(e) => onMouseDownResize(e, cKey)}
-                        style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 10, cursor: "col-resize", zIndex: 70 }}
-                        onDragStart={(ev) => ev.preventDefault()}
-                      />
-                    </div>
-                  </th>
-                );
-              })}
+      const widthStyle = columnWidths[cKey]
+        ? {
+            width: columnWidths[cKey],
+            minWidth: columnWidths[cKey],
+            maxWidth: columnWidths[cKey],
+          }
+        : {};
 
-              <th className="border p-1 sticky top-0 bg-gray-200" style={{ zIndex: 30, width: 120, boxSizing: "border-box" }}>Hành động</th>
-            </tr>
-          </thead>
+      const isFirst = index === 0;
+      const isSecond = index === 1;
+      const leftOffset = isSecond
+        ? 35 + firstColWidth
+        : isFirst
+        ? 35
+        : undefined;
+
+      return (
+        <th
+          key={cKey}
+          data-col={cKey}
+          ref={isFirst ? firstColRef : null}
+          draggable={!isResizingRef.current}
+          onDragStart={(e) => {
+            if (!isResizingRef.current) onDragStart(e, cKey);
+            else e.preventDefault();
+          }}
+          onDragOver={onDragOver}
+          onDrop={(e) => onDrop(e, cKey)}
+          className="border p-0 text-center bg-gray-200 relative select-none"
+          style={{
+            position: "sticky",
+            top: 0,
+            left: leftOffset,
+            zIndex: leftOffset !== undefined ? 40 : 20,
+            background: "#f3f4f6",
+            overflow: "visible",
+            boxSizing: "border-box",
+            ...widthStyle,
+          }}
+        >
+          <div className="p-2 text-xs truncate">
+            {colMeta.label}
+          </div>
+
+          {/* Resize handle */}
+          <div
+            onMouseDown={(e) => {
+              isResizingRef.current = true;
+              e.preventDefault();
+              e.stopPropagation();
+              onMouseDownResize(e, cKey);
+            }}
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+            style={{
+              position: "absolute",
+              right: 0,
+              top: 0,
+              bottom: 0,
+              width: 10,
+              cursor: "col-resize",
+              zIndex: 200,
+              userSelect: "none",
+            }}
+          />
+        </th>
+      );
+    })}
+
+    <th
+      className="border p-1 sticky top-0 text-center bg-gray-200"
+      style={{ width: 120, minWidth: 120, zIndex: 40 }}
+    >
+      Hành động
+    </th>
+  </tr>
+</thead>
+
 
           <tbody>
             {vehicles.length === 0 && (
@@ -477,7 +547,7 @@ const formatCellValue = (cKey, value) => {
                   className={`cursor-pointer ${isWarning ? "bg-red-300" : idx % 2 === 0 ? "bg-white" : "bg-gray-50"} ${selectedRows.includes(v._id) ? "bg-yellow-200" : ""}`}
                 >
                   {/* Warning cell */}
-                  <td className="border p-1 text-center" style={{ position: "sticky", left: 0, zIndex: 50, width: 30, background: isWarning ? "#fca5a5" : "#fff" }}>
+                  <td className="border p-1 text-center" style={{ position: "sticky", left: 0, zIndex: 20, width: 30, background: isWarning ? "#fca5a5" : "#fff" }}>
                     <button onClick={() => toggleWarning(v._id)} className={`px-1 py-1 rounded text-white ${isWarning ? "bg-red-600" : "bg-gray-400"}`}>⚠</button>
                   </td>
 
@@ -494,16 +564,20 @@ const formatCellValue = (cKey, value) => {
                         style={{
                           position: isFirst || isSecond ? "sticky" : "relative",
                           left: stickyLeft,
-                          height: 80,
-                          zIndex: isFirst || isSecond ? 40 : 1,
+                          height: 20,
+                          lineHeight: "20px",        // ⭐ canh giữa theo chiều dọc
+                          whiteSpace: "nowrap",      // ⭐ không xuống dòng
+                          overflow: "hidden",        // ⭐ ẩn phần vượt quá
+                          textOverflow: "ellipsis",
+                          zIndex: isFirst || isSecond ? 20 : 1,
                           background: isWarning ? "#fca5a5" : selectedRows.includes(v._id) ? "#fde68a" : (idx % 2 === 0 ? "#fff" : "#f9fafb"),
                           ...cellWidthStyle,
                         }}
                       >
                         {cKey === "registrationImage" ? (
-                          v[cKey] ? <a href={v[cKey]} target="_blank" rel="noreferrer"><img src={v[cKey]} alt="reg" className="w-20 h-14 object-cover rounded border" /></a> : ""
+                          v[cKey] ? <a href={v[cKey]} target="_blank" rel="noreferrer"><img src={v[cKey]} alt="reg" className="w-[42px] h-[28px] object-cover rounded border" /></a> : ""
                         ) : cKey === "inspectionImage" ? (
-                          v[cKey] ? <a href={v[cKey]} target="_blank" rel="noreferrer"><img src={v[cKey]} alt="insp" className="w-20 h-14 object-cover rounded border" /></a> : ""
+                          v[cKey] ? <a href={v[cKey]} target="_blank" rel="noreferrer"><img src={v[cKey]} alt="insp" className="w-[42px] h-[28px] object-cover rounded border" /></a> : ""
                         ) : (
                           formatCellValue(cKey, v[cKey])
                         )}
@@ -527,6 +601,17 @@ const formatCellValue = (cKey, value) => {
           </tbody>
         </table>
       </div>
+
+      <div className="flex justify-end mt-3">
+  <button
+    onClick={handleDeleteAll}
+    className={`px-4 py-2 bg-red-600 text-white rounded shadow hover:bg-red-700 
+      ${!canEditVehicle ? "opacity-50 cursor-not-allowed" : ""}`}
+    disabled={!canEditVehicle}
+  >
+    Xóa tất cả
+  </button>
+</div>
 
       {showModal && <VehicleModal initialData={editVehicle} onClose={() => { setShowModal(false); setEditVehicle(null); }} onSave={handleSave} apiBase={apiVehicles} />}
 

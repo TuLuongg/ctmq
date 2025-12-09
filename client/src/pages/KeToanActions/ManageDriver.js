@@ -13,23 +13,24 @@ const apiDrivers = `${API}/drivers`;
 // ---- allColumns ở ngoài component (bạn đã làm rồi) ----
 export const allColumns = [
   { key: "stt", label: "STT" },
-  { key: "name", label: "Họ tên lái xe" },
-  { key: "nameZalo", label: "Tên Zalo" },
+  { key: "name", label: "HỌ TÊN LÁI XE" },
+  { key: "nameZalo", label: "TÊN ZALO" },
   { key: "birthYear", label: "Ngày sinh" },
-  { key: "company", label: "Đơn vị" },
-  { key: "bsx", label: "Biển số xe" },
+  { key: "company", label: "ĐƠN VỊ" },
+  { key: "bsx", label: "BSX" },
   { key: "phone", label: "SĐT" },
-  { key: "hometown", label: "Quê quán" },
-  { key: "resHometown", label: "HKTT" },
-  { key: "address", label: "Nơi ở hiện tại" },
+  { key: "hometown", label: "QUÊ QUÁN" },
+  { key: "resHometown", label: "NƠI ĐĂNG KÝ HKTT" },
+  { key: "address", label: "NƠI Ở HIỆN TẠI" },
   { key: "cccd", label: "CCCD" },
   { key: "cccdIssuedAt", label: "Ngày cấp CCCD" },
   { key: "cccdExpiryAt", label: "Ngày hết hạn CCCD" },
   { key: "licenseImageCCCD", label: "Ảnh CCCD" },
-  { key: "licenseClass", label: "Hạng BL" },
-  { key: "licenseIssuedAt", label: "Ngày cấp BL" },
-  { key: "licenseExpiryAt", label: "Ngày hết hạn BL" },
-  { key: "licenseImage", label: "Ảnh BL" },
+  { key: "numberClass", label: "Số GPLX" },
+  { key: "licenseClass", label: "HẠNG BL" },
+  { key: "licenseIssuedAt", label: "Ngày cấp GPLX" },
+  { key: "licenseExpiryAt", label: "Ngày hết hạn GPLX" },
+  { key: "licenseImage", label: "Ảnh GPLX" },
   { key: "numberHDLD", label: "Số HĐLĐ" },
   { key: "dayStartWork", label: "Ngày vào làm" },
   { key: "dayEndWork", label: "Ngày nghỉ" },
@@ -717,7 +718,7 @@ const toggleRowHighlight = (id) => {
             key={d._id}
             onClick={() => toggleRowHighlight(d._id)}
             className={`cursor-pointer ${isWarning ? "bg-red-300" : idx % 2 === 0 ? "bg-white" : "bg-gray-50"} ${selectedRows.includes(d._id) ? "bg-yellow-200" : ""}`}
-            style={{ height: 80 }}
+            style={{ height: 20 }}
           >
             {/* Cột cảnh báo (sticky left) */}
             <td
@@ -727,7 +728,11 @@ const toggleRowHighlight = (id) => {
                 left: 0,
                 zIndex: 20, // body sticky under header but above other cells
                 width: 30,
-                height: 80,
+                height: 20,
+                lineHeight: "20px",        // ⭐ canh giữa theo chiều dọc
+                whiteSpace: "nowrap",      // ⭐ không xuống dòng
+                overflow: "hidden",        // ⭐ ẩn phần vượt quá
+                textOverflow: "ellipsis",  // ⭐ thêm ...
                 boxSizing: "border-box",
                 background: isWarning ? "#fca5a5" : "#fff",
                 transform: "translateZ(0)",
@@ -744,62 +749,81 @@ const toggleRowHighlight = (id) => {
               </button>
             </td>
 
-            {visibleColumns.map((cKey, colIndex) => {
-              const dateColumnsBlue = ["cccdExpiryAt", "licenseExpiryAt", "dayEndWork"];
-              const isFirst = colIndex === 0;
-              const isSecond = colIndex === 1;
+{visibleColumns.map((cKey, colIndex) => {
+  const dateColumns = ["cccdExpiryAt", "licenseExpiryAt", "dayEndWork"];
 
-              const stickyLeft = isFirst ? 35 : isSecond ? 35 + firstColWidth : undefined;
-                // style text màu xanh cho cột ngày
-              const textColorStyle = dateColumnsBlue.includes(cKey) ? { color: "blue", fontWeight: "bold" } : {};
+  let dateStyle = {};
+  if (dateColumns.includes(cKey) && d[cKey]) {
+    const today = new Date();
+    const cellDate = new Date(d[cKey]);
 
-              const cellWidthStyle = columnWidths[cKey]
-                ? {
-                    width: columnWidths[cKey],
-                    minWidth: columnWidths[cKey],
-                    maxWidth: columnWidths[cKey],
-                    boxSizing: "border-box",
-                  }
-                : {};
+    if (cellDate <= today) {
+      dateStyle = { color: "red", fontWeight: "bold" };
+    } else {
+      dateStyle = { color: "blue", fontWeight: "bold" };
+    }
+  }
 
-              return (
-                <td
-                  key={cKey}
-                  className="border p-1 align-top"
-                  style={{
-                    position: isFirst || isSecond ? "sticky" : "relative",
-                    left: isFirst || isSecond ? stickyLeft : undefined,
-                    zIndex: isFirst || isSecond ? 20 : 10,
-                    height: 80,
-                    background:
-                      warnings[d._id]
-                        ? "#fca5a5"
-                        : selectedRows.includes(d._id)
-                        ? "#fde68a"
-                        : idx % 2 === 0
-                        ? "#ffffff"
-                        : "#f9fafb",
-                    transform: "translateZ(0)",
-                    WebkitTransform: "translateZ(0)",
-                    backgroundClip: "padding-box",
-                    borderRight: isFirst || isSecond ? "1px solid #e5e7eb" : undefined,
-                    ...cellWidthStyle,
-                    ...textColorStyle
-                  }}
-                >
-                  {cKey === "stt"
-                    ? idx + 1
-                    : cKey === "licenseImage" ||
-                      cKey === "licenseImageCCCD"
-                    ? d[cKey] && (
-                        <a href={d[cKey]} target="_blank" rel="noreferrer">
-                          <img src={d[cKey]} alt="img" className="w-16 h-16 object-cover rounded border" />
-                        </a>
-                      )
-                    : formatCellValue(cKey, d[cKey])}
-                </td>
-              );
-            })}
+  const isFirst = colIndex === 0;
+  const isSecond = colIndex === 1;
+
+  const stickyLeft = isFirst ? 35 : isSecond ? 35 + firstColWidth : undefined;
+
+  const cellWidthStyle = columnWidths[cKey]
+    ? {
+        width: columnWidths[cKey],
+        minWidth: columnWidths[cKey],
+        maxWidth: columnWidths[cKey],
+        boxSizing: "border-box",
+      }
+    : {};
+
+  return (
+    <td
+      key={cKey}
+      className="border p-1 align-top"
+      style={{
+        position: isFirst || isSecond ? "sticky" : "relative",
+        left: isFirst || isSecond ? stickyLeft : undefined,
+        zIndex: isFirst || isSecond ? 20 : 10,
+        height: 20,
+        lineHeight: "20px",        // ⭐ canh giữa theo chiều dọc
+        whiteSpace: "nowrap",      // ⭐ không xuống dòng
+        overflow: "hidden",        // ⭐ ẩn phần vượt quá
+        textOverflow: "ellipsis",  // ⭐ thêm ...
+        background:
+          warnings[d._id]
+            ? "#fca5a5"
+            : selectedRows.includes(d._id)
+            ? "#fde68a"
+            : idx % 2 === 0
+            ? "#ffffff"
+            : "#f9fafb",
+        transform: "translateZ(0)",
+        WebkitTransform: "translateZ(0)",
+        backgroundClip: "padding-box",
+        borderRight: isFirst || isSecond ? "1px solid #e5e7eb" : undefined,
+        ...cellWidthStyle,
+        ...dateStyle,
+      }}
+    >
+      {cKey === "stt"
+        ? idx + 1
+        : cKey === "licenseImage" || cKey === "licenseImageCCCD"
+        ? d[cKey] && (
+            <a href={d[cKey]} target="_blank" rel="noreferrer">
+              <img
+                src={d[cKey]}
+                alt="img"
+                className="w-[42px] h-[28px] object-cover rounded border"
+              />
+            </a>
+          )
+        : formatCellValue(cKey, d[cKey])}
+    </td>
+  );
+})}
+
 
             <td
               className="border p-1 flex gap-2 justify-center"

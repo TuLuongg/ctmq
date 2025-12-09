@@ -244,7 +244,7 @@ const getVehicleInfo = (plate) => {
 
 
   const [page, setPage] = useState(1);
-  const [limit] = useState(30);
+  const [limit, setLimit] = useState(30);
   const [totalPages, setTotalPages] = useState(1);
 
   const filterFields = allColumns
@@ -303,7 +303,7 @@ const fetchAllRides = async () => {
   useEffect(() => {
     fetchAllRides();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters, date, page]);
+  }, [filters, date, page, limit]);
 
   // 🔹 Lấy fullname từ id
   const getFullName = (id) => {
@@ -563,7 +563,7 @@ const submitTripEdit = async (updatedTrip) => {
     if (!r.columnKey) return;
     const delta = e.clientX - r.startX;
     let newWidth = r.startWidth + delta;
-    if (newWidth < 60) newWidth = 60;
+    if (newWidth < 10) newWidth = 10;
     setColumnWidths((prev) => ({ ...prev, [r.columnKey]: `${newWidth}px` }));
   };
 
@@ -959,7 +959,6 @@ const toggleRowHighlight = (id) => {
           style={{
             position: "sticky",
             top: 0,
-            left: 0,
             zIndex: 60,
             width: 90,
             minWidth: 90,
@@ -975,7 +974,7 @@ const toggleRowHighlight = (id) => {
           style={{
             position: "sticky",
             top: 0,
-            left: 90,
+            left: 0,
             zIndex: 60,
             width: 40,
             minWidth: 40,
@@ -1005,13 +1004,13 @@ const toggleRowHighlight = (id) => {
 
   // LEFT OFFSET CHO 2 CỘT CỐ ĐỊNH TIẾP THEO
   let leftOffset = null;
-  if (index === 0) leftOffset = 130;
-  if (index === 1) leftOffset = 130 + width;
+  if (index === 0) leftOffset = 40;
+  if (index === 1) leftOffset = 40 + width;
 
   const stickyColumns = ["tenLaiXe", "maKH"];
   const stickyIndex = stickyColumns.indexOf(col.key);
   if (stickyIndex >= 0) {
-    leftOffset = 130;
+    leftOffset = 40;
     for (let i = 0; i < stickyIndex; i++) {
       const key = stickyColumns[i];
       leftOffset += parseInt(columnWidths[key] || 120);
@@ -1054,7 +1053,19 @@ const toggleRowHighlight = (id) => {
   }}
   style={{ cursor: "pointer" }}
 >
-  <span className="truncate">{col.label}</span>
+    <span
+  className="text-center"
+  style={{
+    whiteSpace: "normal",
+    wordBreak: "break-word",
+    lineHeight: "14px",
+    display: "block",
+    maxHeight: "28px",   // = 2 dòng
+    overflow: "hidden",
+  }}
+>
+  {col.label}
+</span>
 </div>
 
 {/* RESIZE HANDLE */}
@@ -1158,7 +1169,6 @@ const toggleRowHighlight = (id) => {
   className="border p-2 bg-white"
   style={{
     position: "sticky",
-    left: 0,
     zIndex: 50,
     width: 90,
     minWidth: 90,
@@ -1215,7 +1225,7 @@ const toggleRowHighlight = (id) => {
             className="border p-2 bg-white"
             style={{
               position: "sticky",
-              left: 90,
+              left: 0,
               zIndex: 50,
               width: 40,
               minWidth: 40,
@@ -1250,14 +1260,14 @@ const toggleRowHighlight = (id) => {
                 : r[col.key] ?? "";
 
             let leftOffset = null;
-            if (colIndex === 0) leftOffset =130;
-            if (colIndex === 1) leftOffset = 130 + width;
+            if (colIndex === 0) leftOffset =40;
+            if (colIndex === 1) leftOffset = 40 + width;
 
                       const stickyColumns = ["tenLaiXe", "maKH"];
           const stickyIndex = stickyColumns.indexOf(col.key);
 
 if (stickyIndex >= 0) {
-  leftOffset = 130; // 90 sửa + 40 checkbox
+  leftOffset = 40; // 40 checkbox
   for (let i = 0; i < stickyIndex; i++) {
     const key = stickyColumns[i];
     leftOffset += parseInt(columnWidths[key] || 120);
@@ -1375,9 +1385,19 @@ if (stickyIndex >= 0) {
         </button>
       </div>
 
-      <div className="mt-3 text-right font-semibold text-gray-700">
-        Tổng số chuyến hiển thị: {rides.length.toLocaleString()}
-      </div>
+<div className="flex items-center gap-3 text-sm text-gray-600 text-right mt-2 justify-end">
+  <span>Tổng số chuyến hiển thị: {rides.length}</span>
+
+  <select
+    value={limit}
+    onChange={(e) => setLimit(Number(e.target.value))}
+    className="border px-2 py-1 rounded text-black"
+  >
+    {[30, 35, 40, 45, 50].map((n) => (
+      <option key={n} value={n}>{n} / trang</option>
+    ))}
+  </select>
+</div>
 
       {showTripEditModal && (
         <div className="fixed z-[99999]">

@@ -594,16 +594,20 @@ const formatCellValue = (cKey, value) => {
                         style={{
                           position: isFirst || isSecond ? "sticky" : "relative",
                           left: stickyLeft,
-                          height: 80,
+                          height: 20,
+                          lineHeight: "20px",        // ⭐ canh giữa theo chiều dọc
+                          whiteSpace: "nowrap",      // ⭐ không xuống dòng
+                          overflow: "hidden",        // ⭐ ẩn phần vượt quá
+                          textOverflow: "ellipsis",
                           zIndex: isFirst || isSecond ? 20 : 1,
                           background: isWarning ? "#fca5a5" : selectedRows.includes(v._id) ? "#fde68a" : (idx % 2 === 0 ? "#fff" : "#f9fafb"),
                           ...cellWidthStyle,
                         }}
                       >
                         {cKey === "registrationImage" ? (
-                          v[cKey] ? <a href={v[cKey]} target="_blank" rel="noreferrer"><img src={v[cKey]} alt="reg" className="w-20 h-14 object-cover rounded border" /></a> : ""
+                          v[cKey] ? <a href={v[cKey]} target="_blank" rel="noreferrer"><img src={v[cKey]} alt="reg" className="w-[42px] h-[28px] object-cover rounded border" /></a> : ""
                         ) : cKey === "inspectionImage" ? (
-                          v[cKey] ? <a href={v[cKey]} target="_blank" rel="noreferrer"><img src={v[cKey]} alt="insp" className="w-20 h-14 object-cover rounded border" /></a> : ""
+                          v[cKey] ? <a href={v[cKey]} target="_blank" rel="noreferrer"><img src={v[cKey]} alt="insp" className="w-[42px] h-[28px] object-cover rounded border" /></a> : ""
                         ) : (
                           formatCellValue(cKey, v[cKey])
                         )}

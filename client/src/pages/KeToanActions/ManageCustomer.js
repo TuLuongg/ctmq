@@ -584,7 +584,7 @@ const fetch = async (search = "") => {
               return (
                 <tr key={c._id} onClick={() => toggleRowHighlight(c._id)} className={`cursor-pointer ${isWarning ? "bg-red-300" : idx % 2 === 0 ? "bg-white" : "bg-gray-50"} ${selectedRows.includes(c._id) ? "bg-yellow-200" : ""}`}>
                   {/* Cột cảnh báo */}
-                  <td className="border p-1 text-center" style={{ position: "sticky", left: 0, zIndex: 40, height: 80, width: 30, background: isWarning ? "#fca5a5" : "#fff" }}>
+                  <td className="border p-1 text-center" style={{ position: "sticky", left: 0, zIndex: 40, height: 20, width: 30, background: isWarning ? "#fca5a5" : "#fff" }}>
                     <button onClick={() => toggleWarning(c._id)} className={`px-1 py-1 rounded text-white ${isWarning ? "bg-red-600" : "bg-gray-400"}`}>⚠</button>
                   </td>
 
@@ -595,7 +595,11 @@ const fetch = async (search = "") => {
                     const cellWidthStyle = columnWidths[cKey] ? { width: columnWidths[cKey], minWidth: columnWidths[cKey], maxWidth: columnWidths[cKey], boxSizing: "border-box" } : {};
 
                     return (
-                      <td key={cKey} className="border p-1 align-top" style={{ position: isFirst || isSecond ? "sticky" : "relative", left: stickyLeft, zIndex: isFirst || isSecond ? 30 : 1, background: warnings[c._id] ? "#fca5a5" : selectedRows.includes(c._id) ? "#fde68a" : (idx % 2 === 0 ? "#fff" : "#f9fafb"), ...cellWidthStyle }}>
+                      <td key={cKey} className="border p-1 align-top" style={{ position: isFirst || isSecond ? "sticky" : "relative",                 lineHeight: "20px",        // ⭐ canh giữa theo chiều dọc
+                whiteSpace: "nowrap",      // ⭐ không xuống dòng
+                overflow: "hidden",        // ⭐ ẩn phần vượt quá
+                textOverflow: "ellipsis",  // ⭐ thêm ...
+                left: stickyLeft, zIndex: isFirst || isSecond ? 30 : 1, background: warnings[c._id] ? "#fca5a5" : selectedRows.includes(c._id) ? "#fde68a" : (idx % 2 === 0 ? "#fff" : "#f9fafb"), ...cellWidthStyle }}>
                         {formatCellValue(cKey, c[cKey], idx)}
                       </td>
                     );

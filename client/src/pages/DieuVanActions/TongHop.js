@@ -247,11 +247,14 @@ const parseExcelDate = (val) => {
   return null;
 };
 
+const [excelLoading, setExcelLoading] = useState(false);
 
 
 const handleSelectExcel = async (e) => {
   const file = e.target.files[0];
   if (!file) return alert("Chưa chọn file Excel!");
+
+  setExcelLoading(true);
 
   const data = await file.arrayBuffer();
   const workbook = XLSX.read(data, { type: "array" });
@@ -297,6 +300,7 @@ const handleSelectExcel = async (e) => {
     .filter((x) => x.maChuyen && x.maKH); // Chỉ lấy dòng có mã chuyến và lái xe
 
   setExcelData(mapped);
+  setExcelLoading(false); // 🟢 Load xong
 
   console.log("📌 Dữ liệu import tạm:", mapped);
 };
@@ -551,6 +555,12 @@ const startResize = (e, key) => {
   {loadingImport ? "Đang import..." : "Import Excel"}
 </button>
 
+{excelLoading && (
+  <span className="text-red-600 font-semibold ml-3">
+    File đang được load, xin vui lòng chờ...
+  </span>
+)}
+
 
       </div>
 
@@ -616,7 +626,7 @@ const startResize = (e, key) => {
               onDragOver={(e) => e.preventDefault()}
               onDrop={() => handleDrop(key)}
               style={{ width: colWidths[key] }}
-              className="border p-2 relative select-none whitespace-nowrap"
+              className="border p-2 relative select-none whitespace-nowrap overflow-hidden text-ellipsis"
             >
               <div className="flex items-center justify-center relative">
                 {col.label}
@@ -655,12 +665,13 @@ const startResize = (e, key) => {
 
             return (
               <td
-                key={key}
-                className="border px-2 py-1 whitespace-nowrap"
-                style={{ width: colWidths[key] }}
-              >
-                {value}
-              </td>
+  key={key}
+  className="border px-2 py-1 whitespace-nowrap overflow-hidden text-ellipsis"
+  style={{ width: colWidths[key], maxWidth: colWidths[key] }}
+>
+  {value}
+</td>
+
             );
           })}
         </tr>
