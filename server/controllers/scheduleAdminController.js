@@ -128,7 +128,7 @@ const getAllSchedulesAdmin = async (req, res) => {
 
     // 📌 Phân trang
     const page = parseInt(query.page || 1);
-    const limit = parseInt(query.limit || 30);
+    const limit = parseInt(query.limit || 50);
     const skip = (page - 1) * limit;
 
     // ===============================
@@ -303,7 +303,7 @@ const getSchedulesByAccountant = async (req, res) => {
 
     // 📌 Phân trang
     const page = parseInt(req.query.page || 1);
-    const limit = parseInt(req.query.limit || 30);
+    const limit = parseInt(req.query.limit || 50);
     const skip = (page - 1) * limit;
 
     const total = await ScheduleAdmin.countDocuments(filter);
