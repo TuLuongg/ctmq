@@ -9,8 +9,22 @@ import "./CustomerDebt26Page.css"; // tạo CSS cho resize và overflow
 export default function CustomerDebt26Page() {
   const [trips, setTrips] = useState([]);
   const [selectedTrip, setSelectedTrip] = useState(null);
-  const [month, setMonth] = useState(new Date().getMonth() + 1);
-  const [year, setYear] = useState(new Date().getFullYear());
+
+  const getFirstDayOfMonth = () => {
+    const now = new Date();
+    return format(new Date(now.getFullYear(), now.getMonth(), 1), "yyyy-MM-dd");
+  };
+
+  const getLastDayOfMonth = () => {
+    const now = new Date();
+    return format(
+      new Date(now.getFullYear(), now.getMonth() + 1, 0),
+      "yyyy-MM-dd"
+    );
+  };
+
+  const [startDate, setStartDate] = useState(getFirstDayOfMonth());
+  const [endDate, setEndDate] = useState(getLastDayOfMonth());
 
   // cấu hình cột (key, label, width, visible)
   const defaultColumns = [
@@ -81,14 +95,20 @@ export default function CustomerDebt26Page() {
   const handleGoToVouchers = () =>
     navigate("/voucher-list", { state: { user } });
 
+  const [loading, setLoading] = useState(false);
+
   const loadData = async () => {
+    if (loading) return; // ⛔ chặn spam nút
+
+    setLoading(true); // 🔵 khóa nút
     try {
       const res = await axios.get(
-        `${API}/payment-history/customer26/debt?month=${month}&year=${year}`,
+        `${API}/payment-history/customer26/debt?startDate=${startDate}&endDate=${endDate}`,
         {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         }
       );
+
       const list = res.data?.chiTietChuyen || [];
       const mapped = list.map((c) => ({
         ...c.thongTinChuyen,
@@ -105,11 +125,12 @@ export default function CustomerDebt26Page() {
       console.error(err);
       setTrips([]);
     }
+    setLoading(false);
   };
 
   useEffect(() => {
     loadData();
-  }, [month, year]);
+  }, [startDate, endDate]);
 
   const toggleColumn = (key) => {
     const newCols = columns.map((c) =>
@@ -250,33 +271,32 @@ export default function CustomerDebt26Page() {
       {/* Bộ lọc */}
       <div className="flex items-center gap-4 mb-4">
         <div>
-          <label>Tháng: </label>
-          <select
-            className="border p-1"
-            value={month}
-            onChange={(e) => setMonth(Number(e.target.value))}
-          >
-            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label>Năm: </label>
+          <label>Từ ngày: </label>
           <input
-            type="number"
-            className="border p-1 w-24"
-            value={year}
-            onChange={(e) => setYear(Number(e.target.value))}
+            type="date"
+            className="border p-1"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
           />
         </div>
+
+        <div>
+          <label>Đến ngày: </label>
+          <input
+            type="date"
+            className="border p-1"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+          />
+        </div>
+
         <button
           onClick={loadData}
-          className="px-3 py-1 bg-blue-600 text-white rounded"
+          disabled={loading}
+          className={`px-4 py-2 text-white rounded 
+    ${loading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600"}`}
         >
-          Lọc
+          {loading ? "Đang tải..." : "Lọc"}
         </button>
       </div>
 

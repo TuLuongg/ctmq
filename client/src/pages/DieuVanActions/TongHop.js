@@ -255,6 +255,8 @@ export default function TongHop({ user, onLogout }) {
   };
 
   const [excelLoading, setExcelLoading] = useState(false);
+  const [loadedCount, setLoadedCount] = useState(0); // số chuyến load từ file
+  const [remaining, setRemaining] = useState(0); // số chuyến còn lại khi import
 
   const handleSelectExcel = async (e) => {
     const file = e.target.files[0];
@@ -262,60 +264,69 @@ export default function TongHop({ user, onLogout }) {
 
     setExcelLoading(true);
 
-    const data = await file.arrayBuffer();
-    const workbook = XLSX.read(data, { type: "array" });
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    let rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, { type: "array" });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      let rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
 
-    // Chuẩn hoá key giống BE
-    rows = rows.map((r) => {
-      const obj = {};
-      for (let k in r) {
-        const cleanKey = k.trim().replace(/\s+/g, " ");
-        obj[cleanKey] = r[k];
-      }
-      return obj;
-    });
+      // Chuẩn hoá key giống BE
+      rows = rows.map((r) => {
+        const obj = {};
+        for (let k in r) {
+          const cleanKey = k.trim().replace(/\s+/g, " ");
+          obj[cleanKey] = r[k];
+        }
+        return obj;
+      });
 
-    // Map về đúng structure chuyến
-    const mapped = rows
-      .map((r) => ({
-        maChuyen: r["MÃ CHUYẾN"]?.toString().trim() || "",
-        tenLaiXe: r["TÊN LÁI XE"] || "",
-        maKH: r["MÃ KH"] || "",
-        dienGiai: r["DIỄN GIẢI"] || "",
+      // Map về đúng structure chuyến
+      const mapped = rows
+        .map((r) => ({
+          maChuyen: r["MÃ CHUYẾN"]?.toString().trim() || "",
+          tenLaiXe: r["TÊN LÁI XE"] || "",
+          maKH: r["MÃ KH"] || "",
+          dienGiai: r["DIỄN GIẢI"] || "",
+          ngayBocHang: parseExcelDate(r["Ngày đóng hàng"]),
+          ngayGiaoHang: parseExcelDate(r["Ngày giao hàng"]),
+          ngayBoc: new Date(
+            today.getFullYear(),
+            today.getMonth(),
+            today.getDate(),
+            12,
+            0,
+            0
+          ),
+          diemXepHang: r["ĐIỂM ĐÓNG HÀNG"] || "",
+          diemDoHang: r["ĐIỂM GIAO HÀNG"] || "",
+          soDiem: r["SỐ ĐIỂM"] || "",
+          trongLuong: r["TRỌNG LƯỢNG (Tấn,PL)"] || "",
+          bienSoXe: r["BIỂN SỐ XE"] || "",
+          cuocPhi: r["CƯỚC PHÍ (SỐ TIỀN)"] || "",
+          daThanhToan: r["ĐÃ THANH TOÁN"] || "",
+          bocXep: r["BỐC XẾP"] || "",
+          ve: r["VÉ"] || "",
+          hangVe: r["HÀNG VỀ"] || "",
+          luuCa: r["LƯU CA"] || "",
+          luatChiPhiKhac: r["LUẬT CP KHÁC"] || "",
+          ghiChu: r["GHI CHÚ"] || "",
+        }))
+        .filter((x) => x.maChuyen && x.maKH); // Chỉ lấy dòng có mã chuyến và mã KH
 
-        ngayBocHang: parseExcelDate(r["Ngày đóng hàng"]),
-        ngayGiaoHang: parseExcelDate(r["Ngày giao hàng"]),
-        ngayBoc: new Date(
-          today.getFullYear(),
-          today.getMonth(),
-          today.getDate(),
-          12,
-          0,
-          0
-        ),
-        diemXepHang: r["ĐIỂM ĐÓNG HÀNG"] || "",
-        diemDoHang: r["ĐIỂM GIAO HÀNG"] || "",
-        soDiem: r["SỐ ĐIỂM"] || "",
-        trongLuong: r["TRỌNG LƯỢNG (Tấn,PL)"] || "",
-        bienSoXe: r["BIỂN SỐ XE"] || "",
+      setExcelData(mapped);
+      setLoadedCount(mapped.length);
+      setRemaining(0); // reset khi chọn file mới
 
-        cuocPhi: r["CƯỚC PHÍ (SỐ TIỀN)"] || "",
-        daThanhToan: r["ĐÃ THANH TOÁN"] || "",
-        bocXep: r["BỐC XẾP"] || "",
-        ve: r["VÉ"] || "",
-        hangVe: r["HÀNG VỀ"] || "",
-        luuCa: r["LƯU CA"] || "",
-        luatChiPhiKhac: r["LUẬT CP KHÁC"] || "",
-        ghiChu: r["GHI CHÚ"] || "",
-      }))
-      .filter((x) => x.maChuyen && x.maKH); // Chỉ lấy dòng có mã chuyến và lái xe
-
-    setExcelData(mapped);
-    setExcelLoading(false); // 🟢 Load xong
-
-    console.log("📌 Dữ liệu import tạm:", mapped);
+      console.log("📌 Dữ liệu import tạm:", mapped);
+    } catch (err) {
+      console.error("Lỗi đọc file excel:", err);
+      alert("Lỗi khi đọc file Excel!");
+      setExcelData([]);
+      setLoadedCount(0);
+      setRemaining(0);
+    } finally {
+      setExcelLoading(false);
+    }
   };
 
   const [loadingImport, setLoadingImport] = useState(false);
@@ -323,26 +334,60 @@ export default function TongHop({ user, onLogout }) {
   const handleImportSchedules = async () => {
     if (!excelData.length) return alert("Chưa có dữ liệu import!");
 
+    if (!window.confirm(`Bạn có chắc muốn nhập ${excelData.length} chuyến?`))
+      return;
+
     setLoadingImport(true);
+    setRemaining(excelData.length);
+
+    const failed = []; // lưu các bản ghi lỗi (nếu cần)
 
     try {
-      const res = await axios.post(
-        `${API_URL}/import-excel`,
-        { records: excelData },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      // Import tuần tự để có thể update remaining từng cái
+      for (let i = 0; i < excelData.length; i++) {
+        const record = excelData[i];
+        try {
+          // Gọi API import từng bản ghi (server nên chấp nhận 1 item trong records array)
+          await axios.post(
+            `${API_URL}/import-excel`,
+            { records: [record] },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+        } catch (err) {
+          console.error(
+            "Lỗi import record:",
+            record,
+            err.response?.data || err.message
+          );
+          failed.push({ record, error: err.response?.data || err.message });
+          // tiếp tục import các bản ghi còn lại
+        } finally {
+          setRemaining((prev) => prev - 1);
+        }
+      }
 
-      alert(res.data.message || "Import thành công!");
+      if (failed.length === 0) {
+        alert("Import thành công tất cả chuyến!");
+      } else {
+        alert(
+          `Hoàn thành với ${failed.length} chuyến lỗi. Kiểm tra console để biết chi tiết.`
+        );
+        console.warn("Danh sách lỗi import:", failed);
+      }
 
-      // Reset
+      // Reset sau import (chỉ khi bạn muốn)
       setExcelData([]);
-      document.getElementById("excelInput").value = "";
-      setLoadingImport(false);
+      setLoadedCount(0);
+      setRemaining(0);
+      const inputEl = document.getElementById("excelInput");
+      if (inputEl) inputEl.value = "";
+
       fetchAllRides();
     } catch (err) {
+      console.error("Lỗi khi import:", err);
+      alert("Có lỗi khi import!");
+    } finally {
       setLoadingImport(false);
-      console.error(err);
-      alert("Lỗi khi import!");
     }
   };
 
@@ -570,15 +615,24 @@ export default function TongHop({ user, onLogout }) {
 
         <button
           onClick={handleImportSchedules}
-          disabled={loadingImport}
+          disabled={loadingImport || excelLoading || loadedCount === 0}
           className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm btn"
         >
-          {loadingImport ? "Đang import..." : "Import Excel"}
+          {loadingImport
+            ? `Đang nhập chuyến, số chuyến còn lại: ${remaining}`
+            : "Import Excel"}
         </button>
 
         {excelLoading && (
           <span className="text-red-600 font-semibold ml-3">
             File đang được load, xin vui lòng chờ...
+          </span>
+        )}
+
+        {/* Hiển thị số chuyến đã load */}
+        {loadedCount > 0 && !excelLoading && (
+          <span className="text-green-600 font-semibold ml-3">
+            📌 Đã load được {loadedCount.toLocaleString()} chuyến
           </span>
         )}
       </div>
