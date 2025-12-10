@@ -69,41 +69,39 @@ exports.getCustomerDebt = async (req, res) => {
 
       let trips = grouped[maKH];
 
-// Tính tổng cước
-const tongCuoc = trips.reduce((sum, trip) => sum + calcTripCost(trip), 0);
+      // Tính tổng cước
+      const tongCuoc = trips.reduce((sum, trip) => sum + calcTripCost(trip), 0);
 
-// Tổng thanh toán theo chuyến trong ScheduleAdmin
-const daThanhToanTheoChuyen = trips.reduce((sum, trip) => {
-  const val = parseFloat(trip.daThanhToan) || 0;
-  return sum + val;
-}, 0);
+      // Tổng thanh toán theo chuyến trong ScheduleAdmin
+      const daThanhToanTheoChuyen = trips.reduce((sum, trip) => {
+        const val = parseFloat(trip.daThanhToan) || 0;
+        return sum + val;
+      }, 0);
 
-// Tổng thanh toán theo bảng PaymentHistory
-const pays = await PaymentHistory.aggregate([
-  {
-    $match: {
-      customerCode: maKH,
-      createdAt: { $gte: start, $lt: end },
-    },
-  },
-  { $group: { _id: null, total: { $sum: "$amount" } } },
-]);
+      // Tổng thanh toán theo bảng PaymentHistory
+      const pays = await PaymentHistory.aggregate([
+        {
+          $match: {
+            customerCode: maKH,
+            createdAt: { $gte: start, $lt: end },
+          },
+        },
+        { $group: { _id: null, total: { $sum: "$amount" } } },
+      ]);
 
-const daThanhToanLichSu = pays.length ? pays[0].total : 0;
+      const daThanhToanLichSu = pays.length ? pays[0].total : 0;
 
-// ⭐ Tổng đã thanh toán cuối cùng
-const daThanhToan = daThanhToanLichSu + daThanhToanTheoChuyen;
+      // ⭐ Tổng đã thanh toán cuối cùng
+      const daThanhToan = daThanhToanLichSu + daThanhToanTheoChuyen;
 
-const conLai = tongCuoc - daThanhToan;
-
+      const conLai = tongCuoc - daThanhToan;
 
       let trangThai = "green";
-if (conLai > 0) {
-  const tiLe = tongCuoc === 0 ? 0 : conLai / tongCuoc;
-  if (tiLe <= 0.2) trangThai = "yellow";  // còn <= 20% tổng cước → vàng
-  else trangThai = "red";                  // còn > 20% → đỏ
-}
-
+      if (conLai > 0) {
+        const tiLe = tongCuoc === 0 ? 0 : conLai / tongCuoc;
+        if (tiLe <= 0.2) trangThai = "yellow"; // còn <= 20% tổng cước → vàng
+        else trangThai = "red"; // còn > 20% → đỏ
+      }
 
       result.push({
         maKH,
@@ -183,52 +181,54 @@ exports.getCustomerTrips = async (req, res) => {
   }
 };
 
-
 // =====================================================
 // 📌 TÍNH CÔNG NỢ KHÁCH 26 THEO TỪNG CHUYẾN (CÓ RULE MÀU GIỐNG TẤT CẢ)
 // =====================================================
-// Lấy công nợ KH 26 theo từng chuyến và điền thông tin CK mới nhất
 exports.getDebtForCustomer26 = async (req, res) => {
   try {
-    let { month, year } = req.query;
-    month = parseInt(month);
-    year = parseInt(year);
+    let { startDate, endDate } = req.query;
 
-    if (!month || !year) return res.status(400).json({ error: "Thiếu month hoặc year" });
+    if (!startDate || !endDate) {
+      return res.status(400).json({ error: "Thiếu startDate hoặc endDate" });
+    }
 
-    const start = new Date(year, month - 1, 1);
-    const end = new Date(year, month, 1);
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    // end tăng thêm 1 ngày để <= endDate
+    end.setDate(end.getDate() + 1);
 
     const trips = await ScheduleAdmin.find({
       maKH: "26",
       ngayGiaoHang: { $gte: start, $lt: end },
     });
 
-    // Map từng chuyến và tính tổng + lấy thanh toán mới nhất
-    const list = await Promise.all(trips.map(async (t) => {
-      const tongTien = calcTripCost(t);
-      const daThanhToan = parseFloat(t.daThanhToan) || 0;
-      const conLai = tongTien - daThanhToan;
+    const list = await Promise.all(
+      trips.map(async (t) => {
+        const tongTien = calcTripCost(t);
+        const daThanhToan = parseFloat(t.daThanhToan) || 0;
+        const conLai = tongTien - daThanhToan;
 
-      // Lấy thanh toán mới nhất cho chuyến
-      const latestPayment = await TripPayment.findOne({ maChuyenCode: t.maChuyen })
-        .sort({ createdAt: -1 })
-        .lean();
+        const latestPayment = await TripPayment.findOne({
+          maChuyenCode: t.maChuyen,
+        })
+          .sort({ createdAt: -1 })
+          .lean();
 
-      return {
-        tripId: t._id,
-        ngayGiaoHang: t.ngayGiaoHang,
-        thongTinChuyen: t.toObject(),
-        tongTien,
-        daThanhToan,
-        conLai,
-        ngayCK: latestPayment?.createdAt || null,
-        taiKhoanCK: latestPayment?.method || "",
-        noiDungCK: latestPayment?.note || "",
-      };
-    }));
+        return {
+          tripId: t._id,
+          ngayGiaoHang: t.ngayGiaoHang,
+          thongTinChuyen: t.toObject(),
+          tongTien,
+          daThanhToan,
+          conLai,
+          ngayCK: latestPayment?.createdAt || null,
+          taiKhoanCK: latestPayment?.method || "",
+          noiDungCK: latestPayment?.note || "",
+        };
+      })
+    );
 
-    // Áp rule màu giống tất cả KH
     const tongCuoc = list.reduce((s, r) => s + r.tongTien, 0);
     const tongDaTT = list.reduce((s, r) => s + r.daThanhToan, 0);
     const tongConLai = tongCuoc - tongDaTT;
@@ -249,13 +249,11 @@ exports.getDebtForCustomer26 = async (req, res) => {
       trangThai,
       chiTietChuyen: list,
     });
-
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Lỗi KH 26" });
   }
 };
-
 
 // =====================================================
 // 📌 LỊCH SỬ THANH TOÁN THEO CHUYẾN
@@ -328,4 +326,3 @@ exports.addTripPayment = async (req, res) => {
     res.status(500).json({ error: "Không thể thêm thanh toán cho chuyến" });
   }
 };
-
