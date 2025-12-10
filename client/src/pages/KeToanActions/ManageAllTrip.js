@@ -34,114 +34,113 @@ export default function ManageTrip({ user, onLogout }) {
   const location = useLocation();
   const isActive = (path) => location.pathname === path;
 
-    // 👉 Hàm chuyển sang trang quản lý lái xe
+  // 👉 Hàm chuyển sang trang quản lý lái xe
   const handleGoToDrivers = () => {
-    navigate("/manage-driver", {state: {user}});
+    navigate("/manage-driver", { state: { user } });
   };
 
   const handleGoToCustomers = () => {
-    navigate("/manage-customer", {state: {user}});
-  }
+    navigate("/manage-customer", { state: { user } });
+  };
 
   const handleGoToVehicles = () => {
-    navigate("/manage-vehicle", {state: {user}});
+    navigate("/manage-vehicle", { state: { user } });
   };
 
   const handleGoToTrips = () => {
-    navigate("/manage-trip", {state: {user}});
-  }
+    navigate("/manage-trip", { state: { user } });
+  };
 
   const handleGoToAllTrips = () => {
-    navigate("/manage-all-trip", {state: {user}});
-  }
+    navigate("/manage-all-trip", { state: { user } });
+  };
 
   const handleGoToAllCustomers = () => {
-    navigate("/customer-debt", {state: {user}});
-  }
+    navigate("/customer-debt", { state: { user } });
+  };
 
   const handleGoToCustomer26 = () => {
-    navigate("/customer-debt-26", {state: {user}});
-  }
-  const handleGoToVouchers = () => navigate("/voucher-list", { state: { user } }); 
-
+    navigate("/customer-debt-26", { state: { user } });
+  };
+  const handleGoToVouchers = () =>
+    navigate("/voucher-list", { state: { user } });
 
   // -------------------------------------
   // CÁC CỘT CHÍNH + MỞ RỘNG → GỘP 1 LIST
   // -------------------------------------
   const fullPermissionColumns = [
-  "cuocPhiBS",
-  "daThanhToan",
-  "bocXepBS",
-  "veBS",
-  "hangVeBS",
-  "luuCaBS",
-  "cpKhacBS"
+    "cuocPhiBS",
+    "daThanhToan",
+    "bocXepBS",
+    "veBS",
+    "hangVeBS",
+    "luuCaBS",
+    "cpKhacBS",
   ];
 
-const rawColumns = [
-  { key: "ltState", label: "LT" },
-  { key: "onlState", label: "ONL" },
-  { key: "offState", label: "OFF" },
-  { key: "tenLaiXe", label: "TÊN LÁI XE" },
-  { key: "maKH", label: "MÃ KH" },
-  { key: "khachHang", label: "KHÁCH HÀNG" },
-  { key: "dienGiai", label: "DIỄN GIẢI" },
-  { key: "ngayBocHang", label: "NGÀY ĐÓNG HÀNG" },
-  { key: "ngayGiaoHang", label: "NGÀY GIAO HÀNG" },
-  { key: "diemXepHang", label: "ĐIỂM ĐÓNG HÀNG" },
-  { key: "diemDoHang", label: "ĐIỂM GIAO HÀNG" },
-  { key: "soDiem", label: "SỐ ĐIỂM" },
-  { key: "trongLuong", label: "TRỌNG LƯỢNG" },
-  { key: "bienSoXe", label: "BIỂN SỐ XE" },
-  { key: "cuocPhiBS", label: "CƯỚC PHÍ" },
-  { key: "daThanhToan", label: "ĐÃ THANH TOÁN" },
-  { key: "bocXepBS", label: "BỐC XẾP" },
-  { key: "veBS", label: "VÉ" },
-  { key: "hangVeBS", label: "HÀNG VỀ" },
-  { key: "luuCaBS", label: "LƯU CA" },
-  { key: "cpKhacBS", label: "LUẬT CP KHÁC" },
-  { key: "maChuyen", label: "MÃ CHUYẾN" },
-  { key: "keToanPhuTrach", label: "KẾ TOÁN PHỤ TRÁCH" },
-  { key: "maHoaDon", label: "MÃ HOÁ ĐƠN" },
+  const rawColumns = [
+    { key: "ltState", label: "LT" },
+    { key: "onlState", label: "ONL" },
+    { key: "offState", label: "OFF" },
+    { key: "tenLaiXe", label: "TÊN LÁI XE" },
+    { key: "maKH", label: "MÃ KH" },
+    { key: "khachHang", label: "KHÁCH HÀNG" },
+    { key: "dienGiai", label: "DIỄN GIẢI" },
+    { key: "ngayBocHang", label: "NGÀY ĐÓNG HÀNG" },
+    { key: "ngayGiaoHang", label: "NGÀY GIAO HÀNG" },
+    { key: "diemXepHang", label: "ĐIỂM ĐÓNG HÀNG" },
+    { key: "diemDoHang", label: "ĐIỂM GIAO HÀNG" },
+    { key: "soDiem", label: "SỐ ĐIỂM" },
+    { key: "trongLuong", label: "TRỌNG LƯỢNG" },
+    { key: "bienSoXe", label: "BIỂN SỐ XE" },
+    { key: "cuocPhiBS", label: "CƯỚC PHÍ" },
+    { key: "daThanhToan", label: "ĐÃ THANH TOÁN" },
+    { key: "bocXepBS", label: "BỐC XẾP" },
+    { key: "veBS", label: "VÉ" },
+    { key: "hangVeBS", label: "HÀNG VỀ" },
+    { key: "luuCaBS", label: "LƯU CA" },
+    { key: "cpKhacBS", label: "LUẬT CP KHÁC" },
+    { key: "maChuyen", label: "MÃ CHUYẾN" },
+    { key: "keToanPhuTrach", label: "KẾ TOÁN PHỤ TRÁCH" },
+    { key: "maHoaDon", label: "MÃ HOÁ ĐƠN" },
 
-  // REGION: extra columns
-  { key: "laiXeThuCuoc", label: "LÁI XE THU CƯỚC" },
-  { key: "cuocPhi", label: "CƯỚC PHÍ BĐ" },
-  { key: "bocXep", label: "BỐC XẾP BĐ" },
-  { key: "ve", label: "VÉ BĐ" },
-  { key: "hangVe", label: "HÀNG VỀ BĐ" },
-  { key: "luuCa", label: "LƯU CA BĐ" },
-  { key: "luatChiPhiKhac", label: "LUẬT CP KHÁC BĐ" },
-  { key: "ghiChu", label: "GHI CHÚ" },
-  { key: "dieuVan", label: "ĐIỀU VẬN" },
-  { key: "createdBy", label: "NGƯỜI NHẬP" },
-  { key: "ngayBoc", label: "NGÀY NHẬP" },
-];
+    // REGION: extra columns
+    { key: "laiXeThuCuoc", label: "LÁI XE THU CƯỚC" },
+    { key: "cuocPhi", label: "CƯỚC PHÍ BĐ" },
+    { key: "bocXep", label: "BỐC XẾP BĐ" },
+    { key: "ve", label: "VÉ BĐ" },
+    { key: "hangVe", label: "HÀNG VỀ BĐ" },
+    { key: "luuCa", label: "LƯU CA BĐ" },
+    { key: "luatChiPhiKhac", label: "LUẬT CP KHÁC BĐ" },
+    { key: "ghiChu", label: "GHI CHÚ" },
+    { key: "dieuVan", label: "ĐIỀU VẬN" },
+    { key: "createdBy", label: "NGƯỜI NHẬP" },
+    { key: "ngayBoc", label: "NGÀY NHẬP" },
+  ];
 
-const allColumns = rawColumns.filter((c) => {
-  if (fullPermissionColumns.includes(c.key)) {
-    return canEditTripFull;  // chỉ hiện nếu có quyền
-  }
-  return true; // các cột khác luôn hiện
-});
-
-
+  const allColumns = rawColumns.filter((c) => {
+    if (fullPermissionColumns.includes(c.key)) {
+      return canEditTripFull; // chỉ hiện nếu có quyền
+    }
+    return true; // các cột khác luôn hiện
+  });
 
   // ---------------- prefs (order + widths) ----------------
   // visibleColumns khởi tạo mặc định từ allColumns
-  const [visibleColumns, setVisibleColumns] = useState(allColumns.map((c) => c.key));
+  const [visibleColumns, setVisibleColumns] = useState(
+    allColumns.map((c) => c.key)
+  );
   const [hiddenColumns, setHiddenColumns] = useState([]);
 
   // columnWidths dùng định dạng '120px'
   const [columnWidths, setColumnWidths] = useState(
-  Object.fromEntries(
-    allColumns.map((c) => [
-      c.key,
-      ["ltState", "offState", "onlState"].includes(c.key) ? 50 : 80,
-    ])
-  )
-);
-
+    Object.fromEntries(
+      allColumns.map((c) => [
+        c.key,
+        ["ltState", "offState", "onlState"].includes(c.key) ? 50 : 80,
+      ])
+    )
+  );
 
   // flag: prefs đã load xong chưa
   const [prefsLoaded, setPrefsLoaded] = useState(false);
@@ -158,8 +157,12 @@ const allColumns = rawColumns.filter((c) => {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed.order)) {
         // keep only valid keys and append missing columns
-        const valid = parsed.order.filter((k) => allColumns.some((ac) => ac.key === k));
-        const missing = allColumns.map((c) => c.key).filter((k) => !valid.includes(k));
+        const valid = parsed.order.filter((k) =>
+          allColumns.some((ac) => ac.key === k)
+        );
+        const missing = allColumns
+          .map((c) => c.key)
+          .filter((k) => !valid.includes(k));
         setVisibleColumns([...valid, ...missing]);
       }
       if (parsed.widths && typeof parsed.widths === "object") {
@@ -180,7 +183,11 @@ const allColumns = rawColumns.filter((c) => {
   useEffect(() => {
     if (!prefsLoaded) return;
     if (!userId) return;
-    const payload = { order: visibleColumns, widths: columnWidths || {}, hiddenColumns: hiddenColumns || [] };
+    const payload = {
+      order: visibleColumns,
+      widths: columnWidths || {},
+      hiddenColumns: hiddenColumns || [],
+    };
     try {
       localStorage.setItem(prefKey(userId), JSON.stringify(payload));
     } catch (e) {
@@ -212,89 +219,92 @@ const allColumns = rawColumns.filter((c) => {
       });
       setManagers(res.data || []);
     } catch (err) {
-      console.error("Lỗi lấy danh sách điều vận:", err.response?.data || err.message);
+      console.error(
+        "Lỗi lấy danh sách điều vận:",
+        err.response?.data || err.message
+      );
     }
   };
 
-    //Lấy thông số xe
-const [vehicleList, setVehicleList] = useState([]);
-const [hoverVehicle, setHoverVehicle] = useState(null);
+  //Lấy thông số xe
+  const [vehicleList, setVehicleList] = useState([]);
+  const [hoverVehicle, setHoverVehicle] = useState(null);
 
-useEffect(() => {
-  const loadVehicles = async () => {
-    try {
-      const res = await axios.get(`${API}/vehicles/names/list`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      console.log("DANH SÁCH XE:", res.data);
-      setVehicleList(res.data || []);
-    } catch (err) {
-      console.error("Lỗi tải danh sách xe", err);
-    }
+  useEffect(() => {
+    const loadVehicles = async () => {
+      try {
+        const res = await axios.get(`${API}/vehicles/names/list`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        console.log("DANH SÁCH XE:", res.data);
+        setVehicleList(res.data || []);
+      } catch (err) {
+        console.error("Lỗi tải danh sách xe", err);
+      }
+    };
+
+    loadVehicles();
+  }, []);
+
+  const getVehicleInfo = (plate) => {
+    return vehicleList.find(
+      (v) => v.plateNumber?.trim().toLowerCase() === plate?.trim().toLowerCase()
+    );
   };
-
-  loadVehicles();
-}, []);
-
-const getVehicleInfo = (plate) => {
-  return vehicleList.find(
-    (v) => v.plateNumber?.trim().toLowerCase() === plate?.trim().toLowerCase()
-  );
-};
-
 
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(30);
   const [totalPages, setTotalPages] = useState(1);
 
   const filterFields = allColumns
-  .filter((col) => !["ltState", "onlState", "offState"].includes(col.key)) // bỏ icon
-  .map((col) => {
-    const type = col.key.toLowerCase().includes("ngay") ? "date" : "text";
-    return { ...col, type };
-  });
+    .filter((col) => !["ltState", "onlState", "offState"].includes(col.key)) // bỏ icon
+    .map((col) => {
+      const type = col.key.toLowerCase().includes("ngay") ? "date" : "text";
+      return { ...col, type };
+    });
 
   const [filters, setFilters] = useState(
-  Object.fromEntries(filterFields.map((f) => [f.key, ""]))
-);
-
+    Object.fromEntries(filterFields.map((f) => [f.key, ""]))
+  );
 
   // 🔹 Lấy tất cả chuyến (có filter)
-const fetchAllRides = async () => {
-  try {
-    const q = new URLSearchParams();
-    q.append("page", page);
-    q.append("limit", limit);
+  const fetchAllRides = async () => {
+    try {
+      const q = new URLSearchParams();
+      q.append("page", page);
+      q.append("limit", limit);
 
-    // 🔥 Lặp qua toàn bộ filters (tự động thêm)
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value !== "" && value !== null && value !== undefined) {
-        q.append(key, value);
+      // 🔥 Lặp qua toàn bộ filters (tự động thêm)
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== "" && value !== null && value !== undefined) {
+          q.append(key, value);
+        }
+      });
+
+      // 🔥 Filter ngày riêng (nếu có)
+      if (date) {
+        q.append("date", format(new Date(date), "yyyy-MM-dd"));
       }
-    });
 
-    // 🔥 Filter ngày riêng (nếu có)
-    if (date) {
-      q.append("date", format(new Date(date), "yyyy-MM-dd"));
+      const res = await axios.get(`${API_URL}/all?${q.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      setRides(res.data.data || []);
+      setTotalPages(res.data.totalPages || 1);
+      const w = {};
+      res.data.data.forEach((d) => {
+        if (d.warning === true) w[d._id] = true;
+      });
+      setWarnings(w);
+    } catch (err) {
+      console.error(
+        "Lỗi khi lấy tất cả chuyến:",
+        err.response?.data || err.message
+      );
+      setRides([]);
     }
-
-    const res = await axios.get(`${API_URL}/all?${q.toString()}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    setRides(res.data.data || []);
-    setTotalPages(res.data.totalPages || 1);
-    const w = {};
-    res.data.data.forEach(d => {
-      if (d.warning === true) w[d._id] = true;
-    });
-    setWarnings(w)
-  } catch (err) {
-    console.error("Lỗi khi lấy tất cả chuyến:", err.response?.data || err.message);
-    setRides([]);
-  }
-};
-
+  };
 
   useEffect(() => {
     fetchManagers();
@@ -354,41 +364,36 @@ const fetchAllRides = async () => {
     );
     const headers = exportColumns.map((col) => col.label);
 
-      // 🟦 Danh sách các cột là số
-  const data = rides.map((r) => {
-    const row = {};
+    // 🟦 Danh sách các cột là số
+    const data = rides.map((r) => {
+      const row = {};
 
-    exportColumns.forEach((col) => {
-      const key = col.key;
+      exportColumns.forEach((col) => {
+        const key = col.key;
 
-      if (key === "dieuVan") {
-        row[key] = getFullName(r.dieuVanID);
-      }
+        if (key === "dieuVan") {
+          row[key] = getFullName(r.dieuVanID);
+        } else if (["ngayBoc", "ngayBocHang", "ngayGiaoHang"].includes(key)) {
+          row[key] = formatDate(r[key]);
+        }
 
-      else if (["ngayBoc", "ngayBocHang", "ngayGiaoHang"].includes(key)) {
-        row[key] = formatDate(r[key]);
-      }
+        // 🟧 Convert string -> number khi xuất Excel
+        else if (numberColumns.includes(key)) {
+          const raw = r[key] ?? "";
 
-      // 🟧 Convert string -> number khi xuất Excel
-      else if (numberColumns.includes(key)) {
+          // Chuyển "1.000.000" → 1000000
+          const numeric = Number(
+            raw.toString().replace(/\./g, "").replace(/,/g, "")
+          );
 
-        const raw = r[key] ?? "";
+          row[key] = isNaN(numeric) ? 0 : numeric;
+        } else {
+          row[key] = r[key] ?? "";
+        }
+      });
 
-        // Chuyển "1.000.000" → 1000000
-        const numeric = Number(
-          raw.toString().replace(/\./g, "").replace(/,/g, "")
-        );
-
-        row[key] = isNaN(numeric) ? 0 : numeric;
-      }
-
-      else {
-        row[key] = r[key] ?? "";
-      }
+      return row;
     });
-
-    return row;
-  });
 
     const worksheet = XLSX.utils.json_to_sheet(data, {
       header: exportColumns.map((c) => c.key),
@@ -460,41 +465,35 @@ const fetchAllRides = async () => {
 
   //Yêu cầu sửa chuyến
   // ================== STATE ==================
-const [editingTrip, setEditingTrip] = useState(null);
-const [showTripEditModal, setShowTripEditModal] = useState(false);
+  const [editingTrip, setEditingTrip] = useState(null);
+  const [showTripEditModal, setShowTripEditModal] = useState(false);
 
-// ================== MỞ MODAL SỬA ==================
-const openEditModal = (trip) => {
-  setEditingTrip(trip);
-  setShowTripEditModal(true);
-};
+  // ================== MỞ MODAL SỬA ==================
+  const openEditModal = (trip) => {
+    setEditingTrip(trip);
+    setShowTripEditModal(true);
+  };
 
-// ================== SUBMIT SỬA ==================
-const submitTripEdit = async (updatedTrip) => {
-  try {
-    await axios.put(
-      `${API_URL}/${updatedTrip._id}`,
-      updatedTrip,
-      {
+  // ================== SUBMIT SỬA ==================
+  const submitTripEdit = async (updatedTrip) => {
+    try {
+      await axios.put(`${API_URL}/${updatedTrip._id}`, updatedTrip, {
         headers: { Authorization: `Bearer ${token}` },
-      }
-    );
+      });
 
-    // cập nhật lại luôn ở FE
-    setRides((prev) =>
-      prev.map((r) =>
-        r._id === updatedTrip._id ? updatedTrip : r
-      )
-    );
+      // cập nhật lại luôn ở FE
+      setRides((prev) =>
+        prev.map((r) => (r._id === updatedTrip._id ? updatedTrip : r))
+      );
 
-    setShowTripEditModal(false);
-    setEditingTrip(null);
-    alert("Đã cập nhật chuyến thành công!");
-  } catch (err) {
-    console.error("Lỗi khi sửa:", err);
-    alert("Có lỗi xảy ra!");
-  }
-};
+      setShowTripEditModal(false);
+      setEditingTrip(null);
+      alert("Đã cập nhật chuyến thành công!");
+    } catch (err) {
+      console.error("Lỗi khi sửa:", err);
+      alert("Có lỗi xảy ra!");
+    }
+  };
 
   //Danh sách yêu cầu của tôi
   const [showAllRequestModal, setShowAllRequestModal] = useState(false);
@@ -507,7 +506,10 @@ const submitTripEdit = async (updatedTrip) => {
       });
       setAllRequests(res.data.data || []);
     } catch (err) {
-      console.error("Lỗi lấy yêu cầu của tôi:", err.response?.data || err.message);
+      console.error(
+        "Lỗi lấy yêu cầu của tôi:",
+        err.response?.data || err.message
+      );
     }
   };
 
@@ -576,7 +578,9 @@ const submitTripEdit = async (updatedTrip) => {
     }
 
     const th = document.querySelector(`th[data-col="${colKey}"]`);
-    const finalWidth = th ? th.offsetWidth + "px" : columnWidths[colKey] || "80px";
+    const finalWidth = th
+      ? th.offsetWidth + "px"
+      : columnWidths[colKey] || "80px";
 
     // update state AND persist widths immediately into localStorage (merge)
     setColumnWidths((prev) => {
@@ -600,82 +604,86 @@ const submitTripEdit = async (updatedTrip) => {
   const [showColumnBox, setShowColumnBox] = useState(false);
   const boxRef = useRef(null);
 
-// tắt dropdown khi click ra ngoài
-useEffect(() => {
-  const handleClickOutside = (e) => {
-    if (boxRef.current && !boxRef.current.contains(e.target)) {
-      setShowColumnBox(false);
-    }
-  };
-  document.addEventListener("mousedown", handleClickOutside);
-  return () => document.removeEventListener("mousedown", handleClickOutside);
-}, []);
-
+  // tắt dropdown khi click ra ngoài
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (boxRef.current && !boxRef.current.contains(e.target)) {
+        setShowColumnBox(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Lịch sử chỉnh sửa
-const [rideHistory, setRideHistory] = useState([]); // dữ liệu lịch sử của chuyến
-const [showHistoryModal, setShowHistoryModal] = useState(false); // hiển thị modal
-const [historyRide, setHistoryRide] = useState(null); // chuyến đang xem
-const [editCounts, setEditCounts] = useState({}); // { rideID: số lần chỉnh sửa }
+  const [rideHistory, setRideHistory] = useState([]); // dữ liệu lịch sử của chuyến
+  const [showHistoryModal, setShowHistoryModal] = useState(false); // hiển thị modal
+  const [historyRide, setHistoryRide] = useState(null); // chuyến đang xem
+  const [editCounts, setEditCounts] = useState({}); // { rideID: số lần chỉnh sửa }
 
-const fetchEditCounts = async () => {
-  try {
-    const counts = {};
-    await Promise.all(
-      rides.map(async (r) => {
-        const res = await axios.get(`${API_URL}/history-count/${r._id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        counts[r._id] = res.data.editCount;
-      })
-    );
-    setEditCounts(counts);
-  } catch (err) {
-    console.error("Lỗi lấy số lần chỉnh sửa:", err.response?.data || err.message);
-  }
-};
+  const fetchEditCounts = async () => {
+    try {
+      const counts = {};
+      await Promise.all(
+        rides.map(async (r) => {
+          const res = await axios.get(`${API_URL}/history-count/${r._id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          counts[r._id] = res.data.editCount;
+        })
+      );
+      setEditCounts(counts);
+    } catch (err) {
+      console.error(
+        "Lỗi lấy số lần chỉnh sửa:",
+        err.response?.data || err.message
+      );
+    }
+  };
 
-// Gọi sau khi fetchRides xong
-useEffect(() => {
-  if (rides.length) fetchEditCounts();
-}, [rides]);
+  // Gọi sau khi fetchRides xong
+  useEffect(() => {
+    if (rides.length) fetchEditCounts();
+  }, [rides]);
 
-const handleViewHistory = async (ride) => {
-  try {
-    const res = await axios.get(`${API_URL}/history/${ride._id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    setRideHistory(res.data);
-    setHistoryRide(ride);
-    setShowHistoryModal(true);
-  } catch (err) {
-    alert("Không lấy được lịch sử: " + (err.response?.data?.error || err.message));
-  }
-};
-
-// Bật tắt cảnh báo
-const [warnings, setWarnings] = useState({});
-
-const toggleWarning = async (rideId) => {
-  try {
-    const res = await axios.put(
-      `${API_URL}/warning/${rideId}`,
-      {}, // body rỗng
-      {
+  const handleViewHistory = async (ride) => {
+    try {
+      const res = await axios.get(`${API_URL}/history/${ride._id}`, {
         headers: { Authorization: `Bearer ${token}` },
-      }
-    );
+      });
+      setRideHistory(res.data);
+      setHistoryRide(ride);
+      setShowHistoryModal(true);
+    } catch (err) {
+      alert(
+        "Không lấy được lịch sử: " + (err.response?.data?.error || err.message)
+      );
+    }
+  };
 
-    const newWarningState = res.data.warning;
+  // Bật tắt cảnh báo
+  const [warnings, setWarnings] = useState({});
 
-    setWarnings((prev) => ({
-      ...prev,
-      [rideId]: newWarningState,
-    }));
-  } catch (err) {
-    console.error("Toggle warning failed ", err);
-  }
-};
+  const toggleWarning = async (rideId) => {
+    try {
+      const res = await axios.put(
+        `${API_URL}/warning/${rideId}`,
+        {}, // body rỗng
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      const newWarningState = res.data.warning;
+
+      setWarnings((prev) => ({
+        ...prev,
+        [rideId]: newWarningState,
+      }));
+    } catch (err) {
+      console.error("Toggle warning failed ", err);
+    }
+  };
 
   const numberColumns = [
     "cuocPhi",
@@ -691,119 +699,125 @@ const toggleWarning = async (rideId) => {
     "cpKhacBS",
     "khoangCach",
     "laiXeThuCuoc",
-    "daThanhToan"
+    "daThanhToan",
   ];
 
-
-const formatNumber = (n) => {
-  if (n == null || n === "") return "";
-  const num = Number(n.toString().replace(/\./g, "").replace(/,/g, ""));
-  if (isNaN(num)) return n;
-  return num.toLocaleString("vi-VN"); // vì VN: 1.234.567
-};
-
-const [openFilter, setOpenFilter] = useState(null);
-
-useEffect(() => {
-  const close = (e) => {
-    const th = e.target.closest("th[data-col]");
-    if (!th) setOpenFilter(null);
+  const formatNumber = (n) => {
+    if (n == null || n === "") return "";
+    const num = Number(n.toString().replace(/\./g, "").replace(/,/g, ""));
+    if (isNaN(num)) return n;
+    return num.toLocaleString("vi-VN"); // vì VN: 1.234.567
   };
-  document.addEventListener("mousedown", close);
-  return () => document.removeEventListener("mousedown", close);
-}, []);
 
-const [selectedRows, setSelectedRows] = useState([]);
-const toggleRowHighlight = (id) => {
-  setSelectedRows(prev =>
-    prev.includes(id)
-      ? prev.filter(x => x !== id) // bỏ ra
-      : [...prev, id]               // thêm vào
-  );
-};
+  const [openFilter, setOpenFilter] = useState(null);
 
+  useEffect(() => {
+    const close = (e) => {
+      const th = e.target.closest("th[data-col]");
+      if (!th) setOpenFilter(null);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, []);
+
+  const [selectedRows, setSelectedRows] = useState([]);
+  const toggleRowHighlight = (id) => {
+    setSelectedRows(
+      (prev) =>
+        prev.includes(id)
+          ? prev.filter((x) => x !== id) // bỏ ra
+          : [...prev, id] // thêm vào
+    );
+  };
 
   // ---------- Render ----------
   return (
-    <div className="p-4 bg-gray-50 min-h-screen text-sm">
+    <div className="p-4 bg-gray-50 min-h-screen text-xs">
       <div className="flex gap-2 items-center mb-4">
-          <button
-    onClick={() => navigate("/ke-toan")}
-    className="px-3 py-1 rounded text-white bg-blue-500"
-  >
-    Trang chính
-  </button>
+        <button
+          onClick={() => navigate("/ke-toan")}
+          className="px-3 py-1 rounded text-white bg-blue-500"
+        >
+          Trang chính
+        </button>
 
-  <button
-    onClick={handleGoToDrivers}
-    className={`px-3 py-1 rounded text-white 
+        <button
+          onClick={handleGoToDrivers}
+          className={`px-3 py-1 rounded text-white 
       ${isActive("/manage-driver") ? "bg-green-600" : "bg-blue-500"}
     `}
-  >
-    Danh sách lái xe
-  </button>
+        >
+          Danh sách lái xe
+        </button>
 
-  <button
-    onClick={handleGoToCustomers}
-    className={`px-3 py-1 rounded text-white 
+        <button
+          onClick={handleGoToCustomers}
+          className={`px-3 py-1 rounded text-white 
       ${isActive("/manage-customer") ? "bg-green-600" : "bg-blue-500"}
     `}
-  >
-    Danh sách khách hàng
-  </button>
+        >
+          Danh sách khách hàng
+        </button>
 
-  <button
-    onClick={handleGoToVehicles}
-    className={`px-3 py-1 rounded text-white 
+        <button
+          onClick={handleGoToVehicles}
+          className={`px-3 py-1 rounded text-white 
       ${isActive("/manage-vehicle") ? "bg-green-600" : "bg-blue-500"}
     `}
-  >
-    Danh sách xe
-  </button>
+        >
+          Danh sách xe
+        </button>
 
-  <button
-    onClick={handleGoToTrips}
-    className={`px-3 py-1 rounded text-white 
+        <button
+          onClick={handleGoToTrips}
+          className={`px-3 py-1 rounded text-white 
       ${isActive("/manage-trip") ? "bg-green-600" : "bg-blue-500"}
     `}
-  >
-    Danh sách chuyến phụ trách
-  </button>
+        >
+          Danh sách chuyến phụ trách
+        </button>
 
-  <button
-    onClick={() => {
-      if(!currentUser?.permissions?.includes("edit_trip")) {
-        alert("Bạn không có quyền truy cập!");
-        return;
-      }
-      handleGoToAllTrips();
-    }}
-    className={`px-3 py-1 rounded text-white 
+        <button
+          onClick={() => {
+            if (!currentUser?.permissions?.includes("edit_trip")) {
+              alert("Bạn không có quyền truy cập!");
+              return;
+            }
+            handleGoToAllTrips();
+          }}
+          className={`px-3 py-1 rounded text-white 
       ${isActive("/manage-all-trip") ? "bg-green-600" : "bg-blue-500"}
     `}
-  >
-    Tất cả các chuyến
-  </button>
+        >
+          Tất cả các chuyến
+        </button>
 
-    <button
-    onClick={handleGoToAllCustomers}
-    className={`px-3 py-1 rounded text-white 
+        <button
+          onClick={handleGoToAllCustomers}
+          className={`px-3 py-1 rounded text-white 
       ${isActive("/customer-debt") ? "bg-green-600" : "bg-blue-500"}
     `}
-  >
-    Công nợ KH
-  </button>
+        >
+          Công nợ KH
+        </button>
 
-  <button
-    onClick={handleGoToCustomer26}
-    className={`px-3 py-1 rounded text-white 
+        <button
+          onClick={handleGoToCustomer26}
+          className={`px-3 py-1 rounded text-white 
       ${isActive("/customer-debt-26") ? "bg-green-600" : "bg-blue-500"}
     `}
-  >
-    Công nợ khách lẻ
-  </button>
-  <button onClick={handleGoToVouchers} className={`px-3 py-1 rounded text-white ${isActive("/voucher-list") ? "bg-green-600" : "bg-blue-500"}`}>Sổ phiếu chi</button>
-</div>
+        >
+          Công nợ khách lẻ
+        </button>
+        <button
+          onClick={handleGoToVouchers}
+          className={`px-3 py-1 rounded text-white ${
+            isActive("/voucher-list") ? "bg-green-600" : "bg-blue-500"
+          }`}
+        >
+          Sổ phiếu chi
+        </button>
+      </div>
 
       {/* Header */}
       <div className="flex justify-between items-center mb-4">
@@ -818,36 +832,51 @@ const toggleRowHighlight = (id) => {
 
       {/* Bộ lọc */}
       <div className="flex flex-wrap gap-2 mb-3 items-center w-full">
-
-  {/* Filter điều vận riêng */}
-  <select
-    value={filters.dieuVanID}
-    onChange={(e) =>
-      setFilters((prev) => ({ ...prev, dieuVanID: e.target.value }))
-    }
-    className="border rounded px-3 py-2"
-  >
-    <option value="">-- Lọc theo điều vận --</option>
-    {managers.map((m) => (
-      <option key={m._id} value={m._id}>{m.fullname}</option>
-    ))}
-  </select>
-</div>
-
+        {/* Filter điều vận riêng */}
+        <select
+          value={filters.dieuVanID}
+          onChange={(e) =>
+            setFilters((prev) => ({ ...prev, dieuVanID: e.target.value }))
+          }
+          className="border rounded px-3 py-2"
+        >
+          <option value="">-- Lọc theo điều vận --</option>
+          {managers.map((m) => (
+            <option key={m._id} value={m._id}>
+              {m.fullname}
+            </option>
+          ))}
+        </select>
+      </div>
 
       {/* Nút hành động */}
       <div className="flex flex-wrap gap-2 mb-3 items-center">
-        <button onClick={openAllRequests} className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg">
+        <button
+          onClick={openAllRequests}
+          className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg"
+        >
           Yêu cầu cần duyệt
         </button>
 
-        <button onClick={exportToExcel} className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm">
+        <button
+          onClick={exportToExcel}
+          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm"
+        >
           Xuất Excel
         </button>
 
         <div className="flex gap-2 items-center">
-          <input type="file" accept=".xlsx,.xls" id="excelInput" onChange={handleSelectExcel} className="border rounded px-3 py-2" />
-          <button onClick={handleAddCuocPhiBoSung} className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg">
+          <input
+            type="file"
+            accept=".xlsx,.xls"
+            id="excelInput"
+            onChange={handleSelectExcel}
+            className="border rounded px-3 py-2"
+          />
+          <button
+            onClick={handleAddCuocPhiBoSung}
+            className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg"
+          >
             Bổ sung chi phí
           </button>
         </div>
@@ -862,7 +891,10 @@ const toggleRowHighlight = (id) => {
           onChange={(e) => setMaHoaDonInput(e.target.value)}
           className="border px-3 py-2 rounded w-64"
         />
-        <button onClick={updateMaHoaDon} className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg">
+        <button
+          onClick={updateMaHoaDon}
+          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg"
+        >
           Cập nhật mã hóa đơn
         </button>
         <span className="text-sm text-gray-600">
@@ -875,494 +907,525 @@ const toggleRowHighlight = (id) => {
         </span>
       </div>
 
-{/* UI CHỌN HIỆN / ẨN CỘT */}
-<div className="w-full flex items-center justify-between mb-2">
-
-  {/* BÊN TRÁI: Hiện / Ẩn cột */}
-  <div className="relative inline-block" ref={boxRef}>
-    <button
-      onClick={() => setShowColumnBox(!showColumnBox)}
-      className="px-3 py-1 bg-blue-600 text-white rounded shadow hover:bg-blue-700 transition"
-    >
-      Hiện / Ẩn cột
-    </button>
-
-    {showColumnBox && (
-      <div className="absolute left-0 mt-2 w-64 bg-white border rounded-lg shadow-xl p-3 z-[1000]">
-
-        {/* Nút chọn tất cả + bỏ tất cả */}
-        <div className="flex gap-2 mb-3">
+      {/* UI CHỌN HIỆN / ẨN CỘT */}
+      <div className="w-full flex items-center justify-between mb-2">
+        {/* BÊN TRÁI: Hiện / Ẩn cột */}
+        <div className="relative inline-block" ref={boxRef}>
           <button
-            className="flex-1 px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600"
-            onClick={() => setHiddenColumns([])}
+            onClick={() => setShowColumnBox(!showColumnBox)}
+            className="px-3 py-1 bg-blue-600 text-white rounded shadow hover:bg-blue-700 transition"
           >
-            Chọn tất cả
+            Hiện / Ẩn cột
           </button>
 
-          <button
-            className="flex-1 px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600"
-            onClick={() => setHiddenColumns(allColumns.map(c => c.key))}
-          >
-            Bỏ tất cả
-          </button>
+          {showColumnBox && (
+            <div className="absolute left-0 mt-2 w-64 bg-white border rounded-lg shadow-xl p-3 z-[1000]">
+              {/* Nút chọn tất cả + bỏ tất cả */}
+              <div className="flex gap-2 mb-3">
+                <button
+                  className="flex-1 px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600"
+                  onClick={() => setHiddenColumns([])}
+                >
+                  Chọn tất cả
+                </button>
+
+                <button
+                  className="flex-1 px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                  onClick={() => setHiddenColumns(allColumns.map((c) => c.key))}
+                >
+                  Bỏ tất cả
+                </button>
+              </div>
+
+              {/* Danh sách cột */}
+              <div className="max-h-64 overflow-y-auto pr-1 space-y-1">
+                {allColumns.map((col) => (
+                  <label
+                    key={col.key}
+                    className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-100 px-1 py-1 rounded"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!hiddenColumns.includes(col.key)}
+                      onChange={() => {
+                        setHiddenColumns((prev) =>
+                          prev.includes(col.key)
+                            ? prev.filter((k) => k !== col.key)
+                            : [...prev, col.key]
+                        );
+                      }}
+                    />
+                    {col.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Danh sách cột */}
-        <div className="max-h-64 overflow-y-auto pr-1 space-y-1">
-          {allColumns.map((col) => (
-            <label
-              key={col.key}
-              className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-100 px-1 py-1 rounded"
-            >
-              <input
-                type="checkbox"
-                checked={!hiddenColumns.includes(col.key)}
-                onChange={() => {
-                  setHiddenColumns((prev) =>
-                    prev.includes(col.key)
-                      ? prev.filter((k) => k !== col.key)
-                      : [...prev, col.key]
-                  );
-                }}
-              />
-              {col.label}
-            </label>
-          ))}
-        </div>
-      </div>
-    )}
-  </div>
-
-  {/* BÊN PHẢI: Xóa lọc sát mép phải */}
-  <button
-    onClick={() =>
-      setFilters(Object.fromEntries(filterFields.map((f) => [f.key, ""])))
-    }
-    className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded shadow"
-  >
-    Xóa lọc
-  </button>
-</div>
-
-
-      {/* BẢNG */}
-<div className="overflow-auto border" style={{ maxHeight: "80vh"}}>
-  <table
-    style={{ tableLayout: "fixed", width: "max-content", maxWidth: "max-content", borderCollapse: "separate", borderSpacing: 0 }}
-  >
-    <thead className="bg-blue-600 text-white">
-      <tr>
-
-        {/* CỘT 1: SỬA */}
-        <th
-          className="border bg-blue-600 text-white"
-          style={{
-            position: "sticky",
-            top: 0,
-            zIndex: 60,
-            width: 90,
-            minWidth: 90,
-            maxWidth: 90,
-            textAlign: "center",
-            background: "#2563eb",
-          }}
-        ></th>
-
-        {/* CỘT 2: CHECKBOX HEADER */}
-        <th
-          className="border bg-blue-600 text-white"
-          style={{
-            position: "sticky",
-            top: 0,
-            left: 0,
-            zIndex: 60,
-            width: 40,
-            minWidth: 40,
-            maxWidth: 40,
-            textAlign: "center",
-            background: "#2563eb",
-          }}
-        >
-          <input
-            type="checkbox"
-            style={{ width: "100%", height: "100%" }}
-            checked={selectedTrips.length === rides.length && rides.length > 0}
-            onChange={(e) =>
-              setSelectedTrips(e.target.checked ? rides.map((r) => r._id) : [])
-            }
-          />
-        </th>
-
-        {/* RENDER CÁC CỘT KHÁC */}
-        {visibleColumns.map((colKey, index) => {
-          if (hiddenColumns.includes(colKey)) return null;
-  const col = allColumns.find((c) => c.key === colKey) || { key: colKey, label: colKey };
-  const width = columnWidths[col.key] || 120;
-  const fieldType = filterFields.find(f => f.key === col.key)?.type || "text";
-  const dateFields = ["ngayBoc", "ngayBocHang", "ngayGiaoHang"];
-
-
-  // LEFT OFFSET CHO 2 CỘT CỐ ĐỊNH TIẾP THEO
-  let leftOffset = null;
-  if (index === 0) leftOffset = 40;
-  if (index === 1) leftOffset = 40 + width;
-
-  const stickyColumns = ["tenLaiXe", "maKH"];
-  const stickyIndex = stickyColumns.indexOf(col.key);
-  if (stickyIndex >= 0) {
-    leftOffset = 40;
-    for (let i = 0; i < stickyIndex; i++) {
-      const key = stickyColumns[i];
-      leftOffset += parseInt(columnWidths[key] || 120);
-    }
-  }
-
-  return (
-<th
-  key={col.key}
-  data-col={col.key}
-  draggable        // ⭐ BẮT BUỘC ĐỂ KÉO CỘT
-  onDragStart={(e) => onDragStart(e, col.key)}   // ⭐ BẮT ĐẦU KÉO
-  onDragOver={onDragOver}                        // ⭐ ĐỂ MỤC TIÊU NHẬN DROP
-  onDrop={(e) => onDrop(e, col.key)}             // ⭐ THẢ CỘT
-
-  className="border p-0 bg-blue-600 text-white relative select-none"
-  style={{
-    position: "sticky",
-    top: 0,
-    left: stickyIndex >= 0 ? leftOffset : undefined,
-    zIndex: stickyIndex >= 0 ? 60 : 50,
-    background: "#2563eb",
-    width,
-    minWidth: width,
-    maxWidth: width,
-    overflow: "visible"
-  }}
-
-  // ⭐ NGĂN VIỆC NHẤP VÀO LẠI CHẶN DRAG
-  onMouseDown={(e) => {
-    if (e.target.tagName !== "TH") e.stopPropagation();
-  }}
->
-  {/* LABEL */}
-<div
-  className="p-2 flex items-center justify-center w-full text-center text-xs"
-  onClick={(e) => {
-    e.stopPropagation();
-    setOpenFilter(col.key);
-  }}
-  style={{ cursor: "pointer" }}
->
-    <span
-  className="text-center"
-  style={{
-    whiteSpace: "normal",
-    wordBreak: "break-word",
-    lineHeight: "14px",
-    display: "block",
-    maxHeight: "28px",   // = 2 dòng
-    overflow: "hidden",
-  }}
->
-  {col.label}
-</span>
-</div>
-
-{/* RESIZE HANDLE */}
-<div
-  onMouseDown={(e) => {
-    e.stopPropagation();
-    onMouseDownResize(e, col.key);
-  }}
-  style={{
-    width: 10,
-    cursor: "col-resize",
-    height: "100%",
-    position: "absolute",
-    right: 0,
-    top: 0,
-    zIndex: 80,
-  }}
-/>
-
-  {/* FILTER POPUP */}
-  {openFilter === col.key && (
-    <div
-      className="absolute bg-white border rounded shadow p-2 z-50"
-      style={{ top: "100%", left: 0, width: "200px" }}
-      onClick={(e) => e.stopPropagation()}
-      onMouseDown={(e) => e.stopPropagation()}
-    >
-      {dateFields.includes(col.key) ? (
-        <input
-          type="date"
-          className="w-full border px-2 py-1 rounded text-black"
-          value={filters[col.key] || ""}
-          onChange={(e) =>
-            setFilters((p) => ({ ...p, [col.key]: e.target.value }))
-          }
-          onClick={(e) => e.stopPropagation()}
-          onMouseDown={(e) => e.stopPropagation()}
-        />
-      ) : (
-        <input
-          type="text"
-          className="w-full border px-2 py-1 rounded text-black"
-          placeholder={`Lọc theo ${col.label}`}
-          value={filters[col.key] || ""}
-          onChange={(e) =>
-            setFilters((p) => ({ ...p, [col.key]: e.target.value }))
-          }
-          onClick={(e) => e.stopPropagation()}
-          onMouseDown={(e) => e.stopPropagation()}
-        />
-      )}
-
-      <div className="flex gap-1 mt-1">
+        {/* BÊN PHẢI: Xóa lọc sát mép phải */}
         <button
-          className="flex-1 bg-gray-200 px-2 py-1 rounded"
-          onClick={(e) => {
-            e.stopPropagation();
-            setFilters((p) => ({ ...p, [col.key]: "" }));
-          }}
-          onMouseDown={(e) => e.stopPropagation()}
+          onClick={() =>
+            setFilters(Object.fromEntries(filterFields.map((f) => [f.key, ""])))
+          }
+          className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded shadow"
         >
-          Xóa
+          Xóa lọc
         </button>
       </div>
-    </div>
-  )}
-</th>
 
-  );
-})}
-
-      </tr>
-    </thead>
-
-    <tbody>
-      {rides.length === 0 && (
-        <tr>
-          <td
-            colSpan={visibleColumns.length + 2}
-            className="p-20 text-center text-gray-500"
-          >
-            Không có dữ liệu :33
-          </td>
-        </tr>
-      )}
-
-      {rides.map((r) => (
-        <tr
-  key={r._id}
-  className={`text-center cursor-pointer ${
-    selectedRows.includes(r._id)
-      ? "bg-yellow-400"   // 🔥 chữ vàng + đậm
-      : "text-black"
-  } hover:bg-gray-100`}
-  onClick={() => toggleRowHighlight(r._id)}
->
-
-
-          {/* CỘT 1: HÀNH ĐỘNG */}
-<td
-  className="border p-2 bg-white"
-  style={{
-    position: "sticky",
-    zIndex: 50,
-    width: 90,
-    minWidth: 90,
-    background: "#fff",
-  }}
-  onClick={(e) => e.stopPropagation()}
->
-  <div className="flex items-center gap-2">
-
-    {/* Nút sửa */}
-    <button
-      onClick={() => openEditModal(r)}
-      className="p-1.5 bg-yellow-400 text-white rounded-lg shadow-sm hover:bg-yellow-500 hover:shadow-md transition"
-      title="Sửa chuyến"
-    >
-      <FaEdit className="w-4 h-4" />
-    </button>
-
-    {/* Nút cảnh báo */}
-    <button
-      onClick={() => toggleWarning(r._id)}
-      className={`p-1.5 rounded-lg shadow-sm transition ${
-        warnings[r._id]
-          ? "bg-red-50 text-red-600 hover:bg-red-100"
-          : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-      }`}
-      title="Đánh dấu cảnh báo"
-    >
-      <FaExclamationTriangle className="w-4 h-4" />
-    </button>
-
-    {/* Lịch sử chỉnh sửa */}
-    {editCounts[r._id] > 0 && (
-      <button
-        onClick={() => handleViewHistory(r)}
-        className="relative p-1.5 bg-green-50 rounded-lg shadow-sm hover:bg-green-100 transition"
-        title="Lịch sử chỉnh sửa"
-      >
-        <FaHistory className="text-green-600 w-4 h-4" />
-
-        {/* Badge số lần */}
-        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full shadow">
-          {editCounts[r._id]}
-        </span>
-      </button>
-    )}
-
-  </div>
-</td>
-
-
-          {/* CỘT 2: CHECKBOX */}
-          <td
-            className="border p-2 bg-white"
-            style={{
-              position: "sticky",
-              left: 0,
-              zIndex: 50,
-              width: 40,
-              minWidth: 40,
-              background: "#fff",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <input
-              type="checkbox"
-              checked={selectedTrips.includes(r._id)}
-              onChange={() => toggleSelectTrip(r._id)}
-              onClick={(e) => e.stopPropagation()}
-            />
-          </td>
-
-          {/* RENDER DATA */}
-          {visibleColumns.map((colKey, colIndex) => {
-            if (hiddenColumns.includes(colKey)) return null;
-            const col = allColumns.find((c) => c.key === colKey) || {
-              key: colKey,
-              label: colKey,
-            };
-
-            const width = columnWidths[col.key] || 120;
-
-
-            const cellValue =
-              ["ngayBocHang", "ngayGiaoHang", "ngayBoc"].includes(col.key)
-                ? formatDate(r[col.key])
-                : col.key === "dieuVan"
-                ? getFullName(r.dieuVanID)
-                : r[col.key] ?? "";
-
-            let leftOffset = null;
-            if (colIndex === 0) leftOffset =40;
-            if (colIndex === 1) leftOffset = 40 + width;
-
-                      const stickyColumns = ["tenLaiXe", "maKH"];
-          const stickyIndex = stickyColumns.indexOf(col.key);
-
-if (stickyIndex >= 0) {
-  leftOffset = 40; // 40 checkbox
-  for (let i = 0; i < stickyIndex; i++) {
-    const key = stickyColumns[i];
-    leftOffset += parseInt(columnWidths[key] || 120);
-  }
-}
-
-            return (
-              <td
-                key={col.key}
-                className="border p-2"
+      {/* BẢNG */}
+      <div className="overflow-auto border" style={{ maxHeight: "80vh" }}>
+        <table
+          style={{
+            tableLayout: "fixed",
+            width: "max-content",
+            maxWidth: "max-content",
+            borderCollapse: "separate",
+            borderSpacing: 0,
+          }}
+        >
+          <thead className="bg-blue-600 text-white">
+            <tr>
+              {/* CỘT 1: SỬA */}
+              <th
+                className="border bg-blue-600 text-white"
                 style={{
-                  position: leftOffset !== null ? "sticky" : "static",
-                  left: stickyIndex >= 0 ? leftOffset : undefined,
-                  height: 60,
-                  zIndex: stickyIndex >= 0 ? 45 : 1,
-                  background: warnings[r._id]
-  ? "#fecaca"
-  : selectedRows.includes(r._id)
-  ? "#fef08a"      // màu vàng nhạt
-  : "#fff",
+                  position: "sticky",
+                  top: 0,
+                  zIndex: 60,
+                  width: 90,
+                  minWidth: 90,
+                  maxWidth: 90,
+                  textAlign: "center",
+                  background: "#2563eb",
+                }}
+              ></th>
 
-                  textAlign: "left",
-                  width,
-                  minWidth: width,
-                  maxWidth: width,
+              {/* CỘT 2: CHECKBOX HEADER */}
+              <th
+                className="border bg-blue-600 text-white"
+                style={{
+                  position: "sticky",
+                  top: 0,
+                  left: 0,
+                  zIndex: 60,
+                  width: 40,
+                  minWidth: 40,
+                  maxWidth: 40,
+                  textAlign: "center",
+                  background: "#2563eb",
                 }}
               >
-                
-                {/* ⭐ NẾU LÀ CỘT BIỂN SỐ XE → THÊM HOVER TOOLTIP */}
-  {col.key === "bienSoXe" ? (
-    <div
-      className="truncate text-black underline cursor-help"
-      onMouseEnter={(e) => {
-        const info = getVehicleInfo(r.bienSoXe);
-        if (info)
-          setHoverVehicle({
-            ...info,
-            x: e.clientX + 15,
-            y: e.clientY + 15,
-          });
-      }}
-      onMouseMove={(e) => {
-        setHoverVehicle((prev) =>
-          prev
-            ? { ...prev, x: e.clientX + 15, y: e.clientY + 15 }
-            : null
-        );
-      }}
-      onMouseLeave={() => setHoverVehicle(null)}
-    >
-      {r.bienSoXe}
-    </div>
-  ) : (
-<div
-  className="truncate"
-  style={{
-    fontWeight:
-      ["cuocPhiBS","bocXepBS","veBS","hangVeBS","luuCaBS","cpKhacBS"].includes(col.key)
-        ? "700"
-        : "normal",
-    color:
-      ["cuocPhiBS","bocXepBS","veBS","hangVeBS","luuCaBS","cpKhacBS"].includes(col.key)
-        ? "#1766ddff"
-        : "black",
-  }}
->
-  {numberColumns.includes(col.key)
-    ? formatNumber(cellValue)
-    : cellValue}
-</div>
-  )}
-  {hoverVehicle && (
-  <div
-    className="fixed bg-white border p-3 rounded-lg text-sm z-[9999]"
-    style={{
-      top: hoverVehicle.y,
-      left: hoverVehicle.x,
-      width: 240,
-    }}
-  >
-    <div><strong>Biển số:</strong> {hoverVehicle.plateNumber}</div>
-    <div><strong>Loại xe:</strong> {hoverVehicle.vehicleType}</div>
-    <div><strong>Kích thước:</strong> {hoverVehicle.length} × {hoverVehicle.width} × {hoverVehicle.height}</div>
-    <div><strong>Định mức:</strong> {hoverVehicle.norm}</div>
-  </div>
-)}
-              </td>
-            );
-          })}
-        </tr>
-      ))}
-    </tbody>
-  </table>
-</div>
+                <input
+                  type="checkbox"
+                  style={{ width: "100%", height: "100%" }}
+                  checked={
+                    selectedTrips.length === rides.length && rides.length > 0
+                  }
+                  onChange={(e) =>
+                    setSelectedTrips(
+                      e.target.checked ? rides.map((r) => r._id) : []
+                    )
+                  }
+                />
+              </th>
 
+              {/* RENDER CÁC CỘT KHÁC */}
+              {visibleColumns.map((colKey, index) => {
+                if (hiddenColumns.includes(colKey)) return null;
+                const col = allColumns.find((c) => c.key === colKey) || {
+                  key: colKey,
+                  label: colKey,
+                };
+                const width = columnWidths[col.key] || 120;
+                const fieldType =
+                  filterFields.find((f) => f.key === col.key)?.type || "text";
+                const dateFields = ["ngayBoc", "ngayBocHang", "ngayGiaoHang"];
+
+                // LEFT OFFSET CHO 2 CỘT CỐ ĐỊNH TIẾP THEO
+                let leftOffset = null;
+                if (index === 0) leftOffset = 40;
+                if (index === 1) leftOffset = 40 + width;
+
+                const stickyColumns = ["tenLaiXe", "maKH"];
+                const stickyIndex = stickyColumns.indexOf(col.key);
+                if (stickyIndex >= 0) {
+                  leftOffset = 40;
+                  for (let i = 0; i < stickyIndex; i++) {
+                    const key = stickyColumns[i];
+                    leftOffset += parseInt(columnWidths[key] || 120);
+                  }
+                }
+
+                return (
+                  <th
+                    key={col.key}
+                    data-col={col.key}
+                    draggable // ⭐ BẮT BUỘC ĐỂ KÉO CỘT
+                    onDragStart={(e) => onDragStart(e, col.key)} // ⭐ BẮT ĐẦU KÉO
+                    onDragOver={onDragOver} // ⭐ ĐỂ MỤC TIÊU NHẬN DROP
+                    onDrop={(e) => onDrop(e, col.key)} // ⭐ THẢ CỘT
+                    className="border p-0 bg-blue-600 text-white relative select-none"
+                    style={{
+                      position: "sticky",
+                      top: 0,
+                      left: stickyIndex >= 0 ? leftOffset : undefined,
+                      zIndex: stickyIndex >= 0 ? 60 : 50,
+                      background: "#2563eb",
+                      width,
+                      minWidth: width,
+                      maxWidth: width,
+                      overflow: "visible",
+                    }}
+                    // ⭐ NGĂN VIỆC NHẤP VÀO LẠI CHẶN DRAG
+                    onMouseDown={(e) => {
+                      if (e.target.tagName !== "TH") e.stopPropagation();
+                    }}
+                  >
+                    {/* LABEL */}
+                    <div
+                      className="p-2 flex items-center justify-center w-full text-center text-xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenFilter(col.key);
+                      }}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <span
+                        className="text-center"
+                        style={{
+                          whiteSpace: "normal",
+                          wordBreak: "break-word",
+                          lineHeight: "14px",
+                          display: "block",
+                          maxHeight: "28px", // = 2 dòng
+                          overflow: "hidden",
+                        }}
+                      >
+                        {col.label}
+                      </span>
+                    </div>
+
+                    {/* RESIZE HANDLE */}
+                    <div
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        onMouseDownResize(e, col.key);
+                      }}
+                      style={{
+                        width: 10,
+                        cursor: "col-resize",
+                        height: "100%",
+                        position: "absolute",
+                        right: 0,
+                        top: 0,
+                        zIndex: 80,
+                      }}
+                    />
+
+                    {/* FILTER POPUP */}
+                    {openFilter === col.key && (
+                      <div
+                        className="absolute bg-white border rounded shadow p-2 z-50"
+                        style={{ top: "100%", left: 0, width: "200px" }}
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                      >
+                        {dateFields.includes(col.key) ? (
+                          <input
+                            type="date"
+                            className="w-full border px-2 py-1 rounded text-black"
+                            value={filters[col.key] || ""}
+                            onChange={(e) =>
+                              setFilters((p) => ({
+                                ...p,
+                                [col.key]: e.target.value,
+                              }))
+                            }
+                            onClick={(e) => e.stopPropagation()}
+                            onMouseDown={(e) => e.stopPropagation()}
+                          />
+                        ) : (
+                          <input
+                            type="text"
+                            className="w-full border px-2 py-1 rounded text-black"
+                            placeholder={`Lọc theo ${col.label}`}
+                            value={filters[col.key] || ""}
+                            onChange={(e) =>
+                              setFilters((p) => ({
+                                ...p,
+                                [col.key]: e.target.value,
+                              }))
+                            }
+                            onClick={(e) => e.stopPropagation()}
+                            onMouseDown={(e) => e.stopPropagation()}
+                          />
+                        )}
+
+                        <div className="flex gap-1 mt-1">
+                          <button
+                            className="flex-1 bg-gray-200 px-2 py-1 rounded"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setFilters((p) => ({ ...p, [col.key]: "" }));
+                            }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                          >
+                            Xóa
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </th>
+                );
+              })}
+            </tr>
+          </thead>
+
+          <tbody>
+            {rides.length === 0 && (
+              <tr>
+                <td
+                  colSpan={visibleColumns.length + 2}
+                  className="p-20 text-center text-gray-500"
+                >
+                  Không có dữ liệu :33
+                </td>
+              </tr>
+            )}
+
+            {rides.map((r) => (
+              <tr
+                key={r._id}
+                className={`text-center cursor-pointer ${
+                  selectedRows.includes(r._id)
+                    ? "bg-yellow-400" // 🔥 chữ vàng + đậm
+                    : "text-black"
+                } hover:bg-gray-100`}
+                onClick={() => toggleRowHighlight(r._id)}
+              >
+                {/* CỘT 1: HÀNH ĐỘNG */}
+                <td
+                  className="border p-2 bg-white"
+                  style={{
+                    position: "sticky",
+                    zIndex: 50,
+                    width: 90,
+                    minWidth: 90,
+                    background: "#fff",
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center gap-2">
+                    {/* Nút sửa */}
+                    <button
+                      onClick={() => openEditModal(r)}
+                      className="p-1.5 bg-yellow-400 text-white rounded-lg shadow-sm hover:bg-yellow-500 hover:shadow-md transition"
+                      title="Sửa chuyến"
+                    >
+                      <FaEdit className="w-4 h-4" />
+                    </button>
+
+                    {/* Nút cảnh báo */}
+                    <button
+                      onClick={() => toggleWarning(r._id)}
+                      className={`p-1.5 rounded-lg shadow-sm transition ${
+                        warnings[r._id]
+                          ? "bg-red-50 text-red-600 hover:bg-red-100"
+                          : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                      }`}
+                      title="Đánh dấu cảnh báo"
+                    >
+                      <FaExclamationTriangle className="w-4 h-4" />
+                    </button>
+
+                    {/* Lịch sử chỉnh sửa */}
+                    {editCounts[r._id] > 0 && (
+                      <button
+                        onClick={() => handleViewHistory(r)}
+                        className="relative p-1.5 bg-green-50 rounded-lg shadow-sm hover:bg-green-100 transition"
+                        title="Lịch sử chỉnh sửa"
+                      >
+                        <FaHistory className="text-green-600 w-4 h-4" />
+
+                        {/* Badge số lần */}
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full shadow">
+                          {editCounts[r._id]}
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                </td>
+
+                {/* CỘT 2: CHECKBOX */}
+                <td
+                  className="border p-2 bg-white"
+                  style={{
+                    position: "sticky",
+                    left: 0,
+                    zIndex: 50,
+                    width: 40,
+                    minWidth: 40,
+                    background: "#fff",
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedTrips.includes(r._id)}
+                    onChange={() => toggleSelectTrip(r._id)}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </td>
+
+                {/* RENDER DATA */}
+                {visibleColumns.map((colKey, colIndex) => {
+                  if (hiddenColumns.includes(colKey)) return null;
+                  const col = allColumns.find((c) => c.key === colKey) || {
+                    key: colKey,
+                    label: colKey,
+                  };
+
+                  const width = columnWidths[col.key] || 120;
+
+                  const cellValue = [
+                    "ngayBocHang",
+                    "ngayGiaoHang",
+                    "ngayBoc",
+                  ].includes(col.key)
+                    ? formatDate(r[col.key])
+                    : col.key === "dieuVan"
+                    ? getFullName(r.dieuVanID)
+                    : r[col.key] ?? "";
+
+                  let leftOffset = null;
+                  if (colIndex === 0) leftOffset = 40;
+                  if (colIndex === 1) leftOffset = 40 + width;
+
+                  const stickyColumns = ["tenLaiXe", "maKH"];
+                  const stickyIndex = stickyColumns.indexOf(col.key);
+
+                  if (stickyIndex >= 0) {
+                    leftOffset = 40; // 40 checkbox
+                    for (let i = 0; i < stickyIndex; i++) {
+                      const key = stickyColumns[i];
+                      leftOffset += parseInt(columnWidths[key] || 120);
+                    }
+                  }
+
+                  return (
+                    <td
+                      key={col.key}
+                      className="border p-2"
+                      style={{
+                        position: leftOffset !== null ? "sticky" : "static",
+                        left: stickyIndex >= 0 ? leftOffset : undefined,
+                        height: 60,
+                        zIndex: stickyIndex >= 0 ? 45 : 1,
+                        background: warnings[r._id]
+                          ? "#fecaca"
+                          : selectedRows.includes(r._id)
+                          ? "#fef08a" // màu vàng nhạt
+                          : "#fff",
+
+                        textAlign: "left",
+                        width,
+                        minWidth: width,
+                        maxWidth: width,
+                      }}
+                    >
+                      {/* ⭐ NẾU LÀ CỘT BIỂN SỐ XE → THÊM HOVER TOOLTIP */}
+                      {col.key === "bienSoXe" ? (
+                        <div
+                          className="truncate text-black underline cursor-help"
+                          onMouseEnter={(e) => {
+                            const info = getVehicleInfo(r.bienSoXe);
+                            if (info)
+                              setHoverVehicle({
+                                ...info,
+                                x: e.clientX + 15,
+                                y: e.clientY + 15,
+                              });
+                          }}
+                          onMouseMove={(e) => {
+                            setHoverVehicle((prev) =>
+                              prev
+                                ? {
+                                    ...prev,
+                                    x: e.clientX + 15,
+                                    y: e.clientY + 15,
+                                  }
+                                : null
+                            );
+                          }}
+                          onMouseLeave={() => setHoverVehicle(null)}
+                        >
+                          {r.bienSoXe}
+                        </div>
+                      ) : (
+                        <div
+                          className="truncate"
+                          style={{
+                            fontWeight: [
+                              "cuocPhiBS",
+                              "bocXepBS",
+                              "veBS",
+                              "hangVeBS",
+                              "luuCaBS",
+                              "cpKhacBS",
+                            ].includes(col.key)
+                              ? "700"
+                              : "normal",
+                            color: [
+                              "cuocPhiBS",
+                              "bocXepBS",
+                              "veBS",
+                              "hangVeBS",
+                              "luuCaBS",
+                              "cpKhacBS",
+                            ].includes(col.key)
+                              ? "#1766ddff"
+                              : "black",
+                          }}
+                        >
+                          {numberColumns.includes(col.key)
+                            ? formatNumber(cellValue)
+                            : cellValue}
+                        </div>
+                      )}
+                      {hoverVehicle && (
+                        <div
+                          className="fixed bg-white border p-3 rounded-lg text-sm z-[9999]"
+                          style={{
+                            top: hoverVehicle.y,
+                            left: hoverVehicle.x,
+                            width: 240,
+                          }}
+                        >
+                          <div>
+                            <strong>Biển số:</strong> {hoverVehicle.plateNumber}
+                          </div>
+                          <div>
+                            <strong>Loại xe:</strong> {hoverVehicle.vehicleType}
+                          </div>
+                          <div>
+                            <strong>Kích thước:</strong> {hoverVehicle.length} ×{" "}
+                            {hoverVehicle.width} × {hoverVehicle.height}
+                          </div>
+                          <div>
+                            <strong>Định mức:</strong> {hoverVehicle.norm}
+                          </div>
+                        </div>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       <div className="flex justify-center items-center gap-3 mt-4">
         {/* Trang trước */}
@@ -1379,7 +1442,11 @@ if (stickyIndex >= 0) {
           {page} / {totalPages}
         </span>
 
-        <select value={page} onChange={(e) => setPage(Number(e.target.value))} className="border p-1 rounded">
+        <select
+          value={page}
+          onChange={(e) => setPage(Number(e.target.value))}
+          className="border p-1 rounded"
+        >
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
             <option key={p} value={p}>
               {p}
@@ -1397,51 +1464,52 @@ if (stickyIndex >= 0) {
         </button>
       </div>
 
-<div className="flex items-center gap-3 text-sm text-gray-600 text-right mt-2 justify-end">
-  <span>Tổng số chuyến hiển thị: {rides.length}</span>
+      <div className="flex items-center gap-3 text-sm text-gray-600 text-right mt-2 justify-end">
+        <span>Tổng số chuyến hiển thị: {rides.length}</span>
 
-  <select
-    value={limit}
-    onChange={(e) => setLimit(Number(e.target.value))}
-    className="border px-2 py-1 rounded text-black"
-  >
-    {[30, 35, 40, 45, 50].map((n) => (
-      <option key={n} value={n}>{n} / trang</option>
-    ))}
-  </select>
-</div>
+        <select
+          value={limit}
+          onChange={(e) => setLimit(Number(e.target.value))}
+          className="border px-2 py-1 rounded text-black"
+        >
+          {[30, 35, 40, 45, 50].map((n) => (
+            <option key={n} value={n}>
+              {n} / trang
+            </option>
+          ))}
+        </select>
+      </div>
 
       {showTripEditModal && (
         <div className="fixed z-[99999]">
-        <RideEditTripModal
-    initialData={editingTrip}
-    onSubmit={submitTripEdit}
-    currentUser={currentUser}
-    onClose={() => setShowTripEditModal(false)}
-  />
+          <RideEditTripModal
+            initialData={editingTrip}
+            onSubmit={submitTripEdit}
+            currentUser={currentUser}
+            onClose={() => setShowTripEditModal(false)}
+          />
         </div>
       )}
 
       <div className="fixed z-[99999]">
-      <RideAllRequestModal
-  open={showAllRequestModal}
-  onClose={() => setShowAllRequestModal(false)}
-  requests={allRequests}
-  reload={fetchAllRequests}
-  title="📌 Danh sách yêu cầu cần phê duyệt"
-/>
+        <RideAllRequestModal
+          open={showAllRequestModal}
+          onClose={() => setShowAllRequestModal(false)}
+          requests={allRequests}
+          reload={fetchAllRequests}
+          title="📌 Danh sách yêu cầu cần phê duyệt"
+        />
       </div>
 
-{showHistoryModal && historyRide && (
-  <div className="fixed z-[99999]">
-  <RideHistoryModal
-    ride={historyRide}
-    historyData={rideHistory}
-    onClose={() => setShowHistoryModal(false)}
-  />
-  </div>
+      {showHistoryModal && historyRide && (
+        <div className="fixed z-[99999]">
+          <RideHistoryModal
+            ride={historyRide}
+            historyData={rideHistory}
+            onClose={() => setShowHistoryModal(false)}
+          />
+        </div>
       )}
-
     </div>
   );
 }

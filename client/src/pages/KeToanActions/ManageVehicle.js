@@ -11,7 +11,7 @@ const apiVehicles = `${API}/vehicles`;
 
 // columns for vehicles (first two columns are locked/sticky)
 export const allColumns = [
-  { key: "plateNumber", label: "BSX" , stickyIndex: 0 },
+  { key: "plateNumber", label: "BSX", stickyIndex: 0 },
   { key: "company", label: "Đơn vị vận tải", stickyIndex: 1 },
   { key: "vehicleType", label: "Loại xe" },
   { key: "length", label: "Dài" },
@@ -19,11 +19,11 @@ export const allColumns = [
   { key: "height", label: "Cao" },
   { key: "norm", label: "Định mức" },
   { key: "registrationImage", label: "Ảnh đăng ký" },
-  { key: "resDay", label: "Ngày đăng ký"},
-  { key: "resExpDay", label: "Ngày hết hạn đăng ký"},
+  { key: "resDay", label: "Ngày đăng ký" },
+  { key: "resExpDay", label: "Ngày hết hạn đăng ký" },
   { key: "inspectionImage", label: "Ảnh đăng kiểm" },
-  { key: "insDay", label: "Ngày đăng kiểm"},
-  { key: "insExpDay", label: "Ngày hết hạn đăng kiểm"},
+  { key: "insDay", label: "Ngày đăng kiểm" },
+  { key: "insExpDay", label: "Ngày hết hạn đăng kiểm" },
 ];
 
 // helper để dựng key trong localStorage
@@ -42,7 +42,8 @@ export default function ManageVehicle() {
   const [importing, setImporting] = useState(false);
 
   const token = localStorage.getItem("token");
-  const user = JSON.parse(localStorage.getItem("user") || "null") || location.state?.user;
+  const user =
+    JSON.parse(localStorage.getItem("user") || "null") || location.state?.user;
   const userId = user?._id || "guest";
   const permissions = user?.permissions || [];
   const canEditVehicle = permissions.includes("edit_vehicle");
@@ -50,23 +51,30 @@ export default function ManageVehicle() {
   const isActive = (path) => location.pathname === path;
 
   // navigation helpers (mirrors ManageCustomer)
-  const handleGoToDrivers = () => navigate("/manage-driver", { state: { user } });
-  const handleGoToCustomers = () => navigate("/manage-customer", { state: { user } });
-  const handleGoToVehicles = () => navigate("/manage-vehicle", { state: { user } });
+  const handleGoToDrivers = () =>
+    navigate("/manage-driver", { state: { user } });
+  const handleGoToCustomers = () =>
+    navigate("/manage-customer", { state: { user } });
+  const handleGoToVehicles = () =>
+    navigate("/manage-vehicle", { state: { user } });
   const handleGoToTrips = () => navigate("/manage-trip", { state: { user } });
-  const handleGoToAllTrips = () => navigate("/manage-all-trip", { state: { user } });
+  const handleGoToAllTrips = () =>
+    navigate("/manage-all-trip", { state: { user } });
   const handleGoToAllCustomers = () => {
-    navigate("/customer-debt", {state: {user}});
-  }
+    navigate("/customer-debt", { state: { user } });
+  };
 
   const handleGoToCustomer26 = () => {
-    navigate("/customer-debt-26", {state: {user}});
-  }
+    navigate("/customer-debt-26", { state: { user } });
+  };
 
-  const handleGoToVouchers = () => navigate("/voucher-list", { state: { user } });
+  const handleGoToVouchers = () =>
+    navigate("/voucher-list", { state: { user } });
 
   // visibleColumns khởi tạo mặc định từ allColumns
-  const [visibleColumns, setVisibleColumns] = useState(allColumns.map((c) => c.key));
+  const [visibleColumns, setVisibleColumns] = useState(
+    allColumns.map((c) => c.key)
+  );
   const [columnWidths, setColumnWidths] = useState({});
 
   // flag: prefs đã load xong chưa
@@ -91,14 +99,20 @@ export default function ManageVehicle() {
   // selected rows highlight
   const [selectedRows, setSelectedRows] = useState([]);
   const toggleRowHighlight = (id) => {
-    setSelectedRows((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    setSelectedRows((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
   };
 
   // -------- fetch vehicles (with plateNumber numeric sort asc)
   const fetch = async (search = "") => {
     try {
-      const url = search ? `${apiVehicles}?q=${encodeURIComponent(search)}` : apiVehicles;
-      const res = await axios.get(url, { headers: { Authorization: token ? `Bearer ${token}` : undefined } });
+      const url = search
+        ? `${apiVehicles}?q=${encodeURIComponent(search)}`
+        : apiVehicles;
+      const res = await axios.get(url, {
+        headers: { Authorization: token ? `Bearer ${token}` : undefined },
+      });
       const data = res.data || [];
 
       // sort plateNumber as numeric if possible (strings of digits)
@@ -108,8 +122,16 @@ export default function ManageVehicle() {
         // keep Minh Quân priority after numeric? we'll prefer numerical first, then company priority
         if (numA !== numB) return numA - numB;
         // tiebreaker: Minh Quân first
-        if ((a.company || "").trim() === "Minh Quân" && (b.company || "").trim() !== "Minh Quân") return -1;
-        if ((a.company || "").trim() !== "Minh Quân" && (b.company || "").trim() === "Minh Quân") return 1;
+        if (
+          (a.company || "").trim() === "Minh Quân" &&
+          (b.company || "").trim() !== "Minh Quân"
+        )
+          return -1;
+        if (
+          (a.company || "").trim() !== "Minh Quân" &&
+          (b.company || "").trim() === "Minh Quân"
+        )
+          return 1;
         return 0;
       });
 
@@ -122,7 +144,10 @@ export default function ManageVehicle() {
       });
       setWarnings(w);
     } catch (err) {
-      console.error("Lỗi lấy vehicles:", err.response?.data || err.message || err);
+      console.error(
+        "Lỗi lấy vehicles:",
+        err.response?.data || err.message || err
+      );
       setVehicles([]);
     }
   };
@@ -143,8 +168,12 @@ export default function ManageVehicle() {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed.order)) {
         // keep only valid keys and append missing columns
-        const valid = parsed.order.filter((k) => allColumns.some((ac) => ac.key === k));
-        const missing = allColumns.map((c) => c.key).filter((k) => !valid.includes(k));
+        const valid = parsed.order.filter((k) =>
+          allColumns.some((ac) => ac.key === k)
+        );
+        const missing = allColumns
+          .map((c) => c.key)
+          .filter((k) => !valid.includes(k));
         setVisibleColumns([...valid, ...missing]);
       }
       if (parsed.widths && typeof parsed.widths === "object") {
@@ -187,7 +216,9 @@ export default function ManageVehicle() {
     if (idxSrc === -1 || idxTarget === -1) return;
 
     // ensure locked/sticky two columns remain at start: if either src/target is locked, do nothing
-    const locked = allColumns.filter(c => c.stickyIndex === 0 || c.stickyIndex === 1).map(c => c.key);
+    const locked = allColumns
+      .filter((c) => c.stickyIndex === 0 || c.stickyIndex === 1)
+      .map((c) => c.key);
     if (locked.includes(src) || locked.includes(targetKey)) {
       dragColRef.current = null;
       return;
@@ -249,37 +280,36 @@ export default function ManageVehicle() {
   };
 
   // ---------- helpers ----------
-const formatCellValue = (cKey, value) => {
-  if (!value && value !== 0) return "";
+  const formatCellValue = (cKey, value) => {
+    if (!value && value !== 0) return "";
 
-  // Giữ nguyên phần hình ảnh
-  if (cKey === "registrationImage" || cKey === "inspectionImage") {
+    // Giữ nguyên phần hình ảnh
+    if (cKey === "registrationImage" || cKey === "inspectionImage") {
+      return value;
+    }
+
+    // Các cột ngày
+    const dateFields = ["resDay", "resExpDay", "insDay", "insExpDay"];
+
+    // Nếu là ngày → format + tô xanh khi là ngày hết hạn
+    if (dateFields.includes(cKey)) {
+      const d = new Date(value);
+      if (isNaN(d)) return value;
+
+      const formatted = d.toLocaleDateString("vi-VN");
+
+      const isExpiredDate = cKey === "resExpDay" || cKey === "insExpDay";
+
+      return (
+        <span className={isExpiredDate ? "text-blue-500 font-bold" : ""}>
+          {formatted}
+        </span>
+      );
+    }
+
+    // Trả về mặc định
     return value;
-  }
-
-  // Các cột ngày
-  const dateFields = ["resDay", "resExpDay", "insDay", "insExpDay"];
-
-  // Nếu là ngày → format + tô xanh khi là ngày hết hạn
-  if (dateFields.includes(cKey)) {
-    const d = new Date(value);
-    if (isNaN(d)) return value;
-
-    const formatted = d.toLocaleDateString("vi-VN");
-
-    const isExpiredDate = cKey === "resExpDay" || cKey === "insExpDay";
-
-    return (
-      <span className={isExpiredDate ? "text-blue-500 font-bold" : ""}>
-        {formatted}
-      </span>
-    );
-  }
-
-  // Trả về mặc định
-  return value;
-};
-
+  };
 
   // ---------- action handlers (add/edit/delete/import/export) ----------
   const handleAdd = () => {
@@ -298,7 +328,9 @@ const formatCellValue = (cKey, value) => {
     if (!canEditVehicle) return alert("Bạn chưa có quyền xóa xe!");
     if (!window.confirm("Xác nhận xóa?")) return;
     try {
-      await axios.delete(`${apiVehicles}/${id}`, { headers: { Authorization: token ? `Bearer ${token}` : undefined } });
+      await axios.delete(`${apiVehicles}/${id}`, {
+        headers: { Authorization: token ? `Bearer ${token}` : undefined },
+      });
       setVehicles((prev) => prev.filter((m) => m._id !== id));
     } catch (err) {
       alert("Không xóa được: " + (err.response?.data?.error || err.message));
@@ -306,18 +338,22 @@ const formatCellValue = (cKey, value) => {
   };
 
   const handleDeleteAll = async () => {
-  if (!canEditVehicle) return alert("Bạn chưa có quyền xóa xe!");
-  if (!window.confirm("Xác nhận xóa tất cả xe?")) return;
-  try {
-    await axios.delete(`${apiVehicles}/all`, { data: {}, headers: { Authorization: token ? `Bearer ${token}` : undefined } });
-    alert("Đã xóa tất cả xe!");
-    setVehicles([]);
-  } catch (err) {
-    console.error("Xóa tất cả thất bại:", err);
-    alert("Không thể xóa tất cả: " + (err.response?.data?.error || err.message));
-  }
-};
-
+    if (!canEditVehicle) return alert("Bạn chưa có quyền xóa xe!");
+    if (!window.confirm("Xác nhận xóa tất cả xe?")) return;
+    try {
+      await axios.delete(`${apiVehicles}/all`, {
+        data: {},
+        headers: { Authorization: token ? `Bearer ${token}` : undefined },
+      });
+      alert("Đã xóa tất cả xe!");
+      setVehicles([]);
+    } catch (err) {
+      console.error("Xóa tất cả thất bại:", err);
+      alert(
+        "Không thể xóa tất cả: " + (err.response?.data?.error || err.message)
+      );
+    }
+  };
 
   const handleSave = (saved) => {
     setVehicles((prev) => {
@@ -337,14 +373,21 @@ const formatCellValue = (cKey, value) => {
     if (!file) return alert("Vui lòng chọn file Excel!");
     setImporting(true);
 
-    if (isSubmitting) return;  // tránh double click ngay tức thì
+    if (isSubmitting) return; // tránh double click ngay tức thì
     setIsSubmitting(true);
     const formData = new FormData();
     formData.append("file", file);
     try {
-      const res = await axios.post(`${apiVehicles}/import?mode=${importMode}`, formData, {
-        headers: { "Content-Type": "multipart/form-data", Authorization: token ? `Bearer ${token}` : undefined },
-      });
+      const res = await axios.post(
+        `${apiVehicles}/import?mode=${importMode}`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            Authorization: token ? `Bearer ${token}` : undefined,
+          },
+        }
+      );
       const added = res.data.imported || 0;
       const updated = res.data.updated || 0;
       alert(`Import xong — Thêm: ${added}, Cập nhật: ${updated}`);
@@ -364,7 +407,9 @@ const formatCellValue = (cKey, value) => {
 
   const exportExcel = () => {
     if (!vehicles.length) return alert("Không có dữ liệu để xuất");
-    const headers = allColumns.filter((c) => visibleColumns.includes(c.key)).map((c) => c.label);
+    const headers = allColumns
+      .filter((c) => visibleColumns.includes(c.key))
+      .map((c) => c.label);
     const data = vehicles.map((d) => {
       const row = {};
       allColumns.forEach((c) => {
@@ -381,13 +426,20 @@ const formatCellValue = (cKey, value) => {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Vehicles");
     const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    saveAs(new Blob([wbout], { type: "application/octet-stream" }), `vehicles_${formatDateFns(new Date(), "yyyyMMdd_HHmm")}.xlsx`);
+    saveAs(
+      new Blob([wbout], { type: "application/octet-stream" }),
+      `vehicles_${formatDateFns(new Date(), "yyyyMMdd_HHmm")}.xlsx`
+    );
   };
 
   // toggle warning per vehicle
   const toggleWarning = async (vehicleId) => {
     try {
-      const res = await axios.put(`${apiVehicles}/warning/${vehicleId}`, {}, { headers: { Authorization: token ? `Bearer ${token}` : undefined } });
+      const res = await axios.put(
+        `${apiVehicles}/warning/${vehicleId}`,
+        {},
+        { headers: { Authorization: token ? `Bearer ${token}` : undefined } }
+      );
       const newWarningState = res.data.warning;
       setWarnings((prev) => ({ ...prev, [vehicleId]: newWarningState }));
     } catch (err) {
@@ -397,47 +449,149 @@ const formatCellValue = (cKey, value) => {
   };
 
   return (
-    <div className="p-4 bg-gray-50 min-h-screen text-sm">
+    <div className="p-4 bg-gray-50 min-h-screen text-xs">
       <div className="flex gap-2 items-center mb-4">
-        <button onClick={() => navigate("/ke-toan")} className="px-3 py-1 rounded text-white bg-blue-500">Trang chính</button>
-
-        <button onClick={handleGoToDrivers} className={`px-3 py-1 rounded text-white ${isActive("/manage-driver") ? "bg-green-600" : "bg-blue-500"}`}>Danh sách lái xe</button>
-        <button onClick={handleGoToCustomers} className={`px-3 py-1 rounded text-white ${isActive("/manage-customer") ? "bg-green-600" : "bg-blue-500"}`}>Danh sách khách hàng</button>
-        <button onClick={handleGoToVehicles} className={`px-3 py-1 rounded text-white ${isActive("/manage-vehicle") ? "bg-green-600" : "bg-blue-500"}`}>Danh sách xe</button>
-        <button onClick={handleGoToTrips} className={`px-3 py-1 rounded text-white ${isActive("/manage-trip") ? "bg-green-600" : "bg-blue-500"}`}>Danh sách chuyến phụ trách</button>
-        <button onClick={() => { if(!user?.permissions?.includes("edit_trip")) { alert("Bạn không có quyền truy cập!"); return; } handleGoToAllTrips(); }} className={`px-3 py-1 rounded text-white ${isActive("/manage-all-trip") ? "bg-green-600" : "bg-blue-500"}`}>Tất cả các chuyến</button>
         <button
-    onClick={handleGoToAllCustomers}
-    className={`px-3 py-1 rounded text-white 
+          onClick={() => navigate("/ke-toan")}
+          className="px-3 py-1 rounded text-white bg-blue-500"
+        >
+          Trang chính
+        </button>
+
+        <button
+          onClick={handleGoToDrivers}
+          className={`px-3 py-1 rounded text-white ${
+            isActive("/manage-driver") ? "bg-green-600" : "bg-blue-500"
+          }`}
+        >
+          Danh sách lái xe
+        </button>
+        <button
+          onClick={handleGoToCustomers}
+          className={`px-3 py-1 rounded text-white ${
+            isActive("/manage-customer") ? "bg-green-600" : "bg-blue-500"
+          }`}
+        >
+          Danh sách khách hàng
+        </button>
+        <button
+          onClick={handleGoToVehicles}
+          className={`px-3 py-1 rounded text-white ${
+            isActive("/manage-vehicle") ? "bg-green-600" : "bg-blue-500"
+          }`}
+        >
+          Danh sách xe
+        </button>
+        <button
+          onClick={handleGoToTrips}
+          className={`px-3 py-1 rounded text-white ${
+            isActive("/manage-trip") ? "bg-green-600" : "bg-blue-500"
+          }`}
+        >
+          Danh sách chuyến phụ trách
+        </button>
+        <button
+          onClick={() => {
+            if (!user?.permissions?.includes("edit_trip")) {
+              alert("Bạn không có quyền truy cập!");
+              return;
+            }
+            handleGoToAllTrips();
+          }}
+          className={`px-3 py-1 rounded text-white ${
+            isActive("/manage-all-trip") ? "bg-green-600" : "bg-blue-500"
+          }`}
+        >
+          Tất cả các chuyến
+        </button>
+        <button
+          onClick={handleGoToAllCustomers}
+          className={`px-3 py-1 rounded text-white 
       ${isActive("/customer-debt") ? "bg-green-600" : "bg-blue-500"}
     `}
-  >
-    Công nợ KH
-  </button>
+        >
+          Công nợ KH
+        </button>
 
-  <button
-    onClick={handleGoToCustomer26}
-    className={`px-3 py-1 rounded text-white 
+        <button
+          onClick={handleGoToCustomer26}
+          className={`px-3 py-1 rounded text-white 
       ${isActive("/customer-debt-26") ? "bg-green-600" : "bg-blue-500"}
     `}
-  >
-    Công nợ khách lẻ
-  </button>
-  <button onClick={handleGoToVouchers} className={`px-3 py-1 rounded text-white ${isActive("/voucher-list") ? "bg-green-600" : "bg-blue-500"}`}>Sổ phiếu chi</button>
+        >
+          Công nợ khách lẻ
+        </button>
+        <button
+          onClick={handleGoToVouchers}
+          className={`px-3 py-1 rounded text-white ${
+            isActive("/voucher-list") ? "bg-green-600" : "bg-blue-500"
+          }`}
+        >
+          Sổ phiếu chi
+        </button>
       </div>
 
       <div className="flex justify-between items-center mb-4 mt-2">
         <h1 className="text-xl font-bold">Quản lý Xe</h1>
         <div className="flex gap-2 items-center flex-wrap">
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm biển số, đơn vị, loại..." className="border p-2 rounded" />
-          <button onClick={() => fetch(q)} className="bg-blue-500 text-white px-3 py-1 rounded">Tìm</button>
-          <button onClick={() => { setQ(""); fetch(); }} className="bg-gray-200 px-3 py-1 rounded">Reset</button>
-          <button onClick={handleAdd} className={`bg-green-500 px-3 py-1 text-white rounded ${!canEditVehicle ? "opacity-50 cursor-not-allowed" : ""}`} disabled={!canEditVehicle}>+ Thêm</button>
-          <button onClick={exportExcel} className="bg-blue-600 px-3 py-1 text-white rounded">Xuất Excel</button>
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Tìm biển số, đơn vị, loại..."
+            className="border p-2 rounded"
+          />
+          <button
+            onClick={() => fetch(q)}
+            className="bg-blue-500 text-white px-3 py-1 rounded"
+          >
+            Tìm
+          </button>
+          <button
+            onClick={() => {
+              setQ("");
+              fetch();
+            }}
+            className="bg-gray-200 px-3 py-1 rounded"
+          >
+            Reset
+          </button>
+          <button
+            onClick={handleAdd}
+            className={`bg-green-500 px-3 py-1 text-white rounded ${
+              !canEditVehicle ? "opacity-50 cursor-not-allowed" : ""
+            }`}
+            disabled={!canEditVehicle}
+          >
+            + Thêm
+          </button>
+          <button
+            onClick={exportExcel}
+            className="bg-blue-600 px-3 py-1 text-white rounded"
+          >
+            Xuất Excel
+          </button>
 
-          <input ref={fileInputRef} id="fileExcelInput" type="file" accept=".xlsx" onChange={(e) => setFile(e.target.files[0])} className="border p-1 rounded" />
+          <input
+            ref={fileInputRef}
+            id="fileExcelInput"
+            type="file"
+            accept=".xlsx"
+            onChange={(e) => setFile(e.target.files[0])}
+            className="border p-1 rounded"
+          />
 
-          <button onClick={() => { if (!file) return alert("Vui lòng chọn file Excel!"); setShowImportMode(true); }} className={`bg-purple-600 text-white px-3 py-1 rounded ${!canEditVehicle || importing ? "opacity-50 cursor-not-allowed" : ""}`} disabled={!canEditVehicle || importing}>
+          <button
+            onClick={() => {
+              if (!file) return alert("Vui lòng chọn file Excel!");
+              setShowImportMode(true);
+            }}
+            className={`bg-purple-600 text-white px-3 py-1 rounded ${
+              !canEditVehicle || importing
+                ? "opacity-50 cursor-not-allowed"
+                : ""
+            }`}
+            disabled={!canEditVehicle || importing}
+          >
             {importing ? "Đang import..." : "Import Excel"}
           </button>
         </div>
@@ -451,7 +605,13 @@ const formatCellValue = (cKey, value) => {
               type="checkbox"
               checked={visibleColumns.includes(c.key)}
               disabled={c.stickyIndex === 0 || c.stickyIndex === 1} // lock first two columns
-              onChange={() => setVisibleColumns((prev) => (prev.includes(c.key) ? prev.filter((k) => k !== c.key) : [...prev, c.key]))}
+              onChange={() =>
+                setVisibleColumns((prev) =>
+                  prev.includes(c.key)
+                    ? prev.filter((k) => k !== c.key)
+                    : [...prev, c.key]
+                )
+              }
             />
             {c.label}
           </label>
@@ -459,112 +619,125 @@ const formatCellValue = (cKey, value) => {
       </div>
 
       {/* Table */}
-      <div className="overflow-auto border" style={{ maxHeight: "80vh", position: "relative" }}>
-        <table style={{ tableLayout: "fixed", width: "max-content", maxWidth: "max-content", borderCollapse: "separate", borderSpacing: 0 }}>
-<thead className="bg-gray-200">
-  <tr>
-    {/* Warning column */}
-    <th
-      className="border p-1 sticky top-0 text-center"
-      style={{
-        width: 30,
-        minWidth: 30,
-        left: 0,
-        zIndex: 50,
-        background: "#f3f4f6",
-        boxSizing: "border-box",
-      }}
-    />
-
-    {visibleColumns.map((cKey, index) => {
-      const colMeta = allColumns.find((c) => c.key === cKey) || {
-        key: cKey,
-        label: cKey,
-      };
-
-      const widthStyle = columnWidths[cKey]
-        ? {
-            width: columnWidths[cKey],
-            minWidth: columnWidths[cKey],
-            maxWidth: columnWidths[cKey],
-          }
-        : {};
-
-      const isFirst = index === 0;
-      const isSecond = index === 1;
-      const leftOffset = isSecond
-        ? 35 + firstColWidth
-        : isFirst
-        ? 35
-        : undefined;
-
-      return (
-        <th
-          key={cKey}
-          data-col={cKey}
-          ref={isFirst ? firstColRef : null}
-          draggable={!isResizingRef.current}
-          onDragStart={(e) => {
-            if (!isResizingRef.current) onDragStart(e, cKey);
-            else e.preventDefault();
-          }}
-          onDragOver={onDragOver}
-          onDrop={(e) => onDrop(e, cKey)}
-          className="border p-0 text-center bg-gray-200 relative select-none"
+      <div
+        className="overflow-auto border"
+        style={{ maxHeight: "80vh", position: "relative" }}
+      >
+        <table
           style={{
-            position: "sticky",
-            top: 0,
-            left: leftOffset,
-            zIndex: leftOffset !== undefined ? 40 : 20,
-            background: "#f3f4f6",
-            overflow: "visible",
-            boxSizing: "border-box",
-            ...widthStyle,
+            tableLayout: "fixed",
+            width: "max-content",
+            maxWidth: "max-content",
+            borderCollapse: "separate",
+            borderSpacing: 0,
           }}
         >
-          <div className="p-2 text-xs truncate">
-            {colMeta.label}
-          </div>
+          <thead className="bg-gray-200">
+            <tr>
+              {/* Warning column */}
+              <th
+                className="border p-1 sticky top-0 text-center"
+                style={{
+                  width: 30,
+                  minWidth: 30,
+                  left: 0,
+                  zIndex: 50,
+                  background: "#f3f4f6",
+                  boxSizing: "border-box",
+                }}
+              />
 
-          {/* Resize handle */}
-          <div
-            onMouseDown={(e) => {
-              isResizingRef.current = true;
-              e.preventDefault();
-              e.stopPropagation();
-              onMouseDownResize(e, cKey);
-            }}
-            onClick={(e) => e.stopPropagation()}
-            onDoubleClick={(e) => e.stopPropagation()}
-            style={{
-              position: "absolute",
-              right: 0,
-              top: 0,
-              bottom: 0,
-              width: 10,
-              cursor: "col-resize",
-              zIndex: 200,
-              userSelect: "none",
-            }}
-          />
-        </th>
-      );
-    })}
+              {visibleColumns.map((cKey, index) => {
+                const colMeta = allColumns.find((c) => c.key === cKey) || {
+                  key: cKey,
+                  label: cKey,
+                };
 
-    <th
-      className="border p-1 sticky top-0 text-center bg-gray-200"
-      style={{ width: 120, minWidth: 120, zIndex: 40 }}
-    >
-      Hành động
-    </th>
-  </tr>
-</thead>
+                const widthStyle = columnWidths[cKey]
+                  ? {
+                      width: columnWidths[cKey],
+                      minWidth: columnWidths[cKey],
+                      maxWidth: columnWidths[cKey],
+                    }
+                  : {};
 
+                const isFirst = index === 0;
+                const isSecond = index === 1;
+                const leftOffset = isSecond
+                  ? 35 + firstColWidth
+                  : isFirst
+                  ? 35
+                  : undefined;
+
+                return (
+                  <th
+                    key={cKey}
+                    data-col={cKey}
+                    ref={isFirst ? firstColRef : null}
+                    draggable={!isResizingRef.current}
+                    onDragStart={(e) => {
+                      if (!isResizingRef.current) onDragStart(e, cKey);
+                      else e.preventDefault();
+                    }}
+                    onDragOver={onDragOver}
+                    onDrop={(e) => onDrop(e, cKey)}
+                    className="border p-0 text-center bg-gray-200 relative select-none"
+                    style={{
+                      position: "sticky",
+                      top: 0,
+                      left: leftOffset,
+                      zIndex: leftOffset !== undefined ? 40 : 20,
+                      background: "#f3f4f6",
+                      overflow: "visible",
+                      boxSizing: "border-box",
+                      ...widthStyle,
+                    }}
+                  >
+                    <div className="p-2 text-xs truncate">{colMeta.label}</div>
+
+                    {/* Resize handle */}
+                    <div
+                      onMouseDown={(e) => {
+                        isResizingRef.current = true;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onMouseDownResize(e, cKey);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      onDoubleClick={(e) => e.stopPropagation()}
+                      style={{
+                        position: "absolute",
+                        right: 0,
+                        top: 0,
+                        bottom: 0,
+                        width: 10,
+                        cursor: "col-resize",
+                        zIndex: 200,
+                        userSelect: "none",
+                      }}
+                    />
+                  </th>
+                );
+              })}
+
+              <th
+                className="border p-1 sticky top-0 text-center bg-gray-200"
+                style={{ width: 120, minWidth: 120, zIndex: 40 }}
+              >
+                Hành động
+              </th>
+            </tr>
+          </thead>
 
           <tbody>
             {vehicles.length === 0 && (
               <tr>
-                <td colSpan={visibleColumns.length + 2} className="p-4 text-center text-gray-500">Không có dữ liệu</td>
+                <td
+                  colSpan={visibleColumns.length + 2}
+                  className="p-4 text-center text-gray-500"
+                >
+                  Không có dữ liệu
+                </td>
               </tr>
             )}
 
@@ -574,18 +747,51 @@ const formatCellValue = (cKey, value) => {
                 <tr
                   key={v._id}
                   onClick={() => toggleRowHighlight(v._id)}
-                  className={`cursor-pointer ${isWarning ? "bg-red-300" : idx % 2 === 0 ? "bg-white" : "bg-gray-50"} ${selectedRows.includes(v._id) ? "bg-yellow-200" : ""}`}
+                  className={`cursor-pointer ${
+                    isWarning
+                      ? "bg-red-300"
+                      : idx % 2 === 0
+                      ? "bg-white"
+                      : "bg-gray-50"
+                  } ${selectedRows.includes(v._id) ? "bg-yellow-200" : ""}`}
                 >
                   {/* Warning cell */}
-                  <td className="border p-1 text-center" style={{ position: "sticky", left: 0, zIndex: 20, width: 30, background: isWarning ? "#fca5a5" : "#fff" }}>
-                    <button onClick={() => toggleWarning(v._id)} className={`px-1 py-1 rounded text-white ${isWarning ? "bg-red-600" : "bg-gray-400"}`}>⚠</button>
+                  <td
+                    className="border p-1 text-center"
+                    style={{
+                      position: "sticky",
+                      left: 0,
+                      zIndex: 20,
+                      width: 30,
+                      background: isWarning ? "#fca5a5" : "#fff",
+                    }}
+                  >
+                    <button
+                      onClick={() => toggleWarning(v._id)}
+                      className={`px-1 py-1 rounded text-white ${
+                        isWarning ? "bg-red-600" : "bg-gray-400"
+                      }`}
+                    >
+                      ⚠
+                    </button>
                   </td>
 
                   {visibleColumns.map((cKey, colIndex) => {
                     const isFirst = colIndex === 0;
                     const isSecond = colIndex === 1;
-                    const stickyLeft = isFirst ? 35 : isSecond ? 35 + firstColWidth : undefined;
-                    const cellWidthStyle = columnWidths[cKey] ? { width: columnWidths[cKey], minWidth: columnWidths[cKey], maxWidth: columnWidths[cKey], boxSizing: "border-box" } : {};
+                    const stickyLeft = isFirst
+                      ? 35
+                      : isSecond
+                      ? 35 + firstColWidth
+                      : undefined;
+                    const cellWidthStyle = columnWidths[cKey]
+                      ? {
+                          width: columnWidths[cKey],
+                          minWidth: columnWidths[cKey],
+                          maxWidth: columnWidths[cKey],
+                          boxSizing: "border-box",
+                        }
+                      : {};
 
                     return (
                       <td
@@ -595,19 +801,45 @@ const formatCellValue = (cKey, value) => {
                           position: isFirst || isSecond ? "sticky" : "relative",
                           left: stickyLeft,
                           height: 20,
-                          lineHeight: "20px",        // ⭐ canh giữa theo chiều dọc
-                          whiteSpace: "nowrap",      // ⭐ không xuống dòng
-                          overflow: "hidden",        // ⭐ ẩn phần vượt quá
+                          lineHeight: "20px", // ⭐ canh giữa theo chiều dọc
+                          whiteSpace: "nowrap", // ⭐ không xuống dòng
+                          overflow: "hidden", // ⭐ ẩn phần vượt quá
                           textOverflow: "ellipsis",
                           zIndex: isFirst || isSecond ? 20 : 1,
-                          background: isWarning ? "#fca5a5" : selectedRows.includes(v._id) ? "#fde68a" : (idx % 2 === 0 ? "#fff" : "#f9fafb"),
+                          background: isWarning
+                            ? "#fca5a5"
+                            : selectedRows.includes(v._id)
+                            ? "#fde68a"
+                            : idx % 2 === 0
+                            ? "#fff"
+                            : "#f9fafb",
                           ...cellWidthStyle,
                         }}
                       >
                         {cKey === "registrationImage" ? (
-                          v[cKey] ? <a href={v[cKey]} target="_blank" rel="noreferrer"><img src={v[cKey]} alt="reg" className="w-[42px] h-[28px] object-cover rounded border" /></a> : ""
+                          v[cKey] ? (
+                            <a href={v[cKey]} target="_blank" rel="noreferrer">
+                              <img
+                                src={v[cKey]}
+                                alt="reg"
+                                className="w-[42px] h-[28px] object-cover rounded border"
+                              />
+                            </a>
+                          ) : (
+                            ""
+                          )
                         ) : cKey === "inspectionImage" ? (
-                          v[cKey] ? <a href={v[cKey]} target="_blank" rel="noreferrer"><img src={v[cKey]} alt="insp" className="w-[42px] h-[28px] object-cover rounded border" /></a> : ""
+                          v[cKey] ? (
+                            <a href={v[cKey]} target="_blank" rel="noreferrer">
+                              <img
+                                src={v[cKey]}
+                                alt="insp"
+                                className="w-[42px] h-[28px] object-cover rounded border"
+                              />
+                            </a>
+                          ) : (
+                            ""
+                          )
                         ) : (
                           formatCellValue(cKey, v[cKey])
                         )}
@@ -615,11 +847,24 @@ const formatCellValue = (cKey, value) => {
                     );
                   })}
 
-                  <td className="border p-1 flex gap-2 justify-center" style={{ minWidth: 120, background: "#fff" }}>
+                  <td
+                    className="border p-1 flex gap-2 justify-center"
+                    style={{ minWidth: 120, background: "#fff" }}
+                  >
                     {canEditVehicle ? (
                       <>
-                        <button onClick={() => handleEdit(v)} className="text-blue-600">Sửa</button>
-                        <button onClick={() => handleDelete(v._id)} className="text-red-600">Xóa</button>
+                        <button
+                          onClick={() => handleEdit(v)}
+                          className="text-blue-600"
+                        >
+                          Sửa
+                        </button>
+                        <button
+                          onClick={() => handleDelete(v._id)}
+                          className="text-red-600"
+                        >
+                          Xóa
+                        </button>
                       </>
                     ) : (
                       <span className="text-gray-400">Không có quyền</span>
@@ -633,17 +878,27 @@ const formatCellValue = (cKey, value) => {
       </div>
 
       <div className="flex justify-end mt-3">
-  <button
-    onClick={handleDeleteAll}
-    className={`px-4 py-2 bg-red-600 text-white rounded shadow hover:bg-red-700 
+        <button
+          onClick={handleDeleteAll}
+          className={`px-4 py-2 bg-red-600 text-white rounded shadow hover:bg-red-700 
       ${!canEditVehicle ? "opacity-50 cursor-not-allowed" : ""}`}
-    disabled={!canEditVehicle}
-  >
-    Xóa tất cả
-  </button>
-</div>
+          disabled={!canEditVehicle}
+        >
+          Xóa tất cả
+        </button>
+      </div>
 
-      {showModal && <VehicleModal initialData={editVehicle} onClose={() => { setShowModal(false); setEditVehicle(null); }} onSave={handleSave} apiBase={apiVehicles} />}
+      {showModal && (
+        <VehicleModal
+          initialData={editVehicle}
+          onClose={() => {
+            setShowModal(false);
+            setEditVehicle(null);
+          }}
+          onSave={handleSave}
+          apiBase={apiVehicles}
+        />
+      )}
 
       {showImportMode && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
@@ -651,18 +906,39 @@ const formatCellValue = (cKey, value) => {
             <h2 className="text-lg font-bold mb-3">Chọn chế độ Import</h2>
 
             <label className="flex items-center gap-2 mb-2">
-              <input type="radio" name="importMode" checked={importMode === "append"} onChange={() => setImportMode("append")} />
+              <input
+                type="radio"
+                name="importMode"
+                checked={importMode === "append"}
+                onChange={() => setImportMode("append")}
+              />
               Thêm mới (thêm, trùng biển thì không lấy)
             </label>
 
             <label className="flex items-center gap-2 mb-4">
-              <input type="radio" name="importMode" checked={importMode === "overwrite"} onChange={() => setImportMode("overwrite")} />
+              <input
+                type="radio"
+                name="importMode"
+                checked={importMode === "overwrite"}
+                onChange={() => setImportMode("overwrite")}
+              />
               Ghi đè (cập nhật nếu trùng biển)
             </label>
 
             <div className="flex justify-end gap-2">
-              <button onClick={() => setShowImportMode(false)} className="px-4 py-1 bg-gray-300 rounded">Hủy</button>
-              <button onClick={handleImportConfirm} className="px-4 py-1 bg-purple-600 text-white rounded" disabled={isSubmitting}>Xác nhận</button>
+              <button
+                onClick={() => setShowImportMode(false)}
+                className="px-4 py-1 bg-gray-300 rounded"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleImportConfirm}
+                className="px-4 py-1 bg-purple-600 text-white rounded"
+                disabled={isSubmitting}
+              >
+                Xác nhận
+              </button>
             </div>
           </div>
         </div>

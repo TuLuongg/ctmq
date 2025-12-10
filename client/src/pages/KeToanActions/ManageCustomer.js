@@ -36,7 +36,8 @@ export default function ManageCustomer() {
   const [importing, setImporting] = useState(false);
 
   const token = localStorage.getItem("token");
-  const user = JSON.parse(localStorage.getItem("user") || "null") || location.state?.user;
+  const user =
+    JSON.parse(localStorage.getItem("user") || "null") || location.state?.user;
   const userId = user?._id || "guest";
   const permissions = user?.permissions || [];
   const canEditCustomer = permissions.includes("edit_customer");
@@ -44,23 +45,30 @@ export default function ManageCustomer() {
   const isActive = (path) => location.pathname === path;
 
   // navigation helpers (kept from original)
-  const handleGoToDrivers = () => navigate("/manage-driver", { state: { user } });
-  const handleGoToCustomers = () => navigate("/manage-customer", { state: { user } });
-  const handleGoToVehicles = () => navigate("/manage-vehicle", { state: { user } });
+  const handleGoToDrivers = () =>
+    navigate("/manage-driver", { state: { user } });
+  const handleGoToCustomers = () =>
+    navigate("/manage-customer", { state: { user } });
+  const handleGoToVehicles = () =>
+    navigate("/manage-vehicle", { state: { user } });
   const handleGoToTrips = () => navigate("/manage-trip", { state: { user } });
-  const handleGoToAllTrips = () => navigate("/manage-all-trip", { state: { user } });
+  const handleGoToAllTrips = () =>
+    navigate("/manage-all-trip", { state: { user } });
   const handleGoToAllCustomers = () => {
-    navigate("/customer-debt", {state: {user}});
-  }
+    navigate("/customer-debt", { state: { user } });
+  };
 
   const handleGoToCustomer26 = () => {
-    navigate("/customer-debt-26", {state: {user}});
-  }
+    navigate("/customer-debt-26", { state: { user } });
+  };
 
-  const handleGoToVouchers = () => navigate("/voucher-list", { state: { user } });  
+  const handleGoToVouchers = () =>
+    navigate("/voucher-list", { state: { user } });
 
   // visibleColumns khởi tạo mặc định từ allColumns
-  const [visibleColumns, setVisibleColumns] = useState(allColumns.map((c) => c.key));
+  const [visibleColumns, setVisibleColumns] = useState(
+    allColumns.map((c) => c.key)
+  );
   const [columnWidths, setColumnWidths] = useState({});
 
   // flag: prefs đã load xong chưa
@@ -86,44 +94,44 @@ export default function ManageCustomer() {
   // selected rows highlight
   const [selectedRows, setSelectedRows] = useState([]);
   const toggleRowHighlight = (id) => {
-    setSelectedRows((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    setSelectedRows((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
   };
 
   // -------- fetch customers
-const fetch = async (search = "") => {
-  try {
-    const url = search
-      ? `${apiCustomers}?q=${encodeURIComponent(search)}`
-      : apiCustomers;
+  const fetch = async (search = "") => {
+    try {
+      const url = search
+        ? `${apiCustomers}?q=${encodeURIComponent(search)}`
+        : apiCustomers;
 
-    const res = await axios.get(url, {
-      headers: { Authorization: token ? `Bearer ${token}` : undefined },
-    });
+      const res = await axios.get(url, {
+        headers: { Authorization: token ? `Bearer ${token}` : undefined },
+      });
 
-    const data = res.data || [];
+      const data = res.data || [];
 
-    // Sắp xếp theo mã code (string chứa số)
-    const sorted = [...data].sort((a, b) => {
-      const numA = Number(a.code || 0);
-      const numB = Number(b.code || 0);
-      return numA - numB; // tăng dần
-    });
+      // Sắp xếp theo mã code (string chứa số)
+      const sorted = [...data].sort((a, b) => {
+        const numA = Number(a.code || 0);
+        const numB = Number(b.code || 0);
+        return numA - numB; // tăng dần
+      });
 
-    setCustomers(sorted);
+      setCustomers(sorted);
 
-    // Cảnh báo
-    const w = {};
-    sorted.forEach((d) => {
-      if (d.warning === true) w[d._id] = true;
-    });
-    setWarnings(w);
-
-  } catch (err) {
-    console.error("Lỗi lấy danh sách KH:", err.response?.data || err.message);
-    setCustomers([]);
-  }
-};
-
+      // Cảnh báo
+      const w = {};
+      sorted.forEach((d) => {
+        if (d.warning === true) w[d._id] = true;
+      });
+      setWarnings(w);
+    } catch (err) {
+      console.error("Lỗi lấy danh sách KH:", err.response?.data || err.message);
+      setCustomers([]);
+    }
+  };
 
   useEffect(() => {
     fetch();
@@ -140,8 +148,12 @@ const fetch = async (search = "") => {
     try {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed.order)) {
-        const valid = parsed.order.filter((k) => allColumns.some((ac) => ac.key === k));
-        const missing = allColumns.map((c) => c.key).filter((k) => !valid.includes(k));
+        const valid = parsed.order.filter((k) =>
+          allColumns.some((ac) => ac.key === k)
+        );
+        const missing = allColumns
+          .map((c) => c.key)
+          .filter((k) => !valid.includes(k));
         setVisibleColumns([...valid, ...missing]);
       }
       if (parsed.widths && typeof parsed.widths === "object") {
@@ -210,7 +222,6 @@ const fetch = async (search = "") => {
 
   const isResizingRef = useRef(false);
 
-
   const onMouseUpResize = () => {
     const colKey = resizingRef.current.columnKey;
     if (!colKey) {
@@ -240,7 +251,16 @@ const fetch = async (search = "") => {
 
   // ---------- helpers ----------
   const formatCellValue = (cKey, value, idx) => {
-    if (cKey === "name" || cKey === "nameHoaDon" || cKey === "accountant" || cKey === "code" || cKey === "accUsername" || cKey === "mstCCCD" || cKey === "address") return value;
+    if (
+      cKey === "name" ||
+      cKey === "nameHoaDon" ||
+      cKey === "accountant" ||
+      cKey === "code" ||
+      cKey === "accUsername" ||
+      cKey === "mstCCCD" ||
+      cKey === "address"
+    )
+      return value;
     return value;
   };
 
@@ -261,7 +281,9 @@ const fetch = async (search = "") => {
     if (!canEditCustomer) return alert("Bạn chưa có quyền xóa khách hàng!");
     if (!window.confirm("Xác nhận xóa khách hàng này?")) return;
     try {
-      await axios.delete(`${apiCustomers}/${id}`, { headers: { Authorization: token ? `Bearer ${token}` : undefined } });
+      await axios.delete(`${apiCustomers}/${id}`, {
+        headers: { Authorization: token ? `Bearer ${token}` : undefined },
+      });
       setCustomers((prev) => prev.filter((p) => p._id !== id));
     } catch (err) {
       alert("Không thể xoá: " + (err.response?.data?.error || err.message));
@@ -269,21 +291,28 @@ const fetch = async (search = "") => {
   };
 
   const handleDeleteAll = async () => {
-  if (!canEditCustomer) return alert("Bạn chưa có quyền xóa khách hàng!");
-  if (!window.confirm("⚠ Xác nhận xóa tất cả khách hàng? Hành động này không thể phục hồi!")) return;
+    if (!canEditCustomer) return alert("Bạn chưa có quyền xóa khách hàng!");
+    if (
+      !window.confirm(
+        "⚠ Xác nhận xóa tất cả khách hàng? Hành động này không thể phục hồi!"
+      )
+    )
+      return;
 
-  try {
-    await axios.delete(`${apiCustomers}/all`, {
-      headers: { Authorization: token ? `Bearer ${token}` : undefined },
-    });
-    alert("Đã xóa tất cả khách hàng!");
-    setCustomers([]);
-  } catch (err) {
-    console.error("Xóa tất cả KH thất bại:", err);
-    alert("Không thể xóa tất cả khách hàng: " + (err.response?.data?.error || err.message));
-  }
-};
-
+    try {
+      await axios.delete(`${apiCustomers}/all`, {
+        headers: { Authorization: token ? `Bearer ${token}` : undefined },
+      });
+      alert("Đã xóa tất cả khách hàng!");
+      setCustomers([]);
+    } catch (err) {
+      console.error("Xóa tất cả KH thất bại:", err);
+      alert(
+        "Không thể xóa tất cả khách hàng: " +
+          (err.response?.data?.error || err.message)
+      );
+    }
+  };
 
   const handleSave = (saved) => {
     setCustomers((prev) => {
@@ -302,14 +331,21 @@ const fetch = async (search = "") => {
   const handleImportConfirm = async () => {
     if (!file) return alert("Vui lòng chọn file Excel!");
     setImporting(true);
-    if (isSubmitting) return;  // tránh double click ngay tức thì
+    if (isSubmitting) return; // tránh double click ngay tức thì
     setIsSubmitting(true);
     const formData = new FormData();
     formData.append("file", file);
     try {
-      const res = await axios.post(`${apiCustomers}/import?mode=${importMode}`, formData, {
-        headers: { "Content-Type": "multipart/form-data", Authorization: token ? `Bearer ${token}` : undefined },
-      });
+      const res = await axios.post(
+        `${apiCustomers}/import?mode=${importMode}`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            Authorization: token ? `Bearer ${token}` : undefined,
+          },
+        }
+      );
       const added = res.data.imported || 0;
       const updated = res.data.updated || 0;
       alert(`Import xong — Thêm: ${added}, Cập nhật: ${updated}`);
@@ -323,13 +359,15 @@ const fetch = async (search = "") => {
       setImporting(false);
       setShowImportMode(false);
       setIsSubmitting(false);
-      fetch()
+      fetch();
     }
   };
 
   const exportExcel = () => {
     if (!customers.length) return alert("Không có dữ liệu để xuất");
-    const headers = allColumns.filter((c) => visibleColumns.includes(c.key)).map((c) => c.label);
+    const headers = allColumns
+      .filter((c) => visibleColumns.includes(c.key))
+      .map((c) => c.label);
     const data = customers.map((d, idx) => {
       const row = {};
       allColumns.forEach((c) => {
@@ -342,13 +380,20 @@ const fetch = async (search = "") => {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Customers");
     const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    saveAs(new Blob([wbout], { type: "application/octet-stream" }), `customers_${formatDateFns(new Date(), "yyyyMMdd_HHmm")}.xlsx`);
+    saveAs(
+      new Blob([wbout], { type: "application/octet-stream" }),
+      `customers_${formatDateFns(new Date(), "yyyyMMdd_HHmm")}.xlsx`
+    );
   };
 
   // toggle warning per customer
   const toggleWarning = async (customerId) => {
     try {
-      const res = await axios.put(`${apiCustomers}/warning/${customerId}`, {}, { headers: { Authorization: token ? `Bearer ${token}` : undefined } });
+      const res = await axios.put(
+        `${apiCustomers}/warning/${customerId}`,
+        {},
+        { headers: { Authorization: token ? `Bearer ${token}` : undefined } }
+      );
       const newWarningState = res.data.warning;
       setWarnings((prev) => ({ ...prev, [customerId]: newWarningState }));
     } catch (err) {
@@ -359,81 +404,180 @@ const fetch = async (search = "") => {
 
   //In bảng kê
   const handlePrintBangKe = async (customer) => {
-  const month = new Date().getMonth() + 1; // tháng hiện tại
-  console.log("KH id:", customer.code, month)
+    const month = new Date().getMonth() + 1; // tháng hiện tại
+    console.log("KH id:", customer.code, month);
 
-  try {
-    const response = await axios.get(
-      `${apiCustomers}/export-trips-customer/${customer.code}/${month}`,
-      {
-        responseType: "blob", 
-        headers: {
-          Authorization: `Bearer ${token}`
+    try {
+      const response = await axios.get(
+        `${apiCustomers}/export-trips-customer/${customer.code}/${month}`,
+        {
+          responseType: "blob",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         }
-      }
-    );
+      );
 
-    const blob = new Blob(
-      [response.data],
-      { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }
-    );
+      const blob = new Blob([response.data], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
 
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `BANG_KE_${customer.code}_T${month}.xlsx`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-
-  } catch (err) {
-    console.error(err);
-    alert("Không xuất được bảng kê!");
-  }
-};
-
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `BANG_KE_${customer.code}_T${month}.xlsx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      alert("Không xuất được bảng kê!");
+    }
+  };
 
   return (
-    <div className="p-4 bg-gray-50 min-h-screen text-sm">
+    <div className="p-4 bg-gray-50 min-h-screen text-xs">
       <div className="flex gap-2 items-center mb-4">
-        <button onClick={() => navigate("/ke-toan")} className="px-3 py-1 rounded text-white bg-blue-500">Trang chính</button>
+        <button
+          onClick={() => navigate("/ke-toan")}
+          className="px-3 py-1 rounded text-white bg-blue-500"
+        >
+          Trang chính
+        </button>
 
-        <button onClick={handleGoToDrivers} className={`px-3 py-1 rounded text-white ${isActive("/manage-driver") ? "bg-green-600" : "bg-blue-500"}`}>Danh sách lái xe</button>
-        <button onClick={handleGoToCustomers} className={`px-3 py-1 rounded text-white ${isActive("/manage-customer") ? "bg-green-600" : "bg-blue-500"}`}>Danh sách khách hàng</button>
-        <button onClick={handleGoToVehicles} className={`px-3 py-1 rounded text-white ${isActive("/manage-vehicle") ? "bg-green-600" : "bg-blue-500"}`}>Danh sách xe</button>
-        <button onClick={handleGoToTrips} className={`px-3 py-1 rounded text-white ${isActive("/manage-trip") ? "bg-green-600" : "bg-blue-500"}`}>Danh sách chuyến phụ trách</button>
-        <button onClick={() => { if(!user?.permissions?.includes("edit_trip")) { alert("Bạn không có quyền truy cập!"); return; } handleGoToAllTrips(); }} className={`px-3 py-1 rounded text-white ${isActive("/manage-all-trip") ? "bg-green-600" : "bg-blue-500"}`}>Tất cả các chuyến</button>
-          <button
-    onClick={handleGoToAllCustomers}
-    className={`px-3 py-1 rounded text-white 
+        <button
+          onClick={handleGoToDrivers}
+          className={`px-3 py-1 rounded text-white ${
+            isActive("/manage-driver") ? "bg-green-600" : "bg-blue-500"
+          }`}
+        >
+          Danh sách lái xe
+        </button>
+        <button
+          onClick={handleGoToCustomers}
+          className={`px-3 py-1 rounded text-white ${
+            isActive("/manage-customer") ? "bg-green-600" : "bg-blue-500"
+          }`}
+        >
+          Danh sách khách hàng
+        </button>
+        <button
+          onClick={handleGoToVehicles}
+          className={`px-3 py-1 rounded text-white ${
+            isActive("/manage-vehicle") ? "bg-green-600" : "bg-blue-500"
+          }`}
+        >
+          Danh sách xe
+        </button>
+        <button
+          onClick={handleGoToTrips}
+          className={`px-3 py-1 rounded text-white ${
+            isActive("/manage-trip") ? "bg-green-600" : "bg-blue-500"
+          }`}
+        >
+          Danh sách chuyến phụ trách
+        </button>
+        <button
+          onClick={() => {
+            if (!user?.permissions?.includes("edit_trip")) {
+              alert("Bạn không có quyền truy cập!");
+              return;
+            }
+            handleGoToAllTrips();
+          }}
+          className={`px-3 py-1 rounded text-white ${
+            isActive("/manage-all-trip") ? "bg-green-600" : "bg-blue-500"
+          }`}
+        >
+          Tất cả các chuyến
+        </button>
+        <button
+          onClick={handleGoToAllCustomers}
+          className={`px-3 py-1 rounded text-white 
       ${isActive("/customer-debt") ? "bg-green-600" : "bg-blue-500"}
     `}
-  >
-    Công nợ KH
-  </button>
+        >
+          Công nợ KH
+        </button>
 
-  <button
-    onClick={handleGoToCustomer26}
-    className={`px-3 py-1 rounded text-white 
+        <button
+          onClick={handleGoToCustomer26}
+          className={`px-3 py-1 rounded text-white 
       ${isActive("/customer-debt-26") ? "bg-green-600" : "bg-blue-500"}
     `}
-  >
-    Công nợ khách lẻ
-  </button>
-  <button onClick={handleGoToVouchers} className={`px-3 py-1 rounded text-white ${isActive("/voucher-list") ? "bg-green-600" : "bg-blue-500"}`}>Sổ phiếu chi</button>
+        >
+          Công nợ khách lẻ
+        </button>
+        <button
+          onClick={handleGoToVouchers}
+          className={`px-3 py-1 rounded text-white ${
+            isActive("/voucher-list") ? "bg-green-600" : "bg-blue-500"
+          }`}
+        >
+          Sổ phiếu chi
+        </button>
       </div>
 
       <div className="flex justify-between items-center mb-4 mt-2">
         <h1 className="text-xl font-bold">Quản lý Khách hàng</h1>
         <div className="flex gap-2 items-center flex-wrap">
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm tên, mã KH, kế toán..." className="border p-2 rounded" />
-          <button onClick={() => fetch(q)} className="bg-blue-500 text-white px-3 py-1 rounded">Tìm</button>
-          <button onClick={() => { setQ(""); fetch(); }} className="bg-gray-200 px-3 py-1 rounded">Reset</button>
-          <button onClick={handleAdd} className={`bg-green-500 px-3 py-1 text-white rounded ${!canEditCustomer ? "opacity-50 cursor-not-allowed" : ""}`} disabled={!canEditCustomer}>+ Thêm KH</button>
-          <button onClick={exportExcel} className="bg-blue-600 px-3 py-1 text-white rounded">Xuất Excel</button>
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Tìm tên, mã KH, kế toán..."
+            className="border p-2 rounded"
+          />
+          <button
+            onClick={() => fetch(q)}
+            className="bg-blue-500 text-white px-3 py-1 rounded"
+          >
+            Tìm
+          </button>
+          <button
+            onClick={() => {
+              setQ("");
+              fetch();
+            }}
+            className="bg-gray-200 px-3 py-1 rounded"
+          >
+            Reset
+          </button>
+          <button
+            onClick={handleAdd}
+            className={`bg-green-500 px-3 py-1 text-white rounded ${
+              !canEditCustomer ? "opacity-50 cursor-not-allowed" : ""
+            }`}
+            disabled={!canEditCustomer}
+          >
+            + Thêm KH
+          </button>
+          <button
+            onClick={exportExcel}
+            className="bg-blue-600 px-3 py-1 text-white rounded"
+          >
+            Xuất Excel
+          </button>
 
-          <input ref={fileInputRef} id="fileExcelInput" type="file" accept=".xlsx" onChange={(e) => setFile(e.target.files[0])} className="border p-1 rounded" />
+          <input
+            ref={fileInputRef}
+            id="fileExcelInput"
+            type="file"
+            accept=".xlsx"
+            onChange={(e) => setFile(e.target.files[0])}
+            className="border p-1 rounded"
+          />
 
-          <button onClick={() => { if (!file) return alert("Vui lòng chọn file Excel!"); setShowImportMode(true); }} className={`bg-purple-600 text-white px-3 py-1 rounded ${!canEditCustomer || importing ? "opacity-50 cursor-not-allowed" : ""}`} disabled={!canEditCustomer || importing}>
+          <button
+            onClick={() => {
+              if (!file) return alert("Vui lòng chọn file Excel!");
+              setShowImportMode(true);
+            }}
+            className={`bg-purple-600 text-white px-3 py-1 rounded ${
+              !canEditCustomer || importing
+                ? "opacity-50 cursor-not-allowed"
+                : ""
+            }`}
+            disabled={!canEditCustomer || importing}
+          >
             {importing ? "Đang import..." : "Import Excel"}
           </button>
         </div>
@@ -443,7 +587,17 @@ const fetch = async (search = "") => {
       <div className="mb-3 flex flex-wrap gap-2">
         {allColumns.map((c) => (
           <label key={c.key} className="flex items-center gap-1 text-sm">
-            <input type="checkbox" checked={visibleColumns.includes(c.key)} onChange={() => setVisibleColumns((prev) => (prev.includes(c.key) ? prev.filter((k) => k !== c.key) : [...prev, c.key]))} />
+            <input
+              type="checkbox"
+              checked={visibleColumns.includes(c.key)}
+              onChange={() =>
+                setVisibleColumns((prev) =>
+                  prev.includes(c.key)
+                    ? prev.filter((k) => k !== c.key)
+                    : [...prev, c.key]
+                )
+              }
+            />
             {c.label}
           </label>
         ))}
@@ -451,192 +605,276 @@ const fetch = async (search = "") => {
 
       {/* Table */}
       <div className="overflow-auto border" style={{ maxHeight: "80vh" }}>
-        <table style={{ tableLayout: "fixet", width: "max-content", maxWidth: "max-content", borderCollapse: "separate", borderSpacing: 0 }}>
-<thead className="bg-gray-200">
-  <tr>
-    {/* Cột cảnh báo (sticky left col 0) */}
-    <th
-      className="border p-1 sticky top-0 text-center"
-      style={{
-        width: 30,
-        minWidth: 30,
-        left: 0,
-        zIndex: 50,
-        background: "#f3f4f6",
-        boxSizing: "border-box",
-        transform: "translateZ(0)",
-      }}
-    />
-
-    {/* Các cột dữ liệu */}
-    {visibleColumns.map((cKey, index) => {
-      const colMeta =
-        allColumns.find((c) => c.key === cKey) || { key: cKey, label: cKey };
-
-      const widthStyle = columnWidths[cKey]
-        ? {
-            width: columnWidths[cKey],
-            minWidth: columnWidths[cKey],
-            maxWidth: columnWidths[cKey],
-          }
-        : {};
-
-      const isFirst = index === 0;
-      const isSecond = index === 1;
-
-      // sticky position
-      const leftOffset = isFirst
-        ? 35
-        : isSecond
-        ? 35 + firstColWidth
-        : undefined;
-
-      return (
-        <th
-          key={cKey}
-          data-col={cKey}
-          ref={isFirst ? firstColRef : null}
-          draggable={!isResizingRef.current}
-          onDragStart={(e) => {
-            if (!isResizingRef.current) onDragStart(e, cKey);
-            else e.preventDefault();
-          }}
-          onDragOver={onDragOver}
-          onDrop={(e) => onDrop(e, cKey)}
-          className="border p-0 text-center bg-gray-200 relative select-none"
+        <table
           style={{
-            position: "sticky",
-            top: 0,
-            left: leftOffset,
-            zIndex: leftOffset !== undefined ? 40 : 20,
-            background: "#f3f4f6",
-            overflow: "visible",
-            boxSizing: "border-box",
-            ...widthStyle,
+            tableLayout: "fixet",
+            width: "max-content",
+            maxWidth: "max-content",
+            borderCollapse: "separate",
+            borderSpacing: 0,
           }}
         >
-          {/* LABEL */}
-          <div className="p-2 text-xs truncate">{colMeta.label}</div>
+          <thead className="bg-gray-200">
+            <tr>
+              {/* Cột cảnh báo (sticky left col 0) */}
+              <th
+                className="border p-1 sticky top-0 text-center"
+                style={{
+                  width: 30,
+                  minWidth: 30,
+                  left: 0,
+                  zIndex: 50,
+                  background: "#f3f4f6",
+                  boxSizing: "border-box",
+                  transform: "translateZ(0)",
+                }}
+              />
 
-          {/* Resize handle */}
-          <div
-            onMouseDown={(e) => {
-              isResizingRef.current = true;
-              e.preventDefault();
-              e.stopPropagation();
-              onMouseDownResize(e, cKey);
-            }}
-            onClick={(e) => e.stopPropagation()}
-            onDoubleClick={(e) => e.stopPropagation()}
-            style={{
-              position: "absolute",
-              top: 0,
-              right: 0,
-              bottom: 0,
-              width: 10,
-              cursor: "col-resize",
-              zIndex: 200,
-              userSelect: "none",
-            }}
-          />
-        </th>
-      );
-    })}
+              {/* Các cột dữ liệu */}
+              {visibleColumns.map((cKey, index) => {
+                const colMeta = allColumns.find((c) => c.key === cKey) || {
+                  key: cKey,
+                  label: cKey,
+                };
 
-    {/* Hành động */}
-    <th
-      className="border p-1 sticky top-0 text-center"
-      style={{
-        zIndex: 40,
-        width: 120,
-        minWidth: 120,
-        background: "#f3f4f6",
-      }}
-    >
-      Hành động
-    </th>
+                const widthStyle = columnWidths[cKey]
+                  ? {
+                      width: columnWidths[cKey],
+                      minWidth: columnWidths[cKey],
+                      maxWidth: columnWidths[cKey],
+                    }
+                  : {};
 
-    {/* In bảng kê */}
-    <th
-      className="border p-1 sticky top-0 text-center"
-      style={{
-        zIndex: 40,
-        width: 120,
-        minWidth: 120,
-        background: "#f3f4f6",
-      }}
-    >
-      In bảng kê
-    </th>
-  </tr>
-</thead>
+                const isFirst = index === 0;
+                const isSecond = index === 1;
 
+                // sticky position
+                const leftOffset = isFirst
+                  ? 35
+                  : isSecond
+                  ? 35 + firstColWidth
+                  : undefined;
+
+                return (
+                  <th
+                    key={cKey}
+                    data-col={cKey}
+                    ref={isFirst ? firstColRef : null}
+                    draggable={!isResizingRef.current}
+                    onDragStart={(e) => {
+                      if (!isResizingRef.current) onDragStart(e, cKey);
+                      else e.preventDefault();
+                    }}
+                    onDragOver={onDragOver}
+                    onDrop={(e) => onDrop(e, cKey)}
+                    className="border p-0 text-center bg-gray-200 relative select-none"
+                    style={{
+                      position: "sticky",
+                      top: 0,
+                      left: leftOffset,
+                      zIndex: leftOffset !== undefined ? 40 : 20,
+                      background: "#f3f4f6",
+                      overflow: "visible",
+                      boxSizing: "border-box",
+                      ...widthStyle,
+                    }}
+                  >
+                    {/* LABEL */}
+                    <div className="p-2 text-xs truncate">{colMeta.label}</div>
+
+                    {/* Resize handle */}
+                    <div
+                      onMouseDown={(e) => {
+                        isResizingRef.current = true;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onMouseDownResize(e, cKey);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      onDoubleClick={(e) => e.stopPropagation()}
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        right: 0,
+                        bottom: 0,
+                        width: 10,
+                        cursor: "col-resize",
+                        zIndex: 200,
+                        userSelect: "none",
+                      }}
+                    />
+                  </th>
+                );
+              })}
+
+              {/* Hành động */}
+              <th
+                className="border p-1 sticky top-0 text-center"
+                style={{
+                  zIndex: 40,
+                  width: 120,
+                  minWidth: 120,
+                  background: "#f3f4f6",
+                }}
+              >
+                Hành động
+              </th>
+
+              {/* In bảng kê */}
+              <th
+                className="border p-1 sticky top-0 text-center"
+                style={{
+                  zIndex: 40,
+                  width: 120,
+                  minWidth: 120,
+                  background: "#f3f4f6",
+                }}
+              >
+                In bảng kê
+              </th>
+            </tr>
+          </thead>
 
           <tbody>
             {customers.length === 0 && (
               <tr>
-                <td colSpan={visibleColumns.length + 2} className="p-4 text-center text-gray-500">Không có dữ liệu</td>
+                <td
+                  colSpan={visibleColumns.length + 2}
+                  className="p-4 text-center text-gray-500"
+                >
+                  Không có dữ liệu
+                </td>
               </tr>
             )}
 
             {customers.map((c, idx) => {
               const isWarning = warnings[c._id];
               return (
-                <tr key={c._id} onClick={() => toggleRowHighlight(c._id)} className={`cursor-pointer ${isWarning ? "bg-red-300" : idx % 2 === 0 ? "bg-white" : "bg-gray-50"} ${selectedRows.includes(c._id) ? "bg-yellow-200" : ""}`}>
+                <tr
+                  key={c._id}
+                  onClick={() => toggleRowHighlight(c._id)}
+                  className={`cursor-pointer ${
+                    isWarning
+                      ? "bg-red-300"
+                      : idx % 2 === 0
+                      ? "bg-white"
+                      : "bg-gray-50"
+                  } ${selectedRows.includes(c._id) ? "bg-yellow-200" : ""}`}
+                >
                   {/* Cột cảnh báo */}
-                  <td className="border p-1 text-center" style={{ position: "sticky", left: 0, zIndex: 40, height: 20, width: 30, background: isWarning ? "#fca5a5" : "#fff" }}>
-                    <button onClick={() => toggleWarning(c._id)} className={`px-1 py-1 rounded text-white ${isWarning ? "bg-red-600" : "bg-gray-400"}`}>⚠</button>
+                  <td
+                    className="border p-1 text-center"
+                    style={{
+                      position: "sticky",
+                      left: 0,
+                      zIndex: 40,
+                      height: 20,
+                      width: 30,
+                      background: isWarning ? "#fca5a5" : "#fff",
+                    }}
+                  >
+                    <button
+                      onClick={() => toggleWarning(c._id)}
+                      className={`px-1 py-1 rounded text-white ${
+                        isWarning ? "bg-red-600" : "bg-gray-400"
+                      }`}
+                    >
+                      ⚠
+                    </button>
                   </td>
 
                   {visibleColumns.map((cKey, colIndex) => {
                     const isFirst = colIndex === 0;
                     const isSecond = colIndex === 1;
-                    const stickyLeft = isFirst ? 35 : isSecond ? 35 + firstColWidth : undefined;
-                    const cellWidthStyle = columnWidths[cKey] ? { width: columnWidths[cKey], minWidth: columnWidths[cKey], maxWidth: columnWidths[cKey], boxSizing: "border-box" } : {};
+                    const stickyLeft = isFirst
+                      ? 35
+                      : isSecond
+                      ? 35 + firstColWidth
+                      : undefined;
+                    const cellWidthStyle = columnWidths[cKey]
+                      ? {
+                          width: columnWidths[cKey],
+                          minWidth: columnWidths[cKey],
+                          maxWidth: columnWidths[cKey],
+                          boxSizing: "border-box",
+                        }
+                      : {};
 
                     return (
-                      <td key={cKey} className="border p-1 align-top" style={{ position: isFirst || isSecond ? "sticky" : "relative",                 lineHeight: "20px",        // ⭐ canh giữa theo chiều dọc
-                whiteSpace: "nowrap",      // ⭐ không xuống dòng
-                overflow: "hidden",        // ⭐ ẩn phần vượt quá
-                textOverflow: "ellipsis",  // ⭐ thêm ...
-                left: stickyLeft, zIndex: isFirst || isSecond ? 30 : 1, background: warnings[c._id] ? "#fca5a5" : selectedRows.includes(c._id) ? "#fde68a" : (idx % 2 === 0 ? "#fff" : "#f9fafb"), ...cellWidthStyle }}>
+                      <td
+                        key={cKey}
+                        className="border p-1 align-top"
+                        style={{
+                          position: isFirst || isSecond ? "sticky" : "relative",
+                          lineHeight: "20px", // ⭐ canh giữa theo chiều dọc
+                          whiteSpace: "nowrap", // ⭐ không xuống dòng
+                          overflow: "hidden", // ⭐ ẩn phần vượt quá
+                          textOverflow: "ellipsis", // ⭐ thêm ...
+                          left: stickyLeft,
+                          zIndex: isFirst || isSecond ? 30 : 1,
+                          background: warnings[c._id]
+                            ? "#fca5a5"
+                            : selectedRows.includes(c._id)
+                            ? "#fde68a"
+                            : idx % 2 === 0
+                            ? "#fff"
+                            : "#f9fafb",
+                          ...cellWidthStyle,
+                        }}
+                      >
                         {formatCellValue(cKey, c[cKey], idx)}
                       </td>
                     );
                   })}
 
-                  <td className="border p-1 flex gap-2 justify-center" style={{ minWidth: 120, background: "#fff" }} onClick={(e) => {e.stopPropagation();}}>
+                  <td
+                    className="border p-1 flex gap-2 justify-center"
+                    style={{ minWidth: 120, background: "#fff" }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                    }}
+                  >
                     {canEditCustomer ? (
                       <>
-                        <button onClick={() => handleEdit(c)} className="text-blue-600">Sửa</button>
-                        <button onClick={() => handleDelete(c._id)} className="text-red-600">Xóa</button>
+                        <button
+                          onClick={() => handleEdit(c)}
+                          className="text-blue-600"
+                        >
+                          Sửa
+                        </button>
+                        <button
+                          onClick={() => handleDelete(c._id)}
+                          className="text-red-600"
+                        >
+                          Xóa
+                        </button>
                       </>
                     ) : (
                       <span className="text-gray-400">Không có quyền</span>
                     )}
                   </td>
                   <td
-  className="border p-1 text-center"
-  style={{ minWidth: 120, background: "#fff" }}
-  onClick={(e) => e.stopPropagation()}
->
-<button
-  onClick={() => {
-    // Nếu KH không thuộc về user và không có quyền full
-    if (c.accUsername !== user?.username) {
-      alert("Bạn không có quyền in bảng kê của khách hàng này!");
-      return;
-    }
+                    className="border p-1 text-center"
+                    style={{ minWidth: 120, background: "#fff" }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      onClick={() => {
+                        // Nếu KH không thuộc về user và không có quyền full
+                        if (c.accUsername !== user?.username) {
+                          alert(
+                            "Bạn không có quyền in bảng kê của khách hàng này!"
+                          );
+                          return;
+                        }
 
-    handlePrintBangKe(c);
-  }}
-  className="text-green-600 underline"
->
-  Tải xuống
-</button>
-
-</td>
-
+                        handlePrintBangKe(c);
+                      }}
+                      className="text-green-600 underline"
+                    >
+                      Tải xuống
+                    </button>
+                  </td>
                 </tr>
               );
             })}
@@ -644,18 +882,28 @@ const fetch = async (search = "") => {
         </table>
       </div>
 
-<div className="flex justify-end mt-3">
-  <button
-    onClick={handleDeleteAll}
-    className={`px-4 py-2 bg-red-600 text-white rounded shadow hover:bg-red-700 
+      <div className="flex justify-end mt-3">
+        <button
+          onClick={handleDeleteAll}
+          className={`px-4 py-2 bg-red-600 text-white rounded shadow hover:bg-red-700 
       ${!canEditCustomer ? "opacity-50 cursor-not-allowed" : ""}`}
-    disabled={!canEditCustomer}
-  >
-    Xóa tất cả
-  </button>
-</div>
+          disabled={!canEditCustomer}
+        >
+          Xóa tất cả
+        </button>
+      </div>
 
-      {showModal && <CustomerModal initialData={editCustomer} onClose={() => { setShowModal(false); setEditCustomer(null); }} onSave={handleSave} apiBase={apiCustomers} />}
+      {showModal && (
+        <CustomerModal
+          initialData={editCustomer}
+          onClose={() => {
+            setShowModal(false);
+            setEditCustomer(null);
+          }}
+          onSave={handleSave}
+          apiBase={apiCustomers}
+        />
+      )}
 
       {showImportMode && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
@@ -663,18 +911,39 @@ const fetch = async (search = "") => {
             <h2 className="text-lg font-bold mb-3">Chọn chế độ Import</h2>
 
             <label className="flex items-center gap-2 mb-2">
-              <input type="radio" name="importMode" checked={importMode === "append"} onChange={() => setImportMode("append")} />
+              <input
+                type="radio"
+                name="importMode"
+                checked={importMode === "append"}
+                onChange={() => setImportMode("append")}
+              />
               Thêm mới (thêm, trùng mã thì không lấy)
             </label>
 
             <label className="flex items-center gap-2 mb-4">
-              <input type="radio" name="importMode" checked={importMode === "overwrite"} onChange={() => setImportMode("overwrite")} />
+              <input
+                type="radio"
+                name="importMode"
+                checked={importMode === "overwrite"}
+                onChange={() => setImportMode("overwrite")}
+              />
               Ghi đè (cập nhật nếu trùng mã)
             </label>
 
             <div className="flex justify-end gap-2">
-              <button onClick={() => setShowImportMode(false)} className="px-4 py-1 bg-gray-300 rounded">Hủy</button>
-              <button onClick={handleImportConfirm} className="px-4 py-1 bg-purple-600 text-white rounded" disabled={isSubmitting}>Xác nhận</button>
+              <button
+                onClick={() => setShowImportMode(false)}
+                className="px-4 py-1 bg-gray-300 rounded"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleImportConfirm}
+                className="px-4 py-1 bg-purple-600 text-white rounded"
+                disabled={isSubmitting}
+              >
+                Xác nhận
+              </button>
             </div>
           </div>
         </div>

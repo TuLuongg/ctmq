@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { useNavigate,useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import ProfileModal from "../components/ProfileModal";
 import API from "../api";
 
@@ -16,11 +16,9 @@ const KeToanPage = () => {
 
   const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
 
-
   // State quản lý user hiện tại, để live update avatar/tên
   const [currentUserState, setCurrentUserState] = useState(user || storedUser);
   const [showProfileModal, setShowProfileModal] = useState(false);
-
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -38,48 +36,45 @@ const KeToanPage = () => {
 
   // 👉 Hàm chuyển sang trang quản lý lái xe
   const handleGoToDrivers = () => {
-    navigate("/manage-driver", {state: {user}});
+    navigate("/manage-driver", { state: { user } });
   };
 
   const handleGoToCustomers = () => {
-    navigate("/manage-customer", {state: {user}});
-  }
+    navigate("/manage-customer", { state: { user } });
+  };
 
   const handleGoToVehicles = () => {
-    navigate("/manage-vehicle", {state: {user}});
+    navigate("/manage-vehicle", { state: { user } });
   };
 
   const handleGoToTrips = () => {
-    navigate("/manage-trip", {state: {user}});
-  }
+    navigate("/manage-trip", { state: { user } });
+  };
 
   const handleGoToAllTrips = () => {
-    navigate("/manage-all-trip", {state: {user}});
-  }
+    navigate("/manage-all-trip", { state: { user } });
+  };
 
   const handleGoToAllCustomers = () => {
-    navigate("/customer-debt", {state: {user}});
-  }
+    navigate("/customer-debt", { state: { user } });
+  };
 
   const handleGoToCustomer26 = () => {
-    navigate("/customer-debt-26", {state: {user}});
-  }
+    navigate("/customer-debt-26", { state: { user } });
+  };
 
   const handleGoToVoucher = () => {
-    navigate("/voucher-list", {state: {user}});
-  }
+    navigate("/voucher-list", { state: { user } });
+  };
 
   const handleExport = async () => {
     if (!selectedDate) return alert("Vui lòng chọn ngày.");
     try {
       const formattedDate = new Date(selectedDate).toISOString().split("T")[0];
-      const response = await axios.get(
-        `${API}/schedules/export`,
-        {
-          params: { ngay: formattedDate },
-          responseType: "blob",
-        }
-      );
+      const response = await axios.get(`${API}/schedules/export`, {
+        params: { ngay: formattedDate },
+        responseType: "blob",
+      });
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = url;
@@ -118,9 +113,7 @@ const KeToanPage = () => {
 
     try {
       const formattedDate = new Date(selectedDate).toISOString().split("T")[0];
-      await axios.delete(
-        `${API}/schedules?ngay=${formattedDate}`
-      );
+      await axios.delete(`${API}/schedules?ngay=${formattedDate}`);
       alert("Đã xóa thành công!");
       setFilteredData([]);
     } catch (err) {
@@ -157,9 +150,7 @@ const KeToanPage = () => {
     try {
       const from = new Date(startDate).toISOString().split("T")[0];
       const to = new Date(endDate).toISOString().split("T")[0];
-      await axios.delete(
-        `${API}/schedules/range?from=${from}&to=${to}`
-      );
+      await axios.delete(`${API}/schedules/range?from=${from}&to=${to}`);
       alert("Đã xóa thành công!");
       setFilteredData([]);
     } catch (err) {
@@ -195,28 +186,40 @@ const KeToanPage = () => {
   };
 
   return (
-    <div className="p-4 text-sm">
+    <div className="p-4 text-xs">
       {/* Header hiển thị user và các nút */}
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-xl font-bold">TRANG QUẢN LÝ CỦA KẾ TOÁN</h1>
         {user && (
           <div className="flex items-center gap-3">
             <img
-  src={currentUserState.avatar || null}
-  alt="avatar"
-  className="w-10 h-10 rounded-full object-cover"
-/>
-            <span className="font-medium">Xin chào, {currentUserState.fullname}</span>
-            
-          <button 
-  onClick={() => setShowProfileModal(true)}
-  className="bg-yellow-400 rounded-full border"
->
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-  <path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-</svg>
+              src={currentUserState.avatar || null}
+              alt="avatar"
+              className="w-10 h-10 rounded-full object-cover"
+            />
+            <span className="font-medium">
+              Xin chào, {currentUserState.fullname}
+            </span>
 
-</button>
+            <button
+              onClick={() => setShowProfileModal(true)}
+              className="bg-yellow-400 rounded-full border"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+                className="size-6"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+                />
+              </svg>
+            </button>
             <button
               onClick={handleLogout}
               className="bg-red-500 text-white px-3 py-1 rounded"
@@ -228,62 +231,61 @@ const KeToanPage = () => {
       </div>
       <div className="flex gap-2 items-center mb-4 mt-10">
         <button
-              onClick={handleGoToDrivers}
-              className="bg-blue-500 text-white px-3 py-1 rounded"
-            >
-              Danh sách lái xe
-            </button>
-            <button
-              onClick={handleGoToCustomers}
-              className="bg-blue-500 text-white px-3 py-1 rounded"
-            >
-              Danh sách khách hàng
-            </button>
-            <button
-              onClick={handleGoToVehicles}
-              className="bg-blue-500 text-white px-3 py-1 rounded"
-            >
-              Danh sách xe
-            </button>
-            <button
-              onClick={handleGoToTrips}
-              className="bg-blue-500 text-white px-3 py-1 rounded"
-            >
-              Danh sách chuyến phụ trách
-            </button>
-            <button
-              onClick={() => {
-                if(!storedUser?.permissions?.includes("edit_trip")) {
-                  alert("Bạn không có quyền truy cập!")
-                  return
-                }
-                handleGoToAllTrips()
-              }
-              }
-              className="bg-blue-500 text-white px-3 py-1 rounded"
-            >
-              Tất cả các chuyến
-            </button>
+          onClick={handleGoToDrivers}
+          className="bg-blue-500 text-white px-3 py-1 rounded"
+        >
+          Danh sách lái xe
+        </button>
+        <button
+          onClick={handleGoToCustomers}
+          className="bg-blue-500 text-white px-3 py-1 rounded"
+        >
+          Danh sách khách hàng
+        </button>
+        <button
+          onClick={handleGoToVehicles}
+          className="bg-blue-500 text-white px-3 py-1 rounded"
+        >
+          Danh sách xe
+        </button>
+        <button
+          onClick={handleGoToTrips}
+          className="bg-blue-500 text-white px-3 py-1 rounded"
+        >
+          Danh sách chuyến phụ trách
+        </button>
+        <button
+          onClick={() => {
+            if (!storedUser?.permissions?.includes("edit_trip")) {
+              alert("Bạn không có quyền truy cập!");
+              return;
+            }
+            handleGoToAllTrips();
+          }}
+          className="bg-blue-500 text-white px-3 py-1 rounded"
+        >
+          Tất cả các chuyến
+        </button>
 
-            <button
-              onClick={handleGoToAllCustomers}
-              className="bg-blue-500 text-white px-3 py-1 rounded"
-            >
-              Công nợ KH
-            </button>
+        <button
+          onClick={handleGoToAllCustomers}
+          className="bg-blue-500 text-white px-3 py-1 rounded"
+        >
+          Công nợ KH
+        </button>
 
-            <button
-              onClick={handleGoToCustomer26}
-              className="bg-blue-500 text-white px-3 py-1 rounded"
-            >
-              Công nợ khách lẻ
-            </button>
-            <button
-              onClick={handleGoToVoucher}
-              className="bg-blue-500 text-white px-3 py-1 rounded"
-            >
-              Sổ phiếu chi
-            </button>
+        <button
+          onClick={handleGoToCustomer26}
+          className="bg-blue-500 text-white px-3 py-1 rounded"
+        >
+          Công nợ khách lẻ
+        </button>
+        <button
+          onClick={handleGoToVoucher}
+          className="bg-blue-500 text-white px-3 py-1 rounded"
+        >
+          Sổ phiếu chi
+        </button>
       </div>
 
       {/* Bộ lọc ngày */}
@@ -410,15 +412,15 @@ const KeToanPage = () => {
         </table>
       )}
       {showProfileModal && (
-              <ProfileModal
-                user={currentUserState}
-                onClose={() => setShowProfileModal(false)}
-                onUpdate={(updatedUser) => {
-                  localStorage.setItem("user", JSON.stringify(updatedUser));
-                  setCurrentUserState(updatedUser); // 🔄 live update avatar + tên
-                }}
-              />
-            )}
+        <ProfileModal
+          user={currentUserState}
+          onClose={() => setShowProfileModal(false)}
+          onUpdate={(updatedUser) => {
+            localStorage.setItem("user", JSON.stringify(updatedUser));
+            setCurrentUserState(updatedUser); // 🔄 live update avatar + tên
+          }}
+        />
+      )}
     </div>
   );
 };
