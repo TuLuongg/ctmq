@@ -743,9 +743,9 @@ export default function ManageDriver() {
 
                 // left offset cho sticky
                 const leftOffset = isFirst
-                  ? 33
+                  ? 30
                   : isSecond
-                  ? 33 + firstColWidth
+                  ? 30 + firstColWidth
                   : undefined;
 
                 return (
@@ -907,9 +907,9 @@ export default function ManageDriver() {
                     const isSecond = colIndex === 1;
 
                     const stickyLeft = isFirst
-                      ? 33
+                      ? 30
                       : isSecond
-                      ? 33 + firstColWidth
+                      ? 30 + firstColWidth
                       : undefined;
 
                     const cellWidthStyle = columnWidths[cKey]

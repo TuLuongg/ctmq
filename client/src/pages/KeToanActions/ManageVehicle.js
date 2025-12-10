@@ -664,9 +664,9 @@ export default function ManageVehicle() {
                 const isFirst = index === 0;
                 const isSecond = index === 1;
                 const leftOffset = isSecond
-                  ? 35 + firstColWidth
+                  ? 30 + firstColWidth
                   : isFirst
-                  ? 35
+                  ? 30
                   : undefined;
 
                 return (
@@ -780,9 +780,9 @@ export default function ManageVehicle() {
                     const isFirst = colIndex === 0;
                     const isSecond = colIndex === 1;
                     const stickyLeft = isFirst
-                      ? 35
+                      ? 30
                       : isSecond
-                      ? 35 + firstColWidth
+                      ? 30 + firstColWidth
                       : undefined;
                     const cellWidthStyle = columnWidths[cKey]
                       ? {

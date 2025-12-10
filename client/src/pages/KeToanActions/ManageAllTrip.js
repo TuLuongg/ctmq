@@ -994,9 +994,7 @@ export default function ManageTrip({ user, onLogout }) {
                   position: "sticky",
                   top: 0,
                   zIndex: 60,
-                  width: 90,
-                  minWidth: 90,
-                  maxWidth: 90,
+                  width: 80,
                   textAlign: "center",
                   background: "#2563eb",
                 }}
@@ -1207,12 +1205,11 @@ export default function ManageTrip({ user, onLogout }) {
               >
                 {/* CỘT 1: HÀNH ĐỘNG */}
                 <td
-                  className="border p-2 bg-white"
+                  className="border p-1 bg-white"
                   style={{
                     position: "sticky",
                     zIndex: 50,
-                    width: 90,
-                    minWidth: 90,
+                    width: 80,
                     background: "#fff",
                   }}
                   onClick={(e) => e.stopPropagation()}
@@ -1224,7 +1221,7 @@ export default function ManageTrip({ user, onLogout }) {
                       className="p-1.5 bg-yellow-400 text-white rounded-lg shadow-sm hover:bg-yellow-500 hover:shadow-md transition"
                       title="Sửa chuyến"
                     >
-                      <FaEdit className="w-4 h-4" />
+                      <FaEdit className="w-2 h-2" />
                     </button>
 
                     {/* Nút cảnh báo */}
@@ -1237,30 +1234,32 @@ export default function ManageTrip({ user, onLogout }) {
                       }`}
                       title="Đánh dấu cảnh báo"
                     >
-                      <FaExclamationTriangle className="w-4 h-4" />
+                      <FaExclamationTriangle className="w-2 h-2" />
                     </button>
 
                     {/* Lịch sử chỉnh sửa */}
-                    {editCounts[r._id] > 0 && (
+                    {editCounts[r._id] > 0 ? (
                       <button
                         onClick={() => handleViewHistory(r)}
                         className="relative p-1.5 bg-green-50 rounded-lg shadow-sm hover:bg-green-100 transition"
                         title="Lịch sử chỉnh sửa"
                       >
-                        <FaHistory className="text-green-600 w-4 h-4" />
+                        <FaHistory className="text-green-600 w-2 h-2" />
 
                         {/* Badge số lần */}
-                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full shadow">
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-2 h-2 flex items-center justify-center rounded-full shadow">
                           {editCounts[r._id]}
                         </span>
                       </button>
+                    ) : (
+                      <span className="text-gray-400 text-xs">-</span>
                     )}
                   </div>
                 </td>
 
                 {/* CỘT 2: CHECKBOX */}
                 <td
-                  className="border p-2 bg-white"
+                  className="border p-1 bg-white"
                   style={{
                     position: "sticky",
                     left: 0,
@@ -1317,11 +1316,13 @@ export default function ManageTrip({ user, onLogout }) {
                   return (
                     <td
                       key={col.key}
-                      className="border p-2"
+                      className="border p-0"
                       style={{
                         position: leftOffset !== null ? "sticky" : "static",
                         left: stickyIndex >= 0 ? leftOffset : undefined,
-                        height: 60,
+                        height: 20,
+                        lineHeight: "20px",
+                        paddingLeft: 2,
                         zIndex: stickyIndex >= 0 ? 45 : 1,
                         background: warnings[r._id]
                           ? "#fecaca"

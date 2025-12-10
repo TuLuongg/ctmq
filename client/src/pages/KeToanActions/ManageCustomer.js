@@ -650,9 +650,9 @@ export default function ManageCustomer() {
 
                 // sticky position
                 const leftOffset = isFirst
-                  ? 35
+                  ? 30
                   : isSecond
-                  ? 35 + firstColWidth
+                  ? 30 + firstColWidth
                   : undefined;
 
                 return (
@@ -787,9 +787,9 @@ export default function ManageCustomer() {
                     const isFirst = colIndex === 0;
                     const isSecond = colIndex === 1;
                     const stickyLeft = isFirst
-                      ? 35
+                      ? 30
                       : isSecond
-                      ? 35 + firstColWidth
+                      ? 30 + firstColWidth
                       : undefined;
                     const cellWidthStyle = columnWidths[cKey]
                       ? {
