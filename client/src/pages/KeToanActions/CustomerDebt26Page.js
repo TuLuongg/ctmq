@@ -335,7 +335,7 @@ export default function CustomerDebt26Page() {
           </thead>
           <tbody>
             {trips.map((t) => (
-              <tr key={t._id} className="h-[50px]">
+              <tr key={t._id} className="h-[30px]">
                 {columns
                   .filter((c) => c.visible)
                   .map((col) => {

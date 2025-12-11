@@ -99,7 +99,7 @@ export default function ManageTrip({ user, onLogout }) {
     { key: "veBS", label: "VÉ" },
     { key: "hangVeBS", label: "HÀNG VỀ" },
     { key: "luuCaBS", label: "LƯU CA" },
-    { key: "cpKhacBS", label: "LUẬT CP KHÁC" },
+    { key: "cpKhacBS", label: "CP KHÁC" },
     { key: "maChuyen", label: "MÃ CHUYẾN" },
     { key: "keToanPhuTrach", label: "KẾ TOÁN PHỤ TRÁCH" },
     { key: "maHoaDon", label: "MÃ HOÁ ĐƠN" },

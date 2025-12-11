@@ -283,9 +283,12 @@ export default function TongHop({ user, onLogout }) {
       // Map về đúng structure chuyến
       const mapped = rows
         .map((r) => ({
+          ltState: r["LT"] || "",
+          onlState: r["ONL"] || "",
+          offState: r["OFF"] || "",
           maChuyen: r["MÃ CHUYẾN"]?.toString().trim() || "",
           tenLaiXe: r["TÊN LÁI XE"] || "",
-          maKH: r["MÃ KH"] || "",
+          maKH: (r["MÃ KH"] ?? "").toString().trim(),
           dienGiai: r["DIỄN GIẢI"] || "",
           ngayBocHang: parseExcelDate(r["Ngày đóng hàng"]),
           ngayGiaoHang: parseExcelDate(r["Ngày giao hàng"]),
@@ -300,9 +303,9 @@ export default function TongHop({ user, onLogout }) {
           diemXepHang: r["ĐIỂM ĐÓNG HÀNG"] || "",
           diemDoHang: r["ĐIỂM GIAO HÀNG"] || "",
           soDiem: r["SỐ ĐIỂM"] || "",
-          trongLuong: r["TRỌNG LƯỢNG (Tấn,PL)"] || "",
+          trongLuong: r["TRỌNG LƯỢNG"] || "",
           bienSoXe: r["BIỂN SỐ XE"] || "",
-          cuocPhi: r["CƯỚC PHÍ (SỐ TIỀN)"] || "",
+          cuocPhi: r["CƯỚC PHÍ"] || "",
           daThanhToan: r["ĐÃ THANH TOÁN"] || "",
           bocXep: r["BỐC XẾP"] || "",
           ve: r["VÉ"] || "",
@@ -311,7 +314,7 @@ export default function TongHop({ user, onLogout }) {
           luatChiPhiKhac: r["LUẬT CP KHÁC"] || "",
           ghiChu: r["GHI CHÚ"] || "",
         }))
-        .filter((x) => x.maChuyen && x.maKH); // Chỉ lấy dòng có mã chuyến và mã KH
+        .filter((x) => x.maChuyen && String(x.maKH).trim() !== "")  // Chỉ lấy dòng có mã chuyến và mã KH
 
       setExcelData(mapped);
       setLoadedCount(mapped.length);

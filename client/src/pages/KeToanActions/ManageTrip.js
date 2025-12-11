@@ -88,7 +88,7 @@ export default function ManageTrip({ user, onLogout }) {
     { key: "veBS", label: "VÉ" },
     { key: "hangVeBS", label: "HÀNG VỀ" },
     { key: "luuCaBS", label: "LƯU CA" },
-    { key: "cpKhacBS", label: "LUẬT CP KHÁC" },
+    { key: "cpKhacBS", label: "CP KHÁC" },
     { key: "maChuyen", label: "MÃ CHUYẾN" },
     { key: "keToanPhuTrach", label: "KẾ TOÁN PHỤ TRÁCH" },
     { key: "maHoaDon", label: "MÃ HOÁ ĐƠN" },
@@ -412,14 +412,12 @@ export default function ManageTrip({ user, onLogout }) {
         onlState: row["ONL"] != null ? String(row["ONL"]) : "",
         offState: row["OFF"] != null ? String(row["OFF"]) : "",
         cuocPhiBS: row["CƯỚC PHÍ"] != null ? String(row["CƯỚC PHÍ"]) : "0",
-        daThanhToan:
-          row["ĐÃ THANH TOÁN"] != null ? String(row["ĐÃ THANH TOÁN"]) : "0",
+        daThanhToan: row["ĐÃ THANH TOÁN"] != null ? String(row["ĐÃ THANH TOÁN"]) : "0",
         bocXepBS: row["BỐC XẾP"] != null ? String(row["BỐC XẾP"]) : "0",
         veBS: row["VÉ"] != null ? String(row["VÉ"]) : "0",
         hangVeBS: row["HÀNG VỀ"] != null ? String(row["HÀNG VỀ"]) : "0",
         luuCaBS: row["LƯU CA"] != null ? String(row["LƯU CA"]) : "0",
-        cpKhacBS:
-          row["LUẬT CP KHÁC"] != null ? String(row["LUẬT CP KHÁC"]) : "0",
+        cpKhacBS: row["CP KHÁC"] != null ? String(row["CP KHÁC"]) : "0",
       }))
       .filter((r) => r.maChuyen);
 
