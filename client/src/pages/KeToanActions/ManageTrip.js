@@ -396,33 +396,44 @@ export default function ManageTrip({ user, onLogout }) {
   // ---- Excel bổ sung
   const [excelData, setExcelData] = useState([]);
 
-  const handleSelectExcel = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+const handleSelectExcel = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
 
-    const data = await file.arrayBuffer();
-    const workbook = XLSX.read(data);
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(sheet);
+  const data = await file.arrayBuffer();
+  const workbook = XLSX.read(data);
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
-    const updates = rows
-      .map((row) => ({
-        maChuyen: row["MÃ CHUYẾN"],
-        ltState: row["LT"] != null ? String(row["LT"]) : "",
-        onlState: row["ONL"] != null ? String(row["ONL"]) : "",
-        offState: row["OFF"] != null ? String(row["OFF"]) : "",
-        cuocPhiBS: row["CƯỚC PHÍ"] != null ? String(row["CƯỚC PHÍ"]) : "0",
-        daThanhToan: row["ĐÃ THANH TOÁN"] != null ? String(row["ĐÃ THANH TOÁN"]) : "0",
-        bocXepBS: row["BỐC XẾP"] != null ? String(row["BỐC XẾP"]) : "0",
-        veBS: row["VÉ"] != null ? String(row["VÉ"]) : "0",
-        hangVeBS: row["HÀNG VỀ"] != null ? String(row["HÀNG VỀ"]) : "0",
-        luuCaBS: row["LƯU CA"] != null ? String(row["LƯU CA"]) : "0",
-        cpKhacBS: row["CP KHÁC"] != null ? String(row["CP KHÁC"]) : "0",
-      }))
-      .filter((r) => r.maChuyen);
+  // Đọc và chuẩn hoá key
+  let raw = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+  const rows = raw.map(r => {
+    const obj = {};
+    for (let k in r) {
+      const cleanKey = k.trim().toUpperCase().replace(/\s+/g, " ");
+      obj[cleanKey] = r[k];
+    }
+    return obj;
+  });
 
-    setExcelData(updates);
-  };
+  const updates = rows
+    .map((row) => ({
+      maChuyen: row["MÃ CHUYẾN"] || row["MA CHUYEN"] || "",
+      ltState: (row["LT"] ?? "").toString(),
+      onlState: (row["ONL"] ?? "").toString(),
+      offState: (row["OFF"] ?? "").toString(),
+      cuocPhiBS: (row["CƯỚC PHÍ"] ?? row["CUOC PHI"] ?? "0").toString(),
+      daThanhToan: (row["ĐÃ THANH TOÁN"] ?? "0").toString(),
+      bocXepBS: (row["BỐC XẾP"] ?? "0").toString(),
+      veBS: (row["VÉ"] ?? "0").toString(),
+      hangVeBS: (row["HÀNG VỀ"] ?? "0").toString(),
+      luuCaBS: (row["LƯU CA"] ?? "0").toString(),
+      cpKhacBS: (row["LUẬT CP KHÁC"] ?? "0").toString(),
+    }))
+    .filter((r) => r.maChuyen !== "");
+
+  setExcelData(updates);
+};
+
 
   const handleAddCuocPhiBoSung = async () => {
     if (!excelData.length) return alert("Vui lòng chọn file Excel trước!");
