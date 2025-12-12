@@ -22,6 +22,7 @@ import ManageDriverDV from "./pages/DieuVanActions/ManageDiverDV";
 import ManageCustomerDV from "./pages/DieuVanActions/MaganeCustomerDV";
 import ManageVehicleDV from "./pages/DieuVanActions/ManageVehicleDV";
 import VoucherPrintPage from "./components/VoucherActions/VoucherPrintPage";
+import ScheduleTrashPage from "./pages/DieuVanActions/ScheduleTrashPage";
 
 
 function App() {
@@ -138,6 +139,14 @@ function App() {
           element={
             <PrivateRoute roles={["dieuVan"]}>
               <ManageVehicleDV user={user} onLogout={handleLogout} />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/schedule-trash"
+          element={
+            <PrivateRoute roles={["dieuVan"]}>
+              <ScheduleTrashPage user={user} onLogout={handleLogout} />
             </PrivateRoute>
           }
         />

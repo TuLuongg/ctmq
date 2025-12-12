@@ -241,31 +241,41 @@ export default function ManageVehicle() {
 const formatCellValue = (cKey, value) => {
   if (!value && value !== 0) return "";
 
-  // Giữ nguyên phần hình ảnh
+  // giữ nguyên phần hình ảnh
   if (cKey === "registrationImage" || cKey === "inspectionImage") {
     return value;
   }
 
-  // Các cột ngày
+  // các cột liên quan tới ngày
   const dateFields = ["resDay", "resExpDay", "insDay", "insExpDay"];
 
-  // Nếu là ngày → format + tô xanh khi là ngày hết hạn
   if (dateFields.includes(cKey)) {
     const d = new Date(value);
     if (isNaN(d)) return value;
 
     const formatted = d.toLocaleDateString("vi-VN");
 
-    const isExpiredDate = cKey === "resExpDay" || cKey === "insExpDay";
+    // chỉ 2 cột hết hạn mới đổi màu
+    const isExpField = cKey === "resExpDay" || cKey === "insExpDay";
+
+    if (!isExpField) {
+      // các ngày đăng ký thì để nguyên
+      return formatted;
+    }
+
+    // kiểm tra hết hạn thực tế
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const isExpired = d < today;
 
     return (
-      <span className={isExpiredDate ? "text-blue-500 font-bold" : ""}>
+      <span className={isExpired ? "text-red-600 font-bold" : "text-blue-600 font-bold"}>
         {formatted}
       </span>
     );
   }
 
-  // Trả về mặc định
   return value;
 };
 

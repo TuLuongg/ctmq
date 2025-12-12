@@ -427,7 +427,7 @@ const handleSelectExcel = async (e) => {
       veBS: (row["VÉ"] ?? "0").toString(),
       hangVeBS: (row["HÀNG VỀ"] ?? "0").toString(),
       luuCaBS: (row["LƯU CA"] ?? "0").toString(),
-      cpKhacBS: (row["LUẬT CP KHÁC"] ?? "0").toString(),
+      cpKhacBS: (row["CP KHÁC"] ?? "0").toString(),
     }))
     .filter((r) => r.maChuyen !== "");
 

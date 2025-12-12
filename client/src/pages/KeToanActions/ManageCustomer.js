@@ -402,37 +402,44 @@ export default function ManageCustomer() {
     }
   };
 
-  //In bảng kê
-  const handlePrintBangKe = async (customer) => {
-    const month = new Date().getMonth() + 1; // tháng hiện tại
-    console.log("KH id:", customer.code, month);
+// Modal chọn khoảng ngày để tải bảng kê
+const [showDateModal, setShowDateModal] = useState(false);
+const [selectedCustomer, setSelectedCustomer] = useState(null);
+const [fromDate, setFromDate] = useState("");
+const [toDate, setToDate] = useState("");
 
-    try {
-      const response = await axios.get(
-        `${apiCustomers}/export-trips-customer/${customer.code}/${month}`,
-        {
-          responseType: "blob",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+const openDateModal = (customer) => {
+  setSelectedCustomer(customer);
+  setShowDateModal(true);
+};
 
-      const blob = new Blob([response.data], {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      });
+const handleExportBangKe = async () => {
+  if (!fromDate || !toDate) return alert("Vui lòng chọn đầy đủ khoảng ngày!");
 
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `BANG_KE_${customer.code}_T${month}.xlsx`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error(err);
-      alert("Không xuất được bảng kê!");
-    }
-  };
+  try {
+    const url = `${apiCustomers}/export-trips-customer/${selectedCustomer.code}?from=${fromDate}&to=${toDate}`;
+
+    const response = await axios.get(url, {
+      responseType: "blob",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const blob = new Blob([response.data], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `BANG_KE_${selectedCustomer.code}_${fromDate}_den_${toDate}.xlsx`;
+    link.click();
+
+    setShowDateModal(false);
+  } catch (err) {
+    console.error(err);
+    alert("Không xuất được bảng kê!");
+  }
+};
+
 
   return (
     <div className="p-4 bg-gray-50 min-h-screen text-xs">
@@ -858,22 +865,19 @@ export default function ManageCustomer() {
                     style={{ minWidth: 120, background: "#fff" }}
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <button
-                      onClick={() => {
-                        // Nếu KH không thuộc về user và không có quyền full
-                        if (c.accUsername !== user?.username) {
-                          alert(
-                            "Bạn không có quyền in bảng kê của khách hàng này!"
-                          );
-                          return;
-                        }
+<button
+  onClick={() => {
+    if (c.accUsername !== user?.username) {
+      alert("Bạn không có quyền in bảng kê của khách hàng này!");
+      return;
+    }
+    openDateModal(c);
+  }}
+  className="text-green-600 underline"
+>
+  Tải xuống
+</button>
 
-                        handlePrintBangKe(c);
-                      }}
-                      className="text-green-600 underline"
-                    >
-                      Tải xuống
-                    </button>
                   </td>
                 </tr>
               );
@@ -948,6 +952,50 @@ export default function ManageCustomer() {
           </div>
         </div>
       )}
+
+      {showDateModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+    <div className="bg-white p-5 rounded shadow-lg w-80">
+
+      <h2 className="text-lg font-bold mb-3 text-center">
+        Chọn khoảng ngày giao hàng
+      </h2>
+
+      <label className="block mb-2 text-sm">Từ ngày:</label>
+      <input
+        type="date"
+        value={fromDate}
+        onChange={(e) => setFromDate(e.target.value)}
+        className="border p-2 w-full mb-3 rounded"
+      />
+
+      <label className="block mb-2 text-sm">Đến ngày:</label>
+      <input
+        type="date"
+        value={toDate}
+        onChange={(e) => setToDate(e.target.value)}
+        className="border p-2 w-full mb-3 rounded"
+      />
+
+      <div className="flex justify-end gap-2 mt-3">
+        <button
+          onClick={() => setShowDateModal(false)}
+          className="px-4 py-1 bg-gray-300 rounded"
+        >
+          Hủy
+        </button>
+
+        <button
+          onClick={handleExportBangKe}
+          className="px-4 py-1 bg-green-600 text-white rounded"
+        >
+          Xuất
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
     </div>
   );
 }
