@@ -34,6 +34,7 @@ router.delete("/:id", deleteCustomer);
 router.post("/import", excelUpload.single("file"), importCustomersFromExcel);
 router.put("/warning/:id", toggleWarning)
 
-router.get("/export-trips-customer/:maKH/:month", exportTripsByCustomer)
+router.get("/export-trips-customer/:maKH", exportTripsByCustomer);
+
 
 module.exports = router;

@@ -11,7 +11,11 @@ const {
   addHoaDonToSchedules,
   addBoSung,
   importSchedulesFromExcel,
-  toggleWarning
+  toggleWarning,
+  getTrashSchedules,
+  restoreSchedule,
+  forceDeleteSchedule,
+  emptyTrash,
 } = require("../controllers/scheduleAdminController");
 const authMiddleware = require("../middleware/authMiddleware");
 
@@ -21,8 +25,23 @@ const rideEditRequestController = require("../controllers/rideEditRequestControl
 router.post("/", authMiddleware(["admin", "dieuVan"]), createScheduleAdmin);
 router.get("/all", authMiddleware(["admin", "dieuVan", "keToan"]), getAllSchedulesAdmin);
 router.put("/:id", authMiddleware(["admin", "dieuVan", "keToan"]), updateScheduleAdmin);
+
+//xoá chuyến
 router.delete("/:id", authMiddleware(["admin", "dieuVan"]), deleteScheduleAdmin);
 router.post("/delete-by-date-range", authMiddleware(["admin", "dieuVan"]), deleteSchedulesByDateRange);
+
+// Lấy danh sách thùng rác
+router.get("/trash/list", authMiddleware(["admin", "dieuVan"]), getTrashSchedules);
+
+// Khôi phục chuyến
+router.post("/trash/restore", authMiddleware(["admin", "dieuVan"]), restoreSchedule);
+
+// Xóa vĩnh viễn
+router.delete("/trash/force", authMiddleware(["admin", "dieuVan"]), forceDeleteSchedule);
+
+// Dọn sạch toàn bộ thùng rác
+router.delete("/trash/empty", authMiddleware(["admin", "dieuVan"]), emptyTrash);
+
 router.get("/dieuvan/:dieuVanID", authMiddleware(["admin", "dieuVan"]), getSchedulesByDieuVan);
 
 //chỉnh sửa + lưu lại lịch sử chuyến

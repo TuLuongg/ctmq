@@ -54,6 +54,10 @@ const scheduleAdminSchema = new mongoose.Schema(
       enum: ["chuaChay", "dangChay", "hoanThanh"],
       default: "chuaChay",
     },
+
+    // 🗑️ Thùng rác
+    isDeleted: { type: Boolean, default: false },
+    deletedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

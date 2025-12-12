@@ -230,11 +230,15 @@ function cleanNumber(value) {
 
 const exportTripsByCustomer = async (req, res) => {
   try {
-    const { maKH, month } = req.params;
-    console.log("bảng kê:", maKH, month);
+    const { maKH } = req.params;
+    const { from, to } = req.query;
 
-    if (!maKH || !month) {
-      return res.status(400).json({ message: "Thiếu maKH hoặc month" });
+    console.log("Xuất bảng kê:", maKH, from, to);
+
+    if (!maKH || !from || !to) {
+      return res
+        .status(400)
+        .json({ message: "Thiếu maKH, from hoặc to (YYYY-MM-DD)" });
     }
 
     const customer = await Customer.findOne({ code: maKH });
@@ -242,14 +246,20 @@ const exportTripsByCustomer = async (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy khách hàng" });
     }
 
-    const regexMaChuyen = new RegExp(`BK${month}`, "i");
+    // 🔥 Chuyển ngày sang dạng Date
+    const fromDate = new Date(from);
+    const toDate = new Date(to);
 
+    // 👉 Đặt toDate cuối ngày
+    toDate.setHours(23, 59, 59, 999);
+
+    // 🔥 LỌC CHUYẾN THEO KHOẢNG NGÀY
     const trips = await ScheduleAdmin.find({
       maKH,
-      maChuyen: regexMaChuyen
+      ngayGiaoHang: { $gte: fromDate, $lte: toDate },
     }).sort({ ngayGiaoHang: 1 });
 
-    console.log("Số chuyến tìm được:", trips.length);
+    console.log("Số chuyến trong khoảng:", trips.length);
 
     const templatePath = path.join(__dirname, "../templates/form_mau.xlsx");
     const workbook = new ExcelJS.Workbook();
@@ -261,7 +271,8 @@ const exportTripsByCustomer = async (req, res) => {
     sheet.getCell("C8").value = customer.mstCCCD || "";
 
     const templateRows = 7;
-    const extraRows = trips.length > templateRows ? trips.length - templateRows : 0;
+    const extraRows =
+      trips.length > templateRows ? trips.length - templateRows : 0;
 
     if (extraRows > 0) {
       sheet.insertRows(19, Array.from({ length: extraRows }, () => []));
@@ -272,12 +283,8 @@ const exportTripsByCustomer = async (req, res) => {
     trips.forEach((trip, index) => {
       const row = sheet.getRow(startRow + index);
 
-      // STT nếu > 7 chuyến
-      if (trips.length > 7) {
-        row.getCell("A").value = index + 1;
-      }
+      if (trips.length > 7) row.getCell("A").value = index + 1;
 
-      // ⭐ ƯU TIÊN LẤY BS – nếu rỗng thì dùng thường
       const cuocPhi = trip.cuocPhiBS || trip.cuocPhi;
       const bocXep = trip.bocXepBS || trip.bocXep;
       const ve = trip.veBS || trip.ve;
@@ -285,14 +292,15 @@ const exportTripsByCustomer = async (req, res) => {
       const luuCa = trip.luuCaBS || trip.luuCa;
       const cpKhac = trip.cpKhacBS || trip.luatChiPhiKhac;
 
-      row.getCell("B").value = trip.ngayGiaoHang ? new Date(trip.ngayGiaoHang) : "";
+      row.getCell("B").value = trip.ngayGiaoHang
+        ? new Date(trip.ngayGiaoHang)
+        : "";
       row.getCell("C").value = trip.diemXepHang || "";
       row.getCell("D").value = trip.diemDoHang || "";
       row.getCell("E").value = trip.soDiem || "";
       row.getCell("F").value = trip.trongLuong || "";
       row.getCell("G").value = trip.bienSoXe || "";
 
-      // → GHI GIÁ TRỊ ĐÃ ƯU TIÊN
       row.getCell("H").value = cuocPhi || "";
       row.getCell("I").value = "";
       row.getCell("J").value = bocXep || "";
@@ -303,7 +311,6 @@ const exportTripsByCustomer = async (req, res) => {
 
       row.getCell("Q").value = trip.maChuyen || "";
 
-      // ⭐ TÍNH TỔNG
       const total =
         cleanNumber(cuocPhi) +
         cleanNumber(bocXep) +
@@ -313,38 +320,35 @@ const exportTripsByCustomer = async (req, res) => {
         cleanNumber(cpKhac);
 
       row.getCell("O").value = total;
-
       row.commit();
-
-      const lastRow = startRow + trips.length;        
-
-// 1) Tính tổng tất cả cột O
-let sumO = 0;
-for (let i = 0; i < trips.length; i++) {
-  const v = sheet.getCell(`O${startRow + i}`).value;
-  sumO += Number(v) || 0;
-}
-
-// 2) Ghi tổng vào cột G
-sheet.getCell(`G${lastRow}`).value = sumO;
-
-// 3) Dòng tiếp theo = tổng * 8%
-sheet.getCell(`G${lastRow + 1}`).value = Math.round(sumO * 0.08);
-
-// 4) Dòng tiếp theo nữa = tổng + tổng*8%
-sheet.getCell(`G${lastRow + 2}`).value = Math.round(sumO * 1.08);
     });
 
-    // FONT TOÀN BỘ FILE → Time New Roman
+    const lastRow = startRow + trips.length;
+
+    // SUM O
+    let sumO = 0;
+    for (let i = 0; i < trips.length; i++) {
+      const v = sheet.getCell(`O${startRow + i}`).value;
+      sumO += Number(v) || 0;
+    }
+
+    // Ghi tổng
+    sheet.getCell(`G${lastRow}`).value = sumO;
+    sheet.getCell(`G${lastRow + 1}`).value = Math.round(sumO * 0.08);
+    sheet.getCell(`G${lastRow + 2}`).value = Math.round(sumO * 1.08);
+    sheet.getCell(`I${lastRow + 5}`).value = customer.nameHoaDon || "";
+
+    // Font Times New Roman
     sheet.eachRow((row) => {
       row.eachCell((cell) => {
         cell.font = { name: "Times New Roman", size: 12 };
-      });
+        });
     });
 
+    // 📌 Trả file về FE
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename=BANG_KE_${maKH}_T${month}.xlsx`
+      `attachment; filename=BANG_KE_${maKH}_${from}_den_${to}.xlsx`
     );
     res.setHeader(
       "Content-Type",
@@ -353,12 +357,12 @@ sheet.getCell(`G${lastRow + 2}`).value = Math.round(sumO * 1.08);
 
     await workbook.xlsx.write(res);
     res.end();
-
   } catch (err) {
-    console.error(err);
+    console.error("Lỗi xuất bảng kê:", err);
     res.status(500).json({ message: "Lỗi xuất bảng kê" });
   }
 };
+
 
 // ==============================
 // XOÁ TẤT CẢ KHÁCH HÀNG

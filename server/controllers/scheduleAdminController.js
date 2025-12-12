@@ -70,35 +70,34 @@ const updateScheduleAdmin = async (req, res) => {
   }
 };
 
-// ❌ Xóa chuyến - chỉ admin mới được xóa
+// 🗑️ Xóa mềm (đưa vào thùng rác)
 const deleteScheduleAdmin = async (req, res) => {
   try {
     const { id } = req.params;
-    const schedule = await ScheduleAdmin.findById(id);
 
+    const schedule = await ScheduleAdmin.findById(id);
     if (!schedule) return res.status(404).json({ error: "Không tìm thấy chuyến" });
 
-    await schedule.deleteOne();
-    res.json({ message: "Đã xóa thành công" });
+    schedule.isDeleted = true;
+    schedule.deletedAt = new Date();
+    await schedule.save();
+
+    res.json({ message: "Đã chuyển chuyến vào thùng rác" });
   } catch (err) {
-    console.error("Lỗi khi xóa chuyến:", err);
+    console.error("Soft delete error:", err);
     res.status(500).json({ error: err.message });
   }
 };
 
-// 🗑️ Xóa chuyến trong khoảng ngày (ngayGiaoHang) - admin hoặc dieuVan
+// 🗑️ Xóa mềm theo khoảng ngày
 const deleteSchedulesByDateRange = async (req, res) => {
   try {
     const user = req.user;
     if (!user || !["admin", "dieuVan"].includes(user.role)) {
-      return res.status(403).json({ error: "Chỉ admin hoặc điều vận mới được xóa chuyến" });
+      return res.status(403).json({ error: "Không có quyền" });
     }
 
     const { startDate, endDate } = req.body;
-
-    if (!startDate || !endDate) {
-      return res.status(400).json({ error: "Thiếu startDate hoặc endDate" });
-    }
 
     const start = new Date(startDate);
     start.setHours(0, 0, 0, 0);
@@ -106,24 +105,145 @@ const deleteSchedulesByDateRange = async (req, res) => {
     const end = new Date(endDate);
     end.setHours(23, 59, 59, 999);
 
-    const result = await ScheduleAdmin.deleteMany({
-      ngayGiaoHang: { $gte: start, $lte: end },
-    });
+    const result = await ScheduleAdmin.updateMany(
+      { ngayGiaoHang: { $gte: start, $lte: end }},
+      { $set: { isDeleted: true, deletedAt: new Date() } }
+    );
 
     res.json({
-      message: `Đã xóa ${result.deletedCount} chuyến trong khoảng ${startDate} → ${endDate}`,
+      message: `Đã chuyển ${result.modifiedCount} chuyến vào thùng rác`,
     });
   } catch (err) {
-    console.error("❌ Lỗi khi xóa chuyến theo khoảng ngày:", err);
+    console.error("Delete range error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// 📥 Lấy danh sách thùng rác
+const getTrashSchedules = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page || 1);
+    const limit = parseInt(req.query.limit || 50);
+    const skip = (page - 1) * limit;
+    const search = req.query.search || "";
+
+    const filter = {
+      isDeleted: true,
+      $or: [
+        { maChuyen: new RegExp(search, "i") },
+        { tenLaiXe: new RegExp(search, "i") },
+        { bienSoXe: new RegExp(search, "i") },
+      ]
+    };
+
+    const total = await ScheduleAdmin.countDocuments(filter);
+
+    // Lấy data trước
+    let data = await ScheduleAdmin.find(filter)
+      .sort({ deletedAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    // 👉 TÍNH SỐ NGÀY CÒN LẠI
+    const now = new Date();
+    const MAX_DAYS = 30;
+
+    data = data.map(item => {
+      const deletedAt = item.deletedAt || now;
+      const diffTime = now - deletedAt; // mili giây
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+      return {
+        ...item,
+        daysLeft: Math.max(0, MAX_DAYS - diffDays)  // không bị âm
+      };
+    });
+
+    return res.json({
+      data,
+      total,
+      totalPages: Math.ceil(total / limit),
+      page,
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+
+
+// ♻️ Khôi phục chuyến
+const restoreSchedule = async (req, res) => {
+  try {
+    const { maChuyenList } = req.body;
+
+    if (!maChuyenList || maChuyenList.length === 0) {
+      return res.status(400).json({ error: "Danh sách rỗng" });
+    }
+
+    const result = await ScheduleAdmin.updateMany(
+      { maChuyen: { $in: maChuyenList }, isDeleted: true },
+      { $set: { isDeleted: false, deletedAt: null } }
+    );
+
+    return res.json({
+      message: `Đã khôi phục ${result.modifiedCount} chuyến`,
+    });
+
+  } catch (err) {
+    console.error("Restore error:", err);
     res.status(500).json({ error: err.message });
   }
 };
 
 
+// ❌ Xóa vĩnh viễn
+const forceDeleteSchedule = async (req, res) => {
+  try {
+    const { maChuyenList } = req.body;
+
+    if (!maChuyenList || maChuyenList.length === 0) {
+      return res.status(400).json({ error: "Danh sách rỗng" });
+    }
+
+    // Chỉ xoá vĩnh viễn những chuyến đang trong thùng rác
+    const result = await ScheduleAdmin.deleteMany({
+      maChuyen: { $in: maChuyenList },
+      isDeleted: true,
+    });
+
+    return res.json({
+      message: `Đã xóa vĩnh viễn ${result.deletedCount} chuyến khỏi database`,
+    });
+
+  } catch (err) {
+    console.error("Force delete error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+// 🔥 Dọn sạch thùng rác
+const emptyTrash = async (req, res) => {
+  try {
+    const result = await ScheduleAdmin.deleteMany({ isDeleted: true });
+    res.json({ message: `Đã xóa vĩnh viễn ${result.deletedCount} chuyến` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+
+
 const getAllSchedulesAdmin = async (req, res) => {
   try {
     const query = req.query;
-    const filter = {};
+    const filter = {
+      isDeleted: { $ne: true }   // ⛔ Loại chuyến trong thùng rác
+    };
+
     const andConditions = [];
 
     // 📌 Phân trang
@@ -132,7 +252,7 @@ const getAllSchedulesAdmin = async (req, res) => {
     const skip = (page - 1) * limit;
 
     // ===============================
-    // ⭐ LỌC TỰ ĐỘNG GIỐNG HỆT API KẾ TOÁN
+    // ⭐ LỌC TỰ ĐỘNG
     // ===============================
 
     for (const [key, value] of Object.entries(query)) {
@@ -141,16 +261,15 @@ const getAllSchedulesAdmin = async (req, res) => {
       // Bỏ field hệ thống
       if (["page", "limit"].includes(key)) continue;
 
-      // 🔹 Lọc ngày: field chứa chữ “ngay”
+      // 🔹 Lọc ngày
       if (key.toLowerCase().includes("ngay")) {
         const start = new Date(value);
         const end = new Date(value);
         end.setHours(23, 59, 59, 999);
 
         andConditions.push({
-          [key]: { $gte: start, $lte: end }
+          [key]: { $gte: start, $lte: end },
         });
-
         continue;
       }
 
@@ -166,7 +285,7 @@ const getAllSchedulesAdmin = async (req, res) => {
         continue;
       }
 
-      // 🔹 String → chứa
+      // 🔹 String
       andConditions.push({ [key]: new RegExp(value, "i") });
     }
 
@@ -175,7 +294,7 @@ const getAllSchedulesAdmin = async (req, res) => {
     }
 
     // ===============================
-    // ⭐ TRẢ VỀ DỮ LIỆU
+    // ⭐ QUERY DB
     // ===============================
 
     const total = await ScheduleAdmin.countDocuments(filter);
@@ -191,12 +310,12 @@ const getAllSchedulesAdmin = async (req, res) => {
       totalPages: Math.ceil(total / limit),
       page,
     });
-
   } catch (err) {
     console.error("❌ Lỗi khi lấy tất cả chuyến:", err);
     res.status(500).json({ error: err.message });
   }
 };
+
 
 
 // 🔍 Lấy lịch trình theo tên điều vận
@@ -209,7 +328,7 @@ const getSchedulesByDieuVan = async (req, res) => {
     }
 
     // Base filter
-    const filter = { dieuVanID };
+    const filter = { dieuVanID, isDeleted: { $ne: true } };
     const andConditions = [];
 
     // Tự động lấy toàn bộ field từ FE để lọc
@@ -276,7 +395,7 @@ const getSchedulesByAccountant = async (req, res) => {
       return res.status(403).json({ error: "Chỉ kế toán mới được xem danh sách này" });
     }
 
-    const filter = { accountUsername: user.username };
+    const filter = { accountUsername: user.username, isDeleted: { $ne: true } };
     const andConditions = [];
 
     // Tự động lọc theo toàn bộ query
@@ -430,7 +549,9 @@ const importSchedulesFromExcel = async (req, res) => {
           dieuVan: user.fullname || user.username,
           dieuVanID: user.id,
           createdBy: user.fullname || user.username,
-
+          ltState: r.ltState || "",
+          onlState: r.onlState || "",
+          offState: r.offState || "",
           tenLaiXe: r.tenLaiXe || "",
           maKH: maKH || "",
           khachHang,
@@ -512,5 +633,9 @@ module.exports = {
   addHoaDonToSchedules,
   addBoSung,
   importSchedulesFromExcel,
-  toggleWarning
+  toggleWarning,
+  getTrashSchedules,
+  restoreSchedule,
+  forceDeleteSchedule,
+  emptyTrash
 };
