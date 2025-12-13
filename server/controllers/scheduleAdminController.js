@@ -1,5 +1,6 @@
 const ScheduleAdmin = require("../models/ScheduleAdmin");
 const Customer = require("../models/Customer");
+const CustomerDebtPeriod = require("../models/CustomerDebtPeriod");
 const mongoose = require("mongoose");
 
 // 🆕 Tạo chuyến mới
@@ -12,12 +13,16 @@ const createScheduleAdmin = async (req, res) => {
       return res.status(403).json({ error: "Không có quyền tạo chuyến" });
     }
 
-    // 🔹 Tạo mã chuyến tự động BKMM.XXXX
+    // 🔹 Ngày hiện tại
     const today = new Date();
     const monthStr = String(today.getMonth() + 1).padStart(2, "0"); // 01 -> 12
+    const yearStr = String(today.getFullYear()).slice(-2); // lấy 2 số cuối của năm, ví dụ 25
+
+    // 🔹 Regex tìm mã chuyến cùng tháng và năm
+    const regex = new RegExp(`^BK${monthStr}${yearStr}\\.\\d{4}$`);
 
     // 🔹 Lấy chuyến cao nhất trong tháng hiện tại
-    const lastRide = await ScheduleAdmin.find({ maChuyen: new RegExp(`^BK${monthStr}`) })
+    const lastRide = await ScheduleAdmin.find({ maChuyen: regex })
       .sort({ maChuyen: -1 })
       .limit(1);
 
@@ -54,21 +59,50 @@ const updateScheduleAdmin = async (req, res) => {
     const schedule = await ScheduleAdmin.findById(id);
     const user = req.user;
 
-    if (!schedule) return res.status(404).json({ error: "Không tìm thấy chuyến" });
+    if (!schedule) {
+      return res.status(404).json({ error: "Không tìm thấy chuyến" });
+    }
 
-    // Admin hoặc điều vận đều có quyền sửa
     if (!["admin", "dieuVan", "keToan"].includes(user.role)) {
       return res.status(403).json({ error: "Không có quyền sửa chuyến này" });
     }
 
+    const oldDate = schedule.ngayGiaoHang;
+    const newDate = req.body.ngayGiaoHang || oldDate;
+
+    // 🔒 CHECK NGÀY CŨ
+    const lockedOld = await checkLockedDebtPeriod(
+      schedule.maKH,
+      oldDate
+    );
+    if (lockedOld) {
+      return res.status(400).json({
+        error: `Kỳ công nợ ${lockedOld.debtCode} đã khoá, không thể sửa chuyến`,
+      });
+    }
+
+    // 🔒 CHECK NGÀY MỚI (nếu đổi ngày)
+    const lockedNew = await checkLockedDebtPeriod(
+      schedule.maKH,
+      newDate
+    );
+    if (lockedNew) {
+      return res.status(400).json({
+        error: `Kỳ công nợ ${lockedNew.debtCode} đã khoá, không thể đổi ngày chuyến`,
+      });
+    }
+
+    // ⬇️ UPDATE BÌNH THƯỜNG
     Object.assign(schedule, req.body);
     await schedule.save();
+
     res.json(schedule);
   } catch (err) {
     console.error("Lỗi khi sửa chuyến:", err);
     res.status(500).json({ error: err.message });
   }
 };
+
 
 // 🗑️ Xóa mềm (đưa vào thùng rác)
 const deleteScheduleAdmin = async (req, res) => {
@@ -524,6 +558,18 @@ const importSchedulesFromExcel = async (req, res) => {
       const maChuyen = r.maChuyen?.toString().trim();
       const maKH = r.maKH?.toString().trim();
 
+      const locked = await checkLockedDebtPeriod(
+  maKH,
+  r.ngayGiaoHang
+);
+if (locked) {
+  console.log(
+    `⛔ Bỏ qua chuyến ${maChuyen} vì kỳ ${locked.debtCode} đã khoá`
+  );
+  continue;
+}
+
+
       if (!maChuyen) {
         console.log("🚫 Bỏ qua dòng vì không có mã chuyến");
         continue;
@@ -620,6 +666,19 @@ const toggleWarning = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+
+const checkLockedDebtPeriod = async (maKH, ngayGiaoHang) => {
+  if (!maKH || !ngayGiaoHang) return null;
+
+  return await CustomerDebtPeriod.findOne({
+    customerCode: maKH,
+    isLocked: true,
+    fromDate: { $lte: new Date(ngayGiaoHang) },
+    toDate: { $gte: new Date(ngayGiaoHang) },
+  });
+};
+
 
 
 module.exports = {

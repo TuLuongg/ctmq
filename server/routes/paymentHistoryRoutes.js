@@ -2,34 +2,95 @@ const express = require("express");
 const router = express.Router();
 
 const {
+  // ===== CÔNG NỢ THEO KỲ (KH CHUNG ≠ 26) =====
   getCustomerDebt,
-  getPaymentHistory,
-  addPayment,
-  getCustomerTrips,
+  createDebtPeriod,
+  getDebtPeriodDetail,
+  updateDebtPeriod,  
+  lockDebtPeriod,
+  unlockDebtPeriod,
+
+  // ===== PHIẾU THU CÔNG NỢ =====
+  addPaymentReceipt,
+  rollbackPaymentReceipt,
+ getPaymentHistoryByCustomer,
+
+  // ===== KH 26 – GIỮ NGUYÊN =====
   getDebtForCustomer26,
   addTripPayment,
-  getTripPaymentHistory
+  getTripPaymentHistory,
+  deleteTripPayment
 } = require("../controllers/paymentHistoryController");
 
-// Tổng công nợ
+
+// =====================================================
+// 📌 CÔNG NỢ THEO KỲ (KH CHUNG)
+// =====================================================
+
+// Danh sách công nợ theo tháng / năm
+// GET /api/payment/debt?month=11&year=2025
 router.get("/debt", getCustomerDebt);
 
-// Lịch sử thanh toán
-router.get("/history/:customerCode", getPaymentHistory);
+// Tạo kỳ công nợ
+// POST /api/payment/debt-period
+router.post("/debt-period", createDebtPeriod);
 
-// Thêm lần thanh toán
-router.post("/add", addPayment);
+// ✏️ SỬA KỲ CÔNG NỢ
+// PUT /api/payment/debt-period/CN.BM.11.25
+router.put("/debt-period/:debtCode", updateDebtPeriod);
 
-// Lấy danh sách mã chuyến
-router.get("/trips", getCustomerTrips);
+// Chi tiết 1 kỳ công nợ (chuyến + phiếu thu)
+// GET /api/payment/debt-period/CN.BM.11.25
+router.get("/debt-period/:debtCode", getDebtPeriodDetail);
 
-// Công nợ khách 26
+
+// =====================================================
+// 💰 PHIẾU THU CÔNG NỢ
+// =====================================================
+
+// Lấy lịch sử phiếu thu KH chung
+// GET /api/payment/receipt/history/:customerCode
+router.get("/receipt/:customerCode/:debtCode", getPaymentHistoryByCustomer);
+
+
+// Ghi nhận phiếu thu + tự động phân bổ tiền
+// POST /api/payment/receipt
+router.post("/add-receipt", addPaymentReceipt);
+
+// =====================================================
+// 🔐 KHOÁ KỲ CÔNG NỢ
+// =====================================================
+// POST /api/payment/debt-period/:debtCode/lock
+router.post("/debt-period/:debtCode/lock", lockDebtPeriod);
+
+// Mở khoá kỳ
+// POST /api/payment/debt-period/:debtCode/unlock
+router.post("/debt-period/:debtCode/unlock", unlockDebtPeriod);
+
+// =====================================================
+// 🔄 HUỶ PHIẾU THU
+// =====================================================
+// DELETE /api/payment/receipt/:receiptId
+router.delete("/receipt/:receiptId", rollbackPaymentReceipt);
+
+
+
+// =====================================================
+// 🚚 KHÁCH HÀNG 26 (GIỮ NGUYÊN LOGIC CŨ)
+// =====================================================
+
+// Công nợ KH 26 theo từng chuyến
+// GET /api/payment/customer26/debt?startDate=&endDate=
 router.get("/customer26/debt", getDebtForCustomer26);
 
-// Lấy lịch sử thanh toán theo chuyến
+// Lịch sử thanh toán theo chuyến
+// GET /api/payment/trip/BK11.0023/history
 router.get("/trip/:maChuyenCode/history", getTripPaymentHistory);
 
 // Thêm thanh toán theo chuyến
+// POST /api/payment/trip/add
 router.post("/trip/add", addTripPayment);
+
+router.delete("/trip-payment/:paymentId", deleteTripPayment);
 
 module.exports = router;
