@@ -6,6 +6,19 @@ import API from "../../api";
 import TripPaymentModal from "../../components/TripPaymentModal";
 import "./CustomerDebt26Page.css"; // tạo CSS cho resize và overflow
 
+const removeVietnameseTones = (str = "") => {
+  return str
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLowerCase();
+};
+
+const DATE_COLUMNS = ["ngayBocHang", "ngayGiaoHang", "ngayCK"];
+
+
 export default function CustomerDebt26Page() {
   const [trips, setTrips] = useState([]);
   const [selectedTrip, setSelectedTrip] = useState(null);
@@ -38,6 +51,8 @@ export default function CustomerDebt26Page() {
     { key: "soDiem", label: "Số điểm", width: 80, visible: true },
     { key: "trongLuong", label: "Trọng lượng", width: 100, visible: true },
     { key: "bienSoXe", label: "Biển số", width: 100, visible: true },
+    { key: "maKH", label: "Mã KH", width: 100, visible: true },
+    { key: "khachHang", label: "Tên KH", width: 100, visible: true },
     { key: "tongTien", label: "Tổng tiền", width: 120, visible: true },
     { key: "daThanhToan", label: "Đã thanh toán", width: 120, visible: true },
     { key: "conLai", label: "Còn lại", width: 120, visible: true },
@@ -179,6 +194,77 @@ export default function CustomerDebt26Page() {
     );
   };
 
+  const [resizing, setResizing] = useState(null);
+  // { key, startX, startWidth }
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!resizing) return;
+
+      const delta = e.clientX - resizing.startX;
+      const newWidth = Math.max(10, resizing.startWidth + delta);
+
+      saveColumns(
+        columns.map((c) =>
+          c.key === resizing.key ? { ...c, width: newWidth } : c
+        )
+      );
+    };
+
+    const handleMouseUp = () => setResizing(null);
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [resizing, columns]);
+
+  const [dragCol, setDragCol] = useState(null);
+  const moveColumn = (fromKey, toKey) => {
+    const fromIndex = columns.findIndex((c) => c.key === fromKey);
+    const toIndex = columns.findIndex((c) => c.key === toKey);
+
+    if (fromIndex === -1 || toIndex === -1) return;
+
+    const newCols = [...columns];
+    const [moved] = newCols.splice(fromIndex, 1);
+    newCols.splice(toIndex, 0, moved);
+
+    saveColumns(newCols);
+  };
+
+  const [filters, setFilters] = useState({});
+  const [activeFilter, setActiveFilter] = useState(null);
+
+const filteredTrips = trips.filter((t) =>
+  Object.entries(filters).every(([key, val]) => {
+    if (!val) return true;
+
+    // 🔥 cột ngày
+    if (DATE_COLUMNS.includes(key)) {
+      if (!t[key]) return false;
+
+      const rowDate = format(new Date(t[key]), "yyyy-MM-dd");
+      return rowDate === val;
+    }
+
+    // 🔥 cột thường (không dấu)
+    const fieldValue = removeVietnameseTones(t[key] ?? "");
+    const filterValue = removeVietnameseTones(val);
+    return fieldValue.includes(filterValue);
+  })
+);
+
+const [showColumnSetting, setShowColumnSetting] = useState(false);
+const clearAllFilters = () => {
+  setFilters({});
+  setActiveFilter(null);
+};
+
+
+
   return (
     <div className="p-4 text-xs">
       <div className="flex gap-2 items-center mb-4">
@@ -300,24 +386,44 @@ export default function CustomerDebt26Page() {
         </button>
       </div>
 
-      {/* Toggle ẩn/hiện cột */}
-      <div className="mb-2 flex flex-wrap gap-2">
-        {columns.map((c) => (
-          <label key={c.key} className="flex items-center gap-1">
-            <input
-              type="checkbox"
-              checked={c.visible}
-              onChange={() => toggleColumn(c.key)}
-            />
-            {c.label}
-          </label>
-        ))}
-      </div>
+      <div className="relative mb-2 inline-block">
+  <button
+    onClick={() => setShowColumnSetting(!showColumnSetting)}
+    className="px-3 py-1 border rounded bg-gray-100 hover:bg-gray-200"
+  >
+    Ẩn cột
+  </button>
+
+  {showColumnSetting && (
+    <div className="absolute z-20 mt-1 bg-white border shadow rounded p-2 max-h-60 overflow-auto">
+      {columns.map((c) => (
+        <label
+          key={c.key}
+          className="flex items-center gap-2 text-xs whitespace-nowrap"
+        >
+          <input
+            type="checkbox"
+            checked={c.visible}
+            onChange={() => toggleColumn(c.key)}
+          />
+          {c.label}
+        </label>
+      ))}
+    </div>
+  )}
+</div>
+
+<button
+  onClick={clearAllFilters}
+  className="absolute right-4 z-30 px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
+>
+  Xoá lọc
+</button>
+
 
       {/* Bảng */}
-      {/* Bảng */}
       <div className="overflow-auto max-h-[600px] border">
-        <table className="border table-auto min-w-max w-full border-collapse">
+        <table className="border table-fixed border-collapse">
           <thead className="bg-gray-100">
             <tr>
               {columns
@@ -325,17 +431,72 @@ export default function CustomerDebt26Page() {
                 .map((col) => (
                   <th
                     key={col.key}
-                    className="border p-2 sticky top-0 bg-gray-100 z-10"
-                    style={{ width: col.width, minWidth: 50 }}
+                    draggable
+                    onDragStart={() => setDragCol(col.key)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => {
+                      moveColumn(dragCol, col.key);
+                      setDragCol(null);
+                    }}
+                    className="border p-2 sticky top-0 bg-gray-100 z-10 relative cursor-move"
+                    style={{
+                      width: col.width,
+                      minWidth: col.width,
+                      maxWidth: col.width,
+                    }}
                   >
-                    {col.label}
+                    <div
+                      onClick={() =>
+                        setActiveFilter(
+                          activeFilter === col.key ? null : col.key
+                        )
+                      }
+                      className="flex flex-col"
+                    >
+                      <span>{col.label}</span>
+
+                      {activeFilter === col.key && (
+  <input
+    autoFocus
+    type={DATE_COLUMNS.includes(col.key) ? "date" : "text"}
+    className="border mt-1 px-1 text-xs"
+    placeholder={
+      DATE_COLUMNS.includes(col.key) ? "" : "Lọc..."
+    }
+    value={filters[col.key] || ""}
+    onClick={(e) => e.stopPropagation()}
+    onChange={(e) =>
+      setFilters({
+        ...filters,
+        [col.key]: e.target.value,
+      })
+    }
+  />
+)}
+
+                    </div>
+
+                    {/* Resize handle */}
+                    <div
+                      onMouseDown={(e) => {
+                        e.preventDefault(); // 🔥 cực quan trọng
+                        e.stopPropagation(); // 🔥 cực quan trọng
+
+                        setResizing({
+                          key: col.key,
+                          startX: e.clientX,
+                          startWidth: col.width,
+                        });
+                      }}
+                      className="absolute right-0 top-0 h-full w-3 cursor-col-resize bg-transparent hover:bg-blue-400"
+                    />
                   </th>
                 ))}
             </tr>
           </thead>
           <tbody>
-            {trips.map((t) => (
-              <tr key={t._id} className="h-[30px]">
+            {filteredTrips.map((t) => (
+              <tr key={t._id} className="h-[22px]">
                 {columns
                   .filter((c) => c.visible)
                   .map((col) => {
@@ -372,8 +533,17 @@ export default function CustomerDebt26Page() {
                       value = methodMap[value] || value;
                     }
                     return (
-                      <td key={col.key} className="border p-1">
-                        {value}
+                      <td
+                        key={col.key}
+                        className="border p-1 table-cell"
+                        style={{
+                          width: col.width,
+                          minWidth: col.width,
+                          maxWidth: col.width,
+                          maxHeight: 20,
+                        }}
+                      >
+                        <div className="cell-content" title={String(value ?? "")}>{value}</div>
                       </td>
                     );
                   })}

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import API from "../api";
 
-export default function TripPaymentModal({ maChuyenCode, onClose }) {
+export default function TripPaymentModal({ maChuyenCode, onClose, onChange }) {
   const [payments, setPayments] = useState([]);
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("CaNhan");
@@ -34,7 +34,7 @@ export default function TripPaymentModal({ maChuyenCode, onClose }) {
   const handleAddPayment = async () => {
     if (!amount) return alert("Nhập số tiền!");
     try {
-      const res = await axios.post(
+      await axios.post(
         `${API}/payment-history/trip/add`,
         { maChuyenCode, amount: Number(amount), method, note },
         { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
@@ -43,9 +43,25 @@ export default function TripPaymentModal({ maChuyenCode, onClose }) {
       setNote("");
       setMethod("CaNhan");
       loadPayments(); // reload danh sách
+      if (onChange) onChange(); // <- báo parent reload bảng
     } catch (err) {
       console.error("Lỗi thêm thanh toán:", err);
       alert("Không thể thêm thanh toán");
+    }
+  };
+
+  // Xoá thanh toán
+  const handleDeletePayment = async (paymentId) => {
+    if (!window.confirm("Bạn có chắc muốn xoá thanh toán này?")) return;
+    try {
+      await axios.delete(`${API}/payment-history/trip-payment/${paymentId}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      loadPayments(); // reload danh sách sau khi xoá
+      if (onChange) onChange(); // <- báo parent reload bảng
+    } catch (err) {
+      console.error("Lỗi xoá thanh toán:", err);
+      alert("Không thể xoá thanh toán");
     }
   };
 
@@ -102,6 +118,7 @@ export default function TripPaymentModal({ maChuyenCode, onClose }) {
                 <th className="border p-1">Số tiền</th>
                 <th className="border p-1">Phương thức</th>
                 <th className="border p-1">Ghi chú</th>
+                <th className="border p-1">Hành động</th>
               </tr>
             </thead>
             <tbody>
@@ -113,6 +130,14 @@ export default function TripPaymentModal({ maChuyenCode, onClose }) {
                   <td className="border p-1 text-right">{p.amount.toLocaleString()}</td>
                   <td className="border p-1">{p.method}</td>
                   <td className="border p-1">{p.note}</td>
+                  <td className="border p-1 text-center">
+                    <button
+                      className="bg-red-500 text-white px-2 py-1 rounded"
+                      onClick={() => handleDeletePayment(p._id)}
+                    >
+                      Xoá
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

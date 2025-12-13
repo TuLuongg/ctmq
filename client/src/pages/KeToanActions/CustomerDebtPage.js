@@ -1,4 +1,3 @@
-// CustomerDebtPage.jsx
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
@@ -6,88 +5,242 @@ import API from "../../api";
 import PaymentHistoryModal from "../../components/PaymentHistoryModal";
 import TripListModal from "../../components/TripListModal";
 
+// Chuyển string sang dạng không dấu, thường
+const normalizeString = (str) => {
+  if (!str) return "";
+  return str
+    .normalize("NFD") // tách các dấu
+    .replace(/[\u0300-\u036f]/g, "") // bỏ dấu
+    .toLowerCase();
+};
+
 export default function CustomerDebtPage() {
   const token = localStorage.getItem("token");
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
+  const [customers, setCustomers] = useState([]);
   const [debtList, setDebtList] = useState([]);
 
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [showPaymentHistory, setShowPaymentHistory] = useState(false);
   const [showTripList, setShowTripList] = useState(false);
 
+  const [showAutoCreateModal, setShowAutoCreateModal] = useState(false);
+  const [autoDebtData, setAutoDebtData] = useState({
+    month,
+    year,
+    manageMonth: `${String(month).padStart(2, "0")}/${year}`, // default manageMonth
+    customDates: {}, // { [customerCode]: { fromDate, toDate } }
+    globalFromDate: "",
+    globalToDate: "",
+    note: "",
+  });
+
+  const [selectedCustomers, setSelectedCustomers] = useState([]);
+
   const navigate = useNavigate();
   const location = useLocation();
   const user =
     JSON.parse(localStorage.getItem("user") || "null") || location.state?.user;
+
   const isActive = (path) => location.pathname === path;
 
-  // 👉 Hàm chuyển sang trang quản lý lái xe
-  const handleGoToDrivers = () => {
+  // ====================== NAVIGATION ======================
+  const handleGoToDrivers = () =>
     navigate("/manage-driver", { state: { user } });
-  };
-
-  const handleGoToCustomers = () => {
+  const handleGoToCustomers = () =>
     navigate("/manage-customer", { state: { user } });
-  };
-
-  const handleGoToVehicles = () => {
+  const handleGoToVehicles = () =>
     navigate("/manage-vehicle", { state: { user } });
-  };
-
-  const handleGoToTrips = () => {
-    navigate("/manage-trip", { state: { user } });
-  };
-
-  const handleGoToAllTrips = () => {
+  const handleGoToTrips = () => navigate("/manage-trip", { state: { user } });
+  const handleGoToAllTrips = () =>
     navigate("/manage-all-trip", { state: { user } });
-  };
-
-  const handleGoToAllCustomers = () => {
+  const handleGoToAllCustomers = () =>
     navigate("/customer-debt", { state: { user } });
-  };
-
-  const handleGoToCustomer26 = () => {
+  const handleGoToCustomer26 = () =>
     navigate("/customer-debt-26", { state: { user } });
-  };
-
   const handleGoToVouchers = () =>
     navigate("/voucher-list", { state: { user } });
 
-  // 🔹 3 danh sách gợi ý
-  const [customers, setCustomers] = useState([]);
+  const [searchText, setSearchText] = useState("");
 
-  // 🔹 Lấy danh sách gợi ý
+  // ====================== LOAD DATA ======================
   useEffect(() => {
-    const fetchData = async () => {
-      const [customerRes] = await Promise.all([axios.get(`${API}/customers`)]);
-      setCustomers(customerRes.data);
+    const fetchCustomers = async () => {
+      try {
+        const res = await axios.get(`${API}/customers`);
+
+        const filtered = (res.data || [])
+          .filter((c) => String(c.code) !== "26") // loại KH 26
+          .reverse(); // đảo ngược thứ tự
+
+        setCustomers(filtered);
+      } catch (err) {
+        console.error("Lỗi load customers", err);
+      }
     };
-    fetchData();
+
+    fetchCustomers();
   }, []);
 
   const loadData = async () => {
-    const res = await axios.get(
-      `${API}/payment-history/debt?month=${month}&year=${year}`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
-    setDebtList(res.data.filter((d) => d.maKH !== "26")); // ❗ loại khách 26
-    console.log("Công nợ khách hàng:", res.data);
+    try {
+      const manageMonth = `${String(month).padStart(2, "0")}/${year}`;
+      const res = await axios.get(
+        `${API}/payment-history/debt?manageMonth=${manageMonth}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const mapped = customers.map((c) => {
+        const debt = res.data.find((d) => d.customerCode === c.code);
+        let trangThai = "green";
+        if (debt?.remainAmount > 0) {
+          const tiLe = debt.totalAmount
+            ? debt.remainAmount / debt.totalAmount
+            : 0;
+          trangThai = tiLe <= 0.2 ? "yellow" : "red";
+        }
+
+        return {
+          debtCode: debt?.debtCode || null,
+          maKH: c.code,
+          tenKH: c.name,
+          fromDate: debt?.fromDate ? new Date(debt.fromDate) : null,
+          toDate: debt?.toDate ? new Date(debt.toDate) : null,
+          thangQuanLy: debt?.manageMonth || manageMonth,
+          tongCuoc: Number(debt?.totalAmount || 0),
+          daThanhToan: Number(debt?.paidAmount || 0),
+          conLai: Number(debt?.remainAmount || 0),
+          status: debt?.status || "CHUA_TRA",
+          trangThai,
+          soChuyen: Number(debt?.soChuyen || 0),
+        };
+      });
+
+      setDebtList(mapped);
+    } catch (err) {
+      console.error(err);
+      alert("Không lấy được công nợ");
+    }
   };
 
   useEffect(() => {
-    loadData();
-  }, [month, year]);
+    if (customers.length > 0) loadData();
+  }, [month, year, customers]);
 
+  // ====================== HELPERS ======================
   const getCustomerName = (maKH) => {
     const found = customers.find((c) => c.code === maKH);
     return found ? found.name : "";
   };
 
+  // ====================== ACTIONS ======================
+  const handleLockDebt = async (debtCode) => {
+    if (!debtCode) return alert("Kỳ công nợ chưa tồn tại để khoá");
+    try {
+      await axios.post(
+        `${API}/payment-history/debt-period/${debtCode}/lock`,
+        { lockedBy: user?.name },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alert("Đã khoá kỳ công nợ");
+      loadData();
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.error || "Lỗi khi khoá kỳ công nợ");
+    }
+  };
+
+  // ====================== TẠO KỲ CÔNG NỢ TỰ ĐỘNG ======================
+  const [isCreatingDebt, setIsCreatingDebt] = useState(false);
+
+  const handleAutoCreateDebt = async () => {
+    if (isCreatingDebt) return; // chặn double click
+
+    setIsCreatingDebt(true);
+    try {
+      for (const c of selectedCustomerList) {
+        const { fromDate, toDate } = autoDebtData.customDates[c.code] || {};
+        const finalFrom = fromDate || autoDebtData.globalFromDate;
+        const finalTo = toDate || autoDebtData.globalToDate;
+
+        if (!finalFrom || !finalTo) {
+          alert(`Chưa chọn khoảng ngày cho KH ${c.name}`);
+          return;
+        }
+
+        await axios.post(
+          `${API}/payment-history/debt-period`,
+          {
+            customerCode: c.code,
+            fromDate: finalFrom,
+            toDate: finalTo,
+            manageMonth: autoDebtData.manageMonth,
+            note: autoDebtData.note || "",
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      }
+
+      alert("Đã tạo kỳ công nợ tự động");
+      setShowAutoCreateModal(false);
+      loadData();
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.error || "Lỗi tạo kỳ công nợ");
+    } finally {
+      setIsCreatingDebt(false); // 🔓 mở khoá dù success hay lỗi
+    }
+  };
+
+  const selectedCustomerList = customers.filter((c) =>
+    selectedCustomers.includes(c.code)
+  );
+
+  //update khoảng của kỳ công nợ
+  const [showEditDebtModal, setShowEditDebtModal] = useState(false);
+  const [editingDebt, setEditingDebt] = useState(null);
+
+  const [editFromDate, setEditFromDate] = useState("");
+  const [editToDate, setEditToDate] = useState("");
+
+  const handleUpdateDebtPeriod = async () => {
+    if (!editFromDate || !editToDate) {
+      alert("Vui lòng chọn đủ ngày");
+      return;
+    }
+
+    try {
+      await axios.put(
+        `${API}/payment-history/debt-period/${editingDebt.debtCode}`,
+        {
+          fromDate: editFromDate,
+          toDate: editToDate,
+          updatedBy: user?.name,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      alert("Đã cập nhật kỳ công nợ");
+      setShowEditDebtModal(false);
+      loadData();
+    } catch (err) {
+      alert(err.response?.data?.error || "Không sửa được kỳ công nợ");
+    }
+  };
+
+  const filteredDebtList = debtList.filter((c) => {
+    const normSearch = normalizeString(searchText);
+    const normCode = normalizeString(c.maKH);
+    const normName = normalizeString(c.tenKH);
+
+    return normCode.includes(normSearch) || normName.includes(normSearch);
+  });
+
+  // ====================== RENDER ======================
   return (
     <div className="p-4 text-xs">
+      {/* NAVIGATION */}
       <div className="flex gap-2 items-center mb-4">
         <button
           onClick={() => navigate("/ke-toan")}
@@ -95,72 +248,65 @@ export default function CustomerDebtPage() {
         >
           Trang chính
         </button>
-
         <button
           onClick={handleGoToDrivers}
-          className={`px-3 py-1 rounded text-white 
-      ${isActive("/manage-driver") ? "bg-green-600" : "bg-blue-500"}
-    `}
+          className={`px-3 py-1 rounded text-white ${
+            isActive("/manage-driver") ? "bg-green-600" : "bg-blue-500"
+          }`}
         >
           Danh sách lái xe
         </button>
-
         <button
           onClick={handleGoToCustomers}
-          className={`px-3 py-1 rounded text-white 
-      ${isActive("/manage-customer") ? "bg-green-600" : "bg-blue-500"}
-    `}
+          className={`px-3 py-1 rounded text-white ${
+            isActive("/manage-customer") ? "bg-green-600" : "bg-blue-500"
+          }`}
         >
           Danh sách khách hàng
         </button>
-
         <button
           onClick={handleGoToVehicles}
-          className={`px-3 py-1 rounded text-white 
-      ${isActive("/manage-vehicle") ? "bg-green-600" : "bg-blue-500"}
-    `}
+          className={`px-3 py-1 rounded text-white ${
+            isActive("/manage-vehicle") ? "bg-green-600" : "bg-blue-500"
+          }`}
         >
           Danh sách xe
         </button>
-
         <button
           onClick={handleGoToTrips}
-          className={`px-3 py-1 rounded text-white 
-      ${isActive("/manage-trip") ? "bg-green-600" : "bg-blue-500"}
-    `}
+          className={`px-3 py-1 rounded text-white ${
+            isActive("/manage-trip") ? "bg-green-600" : "bg-blue-500"
+          }`}
         >
           Danh sách chuyến phụ trách
         </button>
-
         <button
           onClick={() => {
             if (!user?.permissions?.includes("edit_trip")) {
-              alert("Bạn không có quyền truy cập!");
+              alert("Bạn không có quyền!");
               return;
             }
             handleGoToAllTrips();
           }}
-          className={`px-3 py-1 rounded text-white 
-      ${isActive("/manage-all-trip") ? "bg-green-600" : "bg-blue-500"}
-    `}
+          className={`px-3 py-1 rounded text-white ${
+            isActive("/manage-all-trip") ? "bg-green-600" : "bg-blue-500"
+          }`}
         >
           Tất cả các chuyến
         </button>
-
         <button
           onClick={handleGoToAllCustomers}
-          className={`px-3 py-1 rounded text-white 
-      ${isActive("/customer-debt") ? "bg-green-600" : "bg-blue-500"}
-    `}
+          className={`px-3 py-1 rounded text-white ${
+            isActive("/customer-debt") ? "bg-green-600" : "bg-blue-500"
+          }`}
         >
           Công nợ KH
         </button>
-
         <button
           onClick={handleGoToCustomer26}
-          className={`px-3 py-1 rounded text-white 
-      ${isActive("/customer-debt-26") ? "bg-green-600" : "bg-blue-500"}
-    `}
+          className={`px-3 py-1 rounded text-white ${
+            isActive("/customer-debt-26") ? "bg-green-600" : "bg-blue-500"
+          }`}
         >
           Công nợ khách lẻ
         </button>
@@ -173,9 +319,9 @@ export default function CustomerDebtPage() {
           Sổ phiếu chi
         </button>
       </div>
-      <h1 className="text-xl font-bold mb-4">TỔNG CÔNG NỢ KHÁCH HÀNG</h1>
 
-      {/* Bộ lọc tháng năm */}
+      {/* Tiêu đề + bộ lọc */}
+      <h1 className="text-xl font-bold mb-4">TỔNG CÔNG NỢ KHÁCH HÀNG</h1>
       <div className="flex gap-3 mb-4">
         <input
           type="number"
@@ -195,45 +341,86 @@ export default function CustomerDebtPage() {
           onClick={loadData}
           className="px-4 py-2 bg-blue-600 text-white rounded"
         >
-          Lọc
+          LỌC
         </button>
+        <button
+          onClick={() => {
+            if (selectedCustomers.length === 0) {
+              alert("Vui lòng chọn khách hàng");
+              return;
+            }
+            setShowAutoCreateModal(true);
+          }}
+          className="px-4 py-2 bg-green-600 text-white rounded"
+        >
+          TẠO KỲ CÔNG NỢ
+        </button>
+      </div>
+      <div className="flex gap-2 mb-2 items-center">
+        <input
+          type="text"
+          placeholder="Mã KH / Tên KH"
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          className="border p-2 w-52 rounded"
+        />
+        {searchText && (
+          <button
+            className="px-2 py-1 bg-gray-300 rounded"
+            onClick={() => setSearchText("")}
+          >
+            ✕
+          </button>
+        )}
       </div>
 
       {/* Bảng công nợ */}
-      <div className="overflow-auto max-h-[600px] border">
-        <table className="w-full border-collapse">
-          <thead className="bg-gray-200">
-            <tr>
-              <th className="border p-2 sticky top-0 bg-gray-200 z-10">
-                Mã KH
-              </th>
-              <th className="border p-2 sticky top-0 bg-gray-200 z-10">
-                Tên KH
-              </th>
-              <th className="border p-2 sticky top-0 bg-gray-200 z-10">
-                Tổng cước
-              </th>
-              <th className="border p-2 sticky top-0 bg-gray-200 z-10">
-                Đã thanh toán
-              </th>
-              <th className="border p-2 sticky top-0 bg-gray-200 z-10">
-                Còn lại
-              </th>
-              <th className="border p-2 sticky top-0 bg-gray-200 z-10">
-                Trạng thái
-              </th>
-              <th className="border p-2 sticky top-0 bg-gray-200 z-10">
-                Số chuyến
-              </th>
-            </tr>
-          </thead>
+      <div className="overflow-auto max-h-[650px] border relative">
+        <table className="w-full border-separate border-spacing-0">
+<thead className="bg-gray-200">
+      <tr>
+        <th className="border p-2 sticky top-0 bg-gray-200 z-20">
+          <input type="checkbox" />
+        </th>
+        <th className="border p-2 sticky top-0 bg-gray-200 z-20">MÃ KH</th>
+        <th className="border p-2 sticky top-0 bg-gray-200 z-20">TÊN KH</th>
+        <th className="border p-2 sticky top-0 bg-gray-200 z-20">MÃ CÔNG NỢ</th>
+        <th className="border p-2 sticky top-0 bg-gray-200 z-20">KỲ CÔNG NỢ</th>
+        <th className="border p-2 sticky top-0 bg-gray-200 z-20">TỔNG TIỀN</th>
+        <th className="border p-2 sticky top-0 bg-gray-200 z-20">ĐÃ THANH TOÁN</th>
+        <th className="border p-2 sticky top-0 bg-gray-200 z-20">CÒN LẠI</th>
+        <th className="border p-2 sticky top-0 bg-gray-200 z-20">TRẠNG THÁI</th>
+        <th className="border p-2 sticky top-0 bg-gray-200 z-20">SỐ CHUYẾN</th>
+        <th className="border p-2 sticky top-0 bg-gray-200 z-20">HÀNH ĐỘNG</th>
+      </tr>
+    </thead>
           <tbody>
-            {debtList.map((c) => (
-              <tr key={c.maKH} className="h-[50px]">
+            {filteredDebtList.map((c) => (
+              <tr key={c.maKH} className="h-[15px]">
+                <td className="border p-2 text-center">
+                  <input
+                    type="checkbox"
+                    checked={selectedCustomers.includes(c.maKH)}
+                    onChange={(e) =>
+                      setSelectedCustomers((prev) =>
+                        e.target.checked
+                          ? [...prev, c.maKH]
+                          : prev.filter((x) => x !== c.maKH)
+                      )
+                    }
+                  />
+                </td>
+
                 <td className="border p-2">{c.maKH}</td>
-                <td className="border p-2">{getCustomerName(c.maKH)}</td>
+                <td className="border p-2">{c.tenKH}</td>
+                <td className="border p-2">{c.debtCode || "-"}</td>
+                <td className="border p-2">
+                  {c.fromDate && c.toDate
+                    ? `${c.fromDate.toLocaleDateString()} - ${c.toDate.toLocaleDateString()}`
+                    : "-"}
+                </td>
                 <td
-                  className="border p-2 text-blue-700 underline cursor-pointer"
+                  className="border p-2 text-blue-700 font-bold underline cursor-pointer"
                   onClick={() => {
                     setSelectedCustomer(c);
                     setShowTripList(true);
@@ -241,8 +428,8 @@ export default function CustomerDebtPage() {
                 >
                   {c.tongCuoc.toLocaleString()}
                 </td>
-                <td className="border p-2">{c.daThanhToan.toLocaleString()}</td>
-                <td className="border p-2">{c.conLai.toLocaleString()}</td>
+                <td className="border p-2 font-bold">{c.daThanhToan.toLocaleString()}</td>
+                <td className="border p-2 font-bold text-red-600">{c.conLai.toLocaleString()}</td>
                 <td className="border p-2">
                   <div
                     className="flex items-center gap-2 cursor-pointer"
@@ -275,6 +462,36 @@ export default function CustomerDebtPage() {
                   </div>
                 </td>
                 <td className="border p-2">{c.soChuyen}</td>
+                <td className="border p-2 flex gap-1 justify-center">
+                  {c.debtCode && (
+                    <>
+                      <button
+                        className="px-2 py-1 bg-yellow-500 text-white rounded"
+                        onClick={() => handleLockDebt(c.debtCode)}
+                      >
+                        Khoá kỳ
+                      </button>
+
+                      <button
+                        className="px-2 py-1 bg-blue-500 text-white rounded"
+                        onClick={() => {
+                          setEditingDebt(c);
+                          setEditFromDate(
+                            c.fromDate
+                              ? c.fromDate.toISOString().slice(0, 10)
+                              : ""
+                          );
+                          setEditToDate(
+                            c.toDate ? c.toDate.toISOString().slice(0, 10) : ""
+                          );
+                          setShowEditDebtModal(true);
+                        }}
+                      >
+                        Sửa kỳ
+                      </button>
+                    </>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -282,21 +499,243 @@ export default function CustomerDebtPage() {
       </div>
 
       {/* Modal lịch sử thanh toán */}
-      {showPaymentHistory && (
+      {showPaymentHistory && selectedCustomer && (
         <PaymentHistoryModal
+          debtCode={selectedCustomer.debtCode}
           customerCode={selectedCustomer.maKH}
           onClose={() => setShowPaymentHistory(false)}
+          onPaymentAdded={loadData}
         />
       )}
 
-      {/* Modal danh sách mã chuyến */}
-      {showTripList && (
+      {/* Modal danh sách chuyến */}
+      {showTripList && selectedCustomer && (
         <TripListModal
           customer={selectedCustomer}
           month={month}
           year={year}
           onClose={() => setShowTripList(false)}
         />
+      )}
+
+      {/* Modal tạo kỳ công nợ tự động */}
+      {showAutoCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50">
+          <div className="bg-white p-4 rounded w-[600px] max-h-[80vh] overflow-auto">
+            <h2 className="text-lg font-bold mb-2">Tạo kỳ công nợ tự động</h2>
+
+            {/* manageMonth + note */}
+            <div className="flex gap-2 mb-2">
+              <input
+                type="text"
+                placeholder="MM/YYYY"
+                value={autoDebtData.manageMonth || ""}
+                onChange={(e) =>
+                  setAutoDebtData({
+                    ...autoDebtData,
+                    manageMonth: e.target.value,
+                  })
+                }
+                className="border p-2 w-36"
+              />
+              <input
+                type="text"
+                placeholder="Ghi chú"
+                value={autoDebtData.note || ""}
+                onChange={(e) =>
+                  setAutoDebtData({ ...autoDebtData, note: e.target.value })
+                }
+                className="border p-2 flex-1"
+              />
+            </div>
+
+            {/* Ngày chung */}
+            <div className="mb-2 text-xs font-semibold">
+              Khoảng ngày chung cho tất cả khách hàng ( chọn chung trước chọn
+              riêng sau )
+            </div>
+            <div className="flex gap-2 mb-4">
+              <input
+                type="date"
+                value={autoDebtData.globalFromDate || ""}
+                onChange={(e) => {
+                  const newFrom = e.target.value;
+                  const updatedCustomDates = { ...autoDebtData.customDates };
+                  customers.forEach((c) => {
+                    if (!autoDebtData.customDates[c.code]?.customized) {
+                      updatedCustomDates[c.code] = {
+                        ...updatedCustomDates[c.code],
+                        fromDate: newFrom,
+                        customized: false,
+                      };
+                    }
+                  });
+                  setAutoDebtData({
+                    ...autoDebtData,
+                    globalFromDate: newFrom,
+                    customDates: updatedCustomDates,
+                  });
+                }}
+                className="border p-1 w-36"
+              />
+              <input
+                type="date"
+                value={autoDebtData.globalToDate || ""}
+                onChange={(e) => {
+                  const newTo = e.target.value;
+                  const updatedCustomDates = { ...autoDebtData.customDates };
+                  customers.forEach((c) => {
+                    if (!autoDebtData.customDates[c.code]?.customized) {
+                      updatedCustomDates[c.code] = {
+                        ...updatedCustomDates[c.code],
+                        toDate: newTo,
+                        customized: false,
+                      };
+                    }
+                  });
+                  setAutoDebtData({
+                    ...autoDebtData,
+                    globalToDate: newTo,
+                    customDates: updatedCustomDates,
+                  });
+                }}
+                className="border p-1 w-36"
+              />
+            </div>
+
+            {/* Danh sách khách hàng dạng bảng */}
+            <div className="overflow-auto max-h-[300px] border mb-2">
+              <table className="w-full border-collapse">
+                <thead className="bg-gray-200 sticky top-0 z-10">
+                  <tr>
+                    <th className="border p-2">Mã KH</th>
+                    <th className="border p-2">Tên KH</th>
+                    <th className="border p-2">Từ ngày</th>
+                    <th className="border p-2">Đến ngày</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedCustomerList.map((c) => {
+                    const custDate = autoDebtData.customDates[c.code] || {};
+                    return (
+                      <tr key={c.code}>
+                        <td className="border p-2">{c.code}</td>
+                        <td className="border p-2">{c.name}</td>
+                        <td className="border p-2">
+                          <input
+                            type="date"
+                            value={
+                              custDate.fromDate ||
+                              autoDebtData.globalFromDate ||
+                              ""
+                            }
+                            onChange={(e) =>
+                              setAutoDebtData({
+                                ...autoDebtData,
+                                customDates: {
+                                  ...autoDebtData.customDates,
+                                  [c.code]: {
+                                    ...custDate,
+                                    fromDate: e.target.value,
+                                  },
+                                },
+                              })
+                            }
+                          />
+                        </td>
+                        <td className="border p-2">
+                          <input
+                            type="date"
+                            value={
+                              custDate.toDate || autoDebtData.globalToDate || ""
+                            }
+                            onChange={(e) =>
+                              setAutoDebtData({
+                                ...autoDebtData,
+                                customDates: {
+                                  ...autoDebtData.customDates,
+                                  [c.code]: {
+                                    ...custDate,
+                                    toDate: e.target.value,
+                                  },
+                                },
+                              })
+                            }
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Nút tạo / huỷ */}
+            <div className="flex justify-end gap-2 mt-2">
+              <button
+                onClick={() => setShowAutoCreateModal(false)}
+                className="px-3 py-1 bg-gray-400 text-white rounded"
+              >
+                Huỷ
+              </button>
+              <button
+                disabled={isCreatingDebt}
+                className={`px-3 py-1 rounded text-white ${
+                  isCreatingDebt
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-blue-600"
+                }`}
+                onClick={handleAutoCreateDebt}
+              >
+                {isCreatingDebt ? "Đang tạo..." : "Tạo"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEditDebtModal && editingDebt && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50">
+          <div className="bg-white p-4 rounded w-[400px]">
+            <h2 className="text-lg font-bold mb-3">
+              Sửa kỳ công nợ – {editingDebt.debtCode}
+            </h2>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-xs">Từ ngày</label>
+              <input
+                type="date"
+                value={editFromDate}
+                onChange={(e) => setEditFromDate(e.target.value)}
+                className="border p-2"
+              />
+
+              <label className="text-xs">Đến ngày</label>
+              <input
+                type="date"
+                value={editToDate}
+                onChange={(e) => setEditToDate(e.target.value)}
+                className="border p-2"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                className="px-3 py-1 bg-gray-400 text-white rounded"
+                onClick={() => setShowEditDebtModal(false)}
+              >
+                Huỷ
+              </button>
+
+              <button
+                className="px-3 py-1 bg-green-600 text-white rounded"
+                onClick={handleUpdateDebtPeriod}
+              >
+                Lưu
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
