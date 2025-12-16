@@ -16,7 +16,7 @@ export const allColumns = [
   { key: "nameHoaDon", label: "TÊN KHÁCH HÀNG TRÊN HOÁ ĐƠN" },
   { key: "mstCCCD", label: "MST/CCCD CHỦ HỘ" },
   { key: "address", label: "ĐỊA CHỈ" },
-  { key: "accountant", label: "KẾ TOÁN PHỤ TRÁCH" },
+  { key: "accountant", label: "GHI CHÚ" },
   { key: "accUsername", label: "User" },
 ];
 

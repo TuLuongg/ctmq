@@ -101,7 +101,7 @@ export default function ManageTrip({ user, onLogout }) {
     { key: "luuCaBS", label: "LƯU CA" },
     { key: "cpKhacBS", label: "CP KHÁC" },
     { key: "maChuyen", label: "MÃ CHUYẾN" },
-    { key: "keToanPhuTrach", label: "KẾ TOÁN PHỤ TRÁCH" },
+    { key: "accountUsername", label: "KẾ TOÁN PHỤ TRÁCH" },
     { key: "maHoaDon", label: "MÃ HOÁ ĐƠN" },
 
     // REGION: extra columns

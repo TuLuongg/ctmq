@@ -135,7 +135,7 @@ export default function CustomerModal({
           {/* Kế toán phụ trách */}
           <div>
             <label className="block text-sm font-medium">
-              Tên kế toán phụ trách
+              Ghi chú
             </label>
             <input
               name="accountant"
