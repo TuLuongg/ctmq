@@ -16,6 +16,7 @@ const {
   restoreSchedule,
   forceDeleteSchedule,
   emptyTrash,
+  getScheduleFilterOptions
 } = require("../controllers/scheduleAdminController");
 const authMiddleware = require("../middleware/authMiddleware");
 
@@ -72,6 +73,9 @@ router.post("/import-excel", authMiddleware(["admin","dieuVan"]), importSchedule
 
 // Lấy danh sách chuyến theo kế toán phụ trách
 router.get("/accountant", authMiddleware(["keToan"]), getSchedulesByAccountant);
+
+router.get("/accountant/filter-options", authMiddleware(["keToan"]), getScheduleFilterOptions);
+
 
 // Thêm mã hoá đơn cho chuyến
 router.post("/add-hoa-don", authMiddleware(["keToan"]), addHoaDonToSchedules);
