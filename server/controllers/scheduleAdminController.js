@@ -765,6 +765,7 @@ const addBoSung = async (req, res) => {
         schedule.hangVeBS = u.hangVeBS?.toString() || "";
         schedule.luuCaBS = u.luuCaBS?.toString() || "";
         schedule.cpKhacBS = u.cpKhacBS?.toString() || "";
+        schedule.themDiem = u.themDiem?.toString() || "";
         await schedule.save();
       }
     }
