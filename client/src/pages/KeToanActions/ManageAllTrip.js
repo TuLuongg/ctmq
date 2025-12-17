@@ -96,6 +96,7 @@ export default function ManageTrip({ user, onLogout }) {
     { key: "soDiem", label: "SỐ ĐIỂM" },
     { key: "trongLuong", label: "TRỌNG LƯỢNG" },
     { key: "bienSoXe", label: "BIỂN SỐ XE" },
+    { key: "themDiem", label: "THÊM ĐIỂM" },
     { key: "cuocPhiBS", label: "CƯỚC PHÍ" },
     { key: "daThanhToan", label: "ĐÃ THANH TOÁN" },
     { key: "bocXepBS", label: "BỐC XẾP" },
@@ -553,6 +554,7 @@ const [excelData, setExcelData] = useState([]);
         hangVeBS: (obj["HÀNG VỀ"] ?? "0").toString(),
         luuCaBS: (obj["LƯU CA"] ?? "0").toString(),
         cpKhacBS: (obj["CP KHÁC"] ?? "0").toString(),
+        cpKhacBS: (obj["THÊM ĐIỂM"] ?? "").toString(),
       };
 
       if (r.maChuyen) updates.push(r);
