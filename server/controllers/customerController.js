@@ -228,17 +228,40 @@ function cleanNumber(value) {
   return isNaN(num) ? 0 : num;
 }
 
+function cloneRowStyle(sheet, sourceRowNumber, targetRowNumber) {
+  const sourceRow = sheet.getRow(sourceRowNumber);
+  const targetRow = sheet.getRow(targetRowNumber);
+
+  sourceRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+    const targetCell = targetRow.getCell(colNumber);
+
+    // ❌ KHÔNG copy value
+    targetCell.value = null;
+
+    if (cell.style) {
+      targetCell.style = JSON.parse(JSON.stringify(cell.style));
+    }
+    if (cell.border) {
+      targetCell.border = JSON.parse(JSON.stringify(cell.border));
+    }
+    if (cell.alignment) {
+      targetCell.alignment = JSON.parse(JSON.stringify(cell.alignment));
+    }
+    if (cell.numFmt) {
+      targetCell.numFmt = cell.numFmt;
+    }
+  });
+
+  targetRow.height = sourceRow.height;
+}
+
 const exportTripsByCustomer = async (req, res) => {
   try {
     const { maKH } = req.params;
     const { from, to } = req.query;
 
-    console.log("Xuất bảng kê:", maKH, from, to);
-
     if (!maKH || !from || !to) {
-      return res
-        .status(400)
-        .json({ message: "Thiếu maKH, from hoặc to (YYYY-MM-DD)" });
+      return res.status(400).json({ message: "Thiếu maKH, from hoặc to" });
     }
 
     const customer = await Customer.findOne({ code: maKH });
@@ -246,44 +269,58 @@ const exportTripsByCustomer = async (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy khách hàng" });
     }
 
-    // 🔥 Chuyển ngày sang dạng Date
     const fromDate = new Date(from);
     const toDate = new Date(to);
-
-    // 👉 Đặt toDate cuối ngày
     toDate.setHours(23, 59, 59, 999);
 
-    // 🔥 LỌC CHUYẾN THEO KHOẢNG NGÀY
     const trips = await ScheduleAdmin.find({
       maKH,
       ngayGiaoHang: { $gte: fromDate, $lte: toDate },
     }).sort({ ngayGiaoHang: 1 });
 
-    console.log("Số chuyến trong khoảng:", trips.length);
-
-    const templatePath = path.join(__dirname, "../templates/form_mau.xlsx");
     const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.readFile(templatePath);
+    await workbook.xlsx.readFile(
+      path.join(__dirname, "../templates/form_mau.xlsx")
+    );
+
     const sheet = workbook.getWorksheet("BẢNG KÊ");
 
+    // Header
     sheet.getCell("C6").value = customer.nameHoaDon || "";
     sheet.getCell("C7").value = customer.address || "";
     sheet.getCell("C8").value = customer.mstCCCD || "";
 
+    // ==========================
+    // FIX VỠ FORM
+    // ==========================
+    const startRow = 12;
     const templateRows = 7;
     const extraRows =
       trips.length > templateRows ? trips.length - templateRows : 0;
 
     if (extraRows > 0) {
-      sheet.insertRows(19, Array.from({ length: extraRows }, () => []));
+      sheet.insertRows(
+        startRow + templateRows,
+        Array.from({ length: extraRows }, () => [])
+      );
+
+      for (let i = 0; i < extraRows; i++) {
+        cloneRowStyle(
+          sheet,
+          startRow,
+          startRow + templateRows + i
+        );
+      }
     }
 
-    let startRow = 12;
-
+    // ==========================
+    // GHI DỮ LIỆU
+    // ==========================
     trips.forEach((trip, index) => {
       const row = sheet.getRow(startRow + index);
 
-      if (trips.length > 7) row.getCell("A").value = index + 1;
+      row.getCell("A").value = index + 1;
+      row.getCell("I").value = ""; // 🔥 CLEAR CỘT I (QUAN TRỌNG)
 
       const cuocPhi = trip.cuocPhiBS || trip.cuocPhi;
       const bocXep = trip.bocXepBS || trip.bocXep;
@@ -300,18 +337,16 @@ const exportTripsByCustomer = async (req, res) => {
       row.getCell("E").value = trip.soDiem || "";
       row.getCell("F").value = trip.trongLuong || "";
       row.getCell("G").value = trip.bienSoXe || "";
-
+      row.getCell("I").value = trip.themDiem || "";
       row.getCell("H").value = cuocPhi || "";
-      row.getCell("I").value = "";
       row.getCell("J").value = bocXep || "";
       row.getCell("K").value = ve || "";
       row.getCell("L").value = hangVe || "";
       row.getCell("M").value = luuCa || "";
       row.getCell("N").value = cpKhac || "";
-
       row.getCell("Q").value = trip.maChuyen || "";
 
-      const total =
+      row.getCell("O").value =
         cleanNumber(cuocPhi) +
         cleanNumber(bocXep) +
         cleanNumber(ve) +
@@ -319,33 +354,33 @@ const exportTripsByCustomer = async (req, res) => {
         cleanNumber(luuCa) +
         cleanNumber(cpKhac);
 
-      row.getCell("O").value = total;
       row.commit();
     });
 
+    // ==========================
+    // TỔNG
+    // ==========================
     const lastRow = startRow + trips.length;
 
-    // SUM O
     let sumO = 0;
     for (let i = 0; i < trips.length; i++) {
-      const v = sheet.getCell(`O${startRow + i}`).value;
-      sumO += Number(v) || 0;
+      sumO += Number(sheet.getCell(`O${startRow + i}`).value) || 0;
     }
 
-    // Ghi tổng
     sheet.getCell(`G${lastRow}`).value = sumO;
     sheet.getCell(`G${lastRow + 1}`).value = Math.round(sumO * 0.08);
     sheet.getCell(`G${lastRow + 2}`).value = Math.round(sumO * 1.08);
+
+    // 🔥 CHỈ DÒNG NÀY CÓ GIÁ TRỊ
     sheet.getCell(`I${lastRow + 5}`).value = customer.nameHoaDon || "";
 
-    // Font Times New Roman
-    sheet.eachRow((row) => {
-      row.eachCell((cell) => {
+    // Font
+    sheet.eachRow(row =>
+      row.eachCell(cell => {
         cell.font = { name: "Times New Roman", size: 12 };
-        });
-    });
+      })
+    );
 
-    // 📌 Trả file về FE
     res.setHeader(
       "Content-Disposition",
       `attachment; filename=BANG_KE_${maKH}_${from}_den_${to}.xlsx`
@@ -358,10 +393,11 @@ const exportTripsByCustomer = async (req, res) => {
     await workbook.xlsx.write(res);
     res.end();
   } catch (err) {
-    console.error("Lỗi xuất bảng kê:", err);
+    console.error(err);
     res.status(500).json({ message: "Lỗi xuất bảng kê" });
   }
 };
+
 
 
 // ==============================
