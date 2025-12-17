@@ -54,54 +54,37 @@ const calcStatus = (total, paid, remain) => {
   return "CHUA_TRA";
 };
 
-const calcPeriodMoneyFromTrips = (trips) => {
-  let totalAmount = 0;
+const calcPeriodMoneyFromTrips = (trips, vatPercent = 0) => {
+  let totalAmountInvoice = 0;
+  let totalAmountCash = 0;
   let paidAmount = 0;
 
   for (const t of trips) {
     const tripTotal = calcTripCost(t);
     const tripPaid = parseFloat(t.daThanhToan) || 0;
 
-    totalAmount += tripTotal;
+    if (t.paymentType === "CASH") {
+      totalAmountCash += tripTotal;
+    } else {
+      totalAmountInvoice += tripTotal; // INVOICE
+    }
+
     paidAmount += tripPaid;
   }
 
+  const vatAmount = totalAmountInvoice * (vatPercent / 100);
+  const totalAmount = totalAmountInvoice + totalAmountCash + vatAmount;
   const remainAmount = totalAmount - paidAmount;
 
   return {
+    totalAmountInvoice,
+    totalAmountCash,
+    vatAmount,
     totalAmount,
     paidAmount,
     remainAmount: remainAmount < 0 ? 0 : remainAmount,
   };
 };
-
-const calcPeriodMoneyFromTripsAndReceipts = async (period) => {
-  const trips = await ScheduleAdmin.find({
-    maKH: period.customerCode,
-    ngayGiaoHang: { $gte: period.fromDate, $lte: period.toDate },
-  });
-
-  const { totalAmount, paidAmount: paidFromTrips } = calcPeriodMoneyFromTrips(trips);
-
-  const receipts = await PaymentReceipt.find({
-    "allocations.debtPeriodId": period._id,
-  });
-
-  const paidFromReceipts = receipts.reduce((sum, r) => {
-    const alloc = r.allocations.find(a => a.debtPeriodId.toString() === period._id.toString());
-    return sum + (alloc ? alloc.amount : 0);
-  }, 0);
-
-  const paidAmount = paidFromTrips + paidFromReceipts;
-  const remainAmount = totalAmount - paidAmount;
-
-  return {
-    totalAmount,
-    paidAmount,
-    remainAmount: remainAmount < 0 ? 0 : remainAmount,
-  };
-};
-
 
 // =====================================================
 // 📌 LẤY CÔNG NỢ KHÁCH HÀNG (KH CHUNG, ≠26)
@@ -109,53 +92,75 @@ const calcPeriodMoneyFromTripsAndReceipts = async (period) => {
 exports.getCustomerDebt = async (req, res) => {
   try {
     const { manageMonth } = req.query;
-    if (!manageMonth)
+    if (!manageMonth) {
       return res.status(400).json({ error: "Thiếu manageMonth" });
+    }
 
     const periods = await CustomerDebtPeriod.find({
       manageMonth,
       customerCode: { $ne: "26" },
     }).sort({ customerCode: 1, fromDate: 1 });
 
-    // 1️⃣ TRẢ NGAY CACHE
-    res.json(periods.map(p => ({
-      debtCode: p.debtCode,
-      customerCode: p.customerCode,
-      fromDate: p.fromDate,
-      toDate: p.toDate,
-      manageMonth: p.manageMonth,
-      totalAmount: p.totalAmount,
-      paidAmount: p.paidAmount,
-      remainAmount: p.remainAmount,
-      status: p.status,
-    })));
+    // 1️⃣ TRẢ DATA NGAY CHO FE (CÓ VAT)
+    res.json(
+      periods.map((p) => ({
+        debtCode: p.debtCode,
+        customerCode: p.customerCode,
+        fromDate: p.fromDate,
+        toDate: p.toDate,
+        manageMonth: p.manageMonth,
 
+        vatPercent: p.vatPercent || 0,
+        totalAmountInvoice: p.totalAmountInvoice || 0,
+        totalAmountCash: p.totalAmountCash || 0,
 
-setImmediate(async () => {
-  for (const p of periods) {
-    if (p.isLocked) continue;
+        totalAmount: p.totalAmount, // sau VAT
+        paidAmount: p.paidAmount,
+        remainAmount: p.remainAmount,
+        status: p.status,
+        isLocked: p.isLocked
+      }))
+    );
 
-    const { totalAmount, paidAmount, remainAmount } = await calcPeriodMoneyFromTripsAndReceipts(p);
+    // 2️⃣ RECALC NGẦM (CHUẨN THEO CODE HIỆN CÓ)
+    setImmediate(async () => {
+      for (const p of periods) {
+        if (p.isLocked) continue;
 
-    const changed =
-      p.totalAmount !== totalAmount ||
-      p.paidAmount !== paidAmount ||
-      p.remainAmount !== remainAmount;
+        // lấy lại trips của kỳ
+        const trips = await ScheduleAdmin.find({
+          maKH: p.customerCode,
+          ngayGiaoHang: { $gte: p.fromDate, $lte: p.toDate },
+        });
 
-    if (changed) {
-      p.totalAmount = totalAmount;
-      p.paidAmount = paidAmount;
-      p.remainAmount = remainAmount;
-      p.status = calcStatus(totalAmount, paidAmount, remainAmount);
-      await p.save();
-    }
-  }
-});
+        const money = calcPeriodMoneyFromTrips(trips, p.vatPercent || 0);
 
+        const changed =
+          p.totalAmountInvoice !== money.totalAmountInvoice ||
+          p.totalAmountCash !== money.totalAmountCash ||
+          p.totalAmount !== money.totalAmount ||
+          p.paidAmount !== money.paidAmount ||
+          p.remainAmount !== money.remainAmount;
 
+        if (changed) {
+          p.totalAmountInvoice = money.totalAmountInvoice;
+          p.totalAmountCash = money.totalAmountCash;
+          p.totalAmount = money.totalAmount;
+          p.paidAmount = money.paidAmount;
+          p.remainAmount = money.remainAmount;
+          p.status = calcStatus(
+            money.totalAmount,
+            money.paidAmount,
+            money.remainAmount
+          );
 
+          await p.save();
+        }
+      }
+    });
   } catch (err) {
     console.error(err);
+    res.status(500).json({ error: "Lỗi lấy công nợ khách hàng" });
   }
 };
 
@@ -164,7 +169,14 @@ setImmediate(async () => {
 // =====================================================
 exports.createDebtPeriod = async (req, res) => {
   try {
-    const { customerCode, fromDate, toDate, note } = req.body;
+    const {
+      customerCode,
+      manageMonth,
+      fromDate,
+      toDate,
+      note,
+      vatPercent = 0,
+    } = req.body;
 
     if (!customerCode || !fromDate || !toDate) {
       return res.status(400).json({ error: "Thiếu dữ liệu" });
@@ -177,11 +189,19 @@ exports.createDebtPeriod = async (req, res) => {
     const from = new Date(fromDate);
     const to = new Date(toDate);
 
-    // tạo manageMonth từ fromDate
-    const manageMonth = `${String(from.getMonth() + 1).padStart(
-      2,
-      "0"
-    )}/${from.getFullYear()}`;
+    // parse manageMonth dạng MM/YYYY
+    let month, year;
+    if (manageMonth && manageMonth.includes("/")) {
+      const [m, y] = manageMonth.split("/");
+      month = Number(m);
+      year = Number(y);
+    }
+
+    if (!month || !year) {
+      return res.status(400).json({
+        error: "manageMonth không đúng định dạng MM/YYYY",
+      });
+    }
 
     // check trùng tháng
     const existed = await CustomerDebtPeriod.findOne({
@@ -215,21 +235,22 @@ exports.createDebtPeriod = async (req, res) => {
     // lấy chuyến trong kỳ
     const trips = await ScheduleAdmin.find({
       maKH: customerCode,
-      ngayGiaoHang: {
-        $gte: from,
-        $lte: to,
-      },
+      ngayGiaoHang: { $gte: from, $lte: to },
     });
 
-    // 🔥 TÍNH CẢ ĐÃ THANH TOÁN
-    const { totalAmount, paidAmount, remainAmount } =
-      calcPeriodMoneyFromTrips(trips);
-
-    const debtCode = buildDebtCode(
-      customerCode,
-      from.getMonth() + 1,
-      from.getFullYear()
+    // set mặc định INVOICE
+    await ScheduleAdmin.updateMany(
+      {
+        maKH: customerCode,
+        ngayGiaoHang: { $gte: from, $lte: to },
+        $or: [{ paymentType: { $exists: false } }, { paymentType: null }],
+      },
+      { $set: { paymentType: "INVOICE" } }
     );
+
+    const money = calcPeriodMoneyFromTrips(trips, vatPercent);
+
+    const debtCode = buildDebtCode(customerCode, month, year);
 
     const period = new CustomerDebtPeriod({
       debtCode,
@@ -237,10 +258,17 @@ exports.createDebtPeriod = async (req, res) => {
       manageMonth,
       fromDate: from,
       toDate: to,
-      totalAmount,
-      paidAmount,
-      remainAmount,
-      status: calcStatus(totalAmount, paidAmount, remainAmount),
+      vatPercent,
+      totalAmountInvoice: money.totalAmountInvoice,
+      totalAmountCash: money.totalAmountCash,
+      totalAmount: money.totalAmount,
+      paidAmount: money.paidAmount,
+      remainAmount: money.remainAmount,
+      status: calcStatus(
+        money.totalAmount,
+        money.paidAmount,
+        money.remainAmount
+      ),
       note,
     });
 
@@ -261,7 +289,7 @@ exports.createDebtPeriod = async (req, res) => {
 exports.updateDebtPeriod = async (req, res) => {
   try {
     const { debtCode } = req.params;
-    const { fromDate, toDate, note } = req.body;
+    const { fromDate, toDate, note, vatPercent } = req.body;
 
     if (!fromDate || !toDate) {
       return res.status(400).json({ error: "Thiếu fromDate hoặc toDate" });
@@ -299,22 +327,29 @@ exports.updateDebtPeriod = async (req, res) => {
     // 🔄 TÍNH LẠI TIỀN THEO KHOẢNG NGÀY MỚI
     const trips = await ScheduleAdmin.find({
       maKH: period.customerCode,
-      ngayGiaoHang: {
-        $gte: from,
-        $lte: to,
-      },
+      ngayGiaoHang: { $gte: from, $lte: to },
     });
 
-    // 🔥 TÍNH LẠI CẢ TOTAL + PAID
-    const { totalAmount, paidAmount, remainAmount } =
-      calcPeriodMoneyFromTrips(trips);
+    const money = calcPeriodMoneyFromTrips(
+      trips,
+      vatPercent ?? period.vatPercent
+    );
 
     period.fromDate = from;
     period.toDate = to;
-    period.totalAmount = totalAmount;
-    period.paidAmount = paidAmount;
-    period.remainAmount = remainAmount;
-    period.status = calcStatus(totalAmount, paidAmount, remainAmount);
+    period.vatPercent = vatPercent ?? period.vatPercent;
+
+    period.totalAmountInvoice = money.totalAmountInvoice;
+    period.totalAmountCash = money.totalAmountCash;
+    period.totalAmount = money.totalAmount;
+    period.paidAmount = money.paidAmount;
+    period.remainAmount = money.remainAmount;
+    period.status = calcStatus(
+      money.totalAmount,
+      money.paidAmount,
+      money.remainAmount
+    );
+
     period.note = note ?? period.note;
 
     await period.save();
@@ -329,13 +364,87 @@ exports.updateDebtPeriod = async (req, res) => {
   }
 };
 
+// =====================================================
+// SET CASH / INVOICE CHO CHUYẾN (THEO BODY)
+// =====================================================
+exports.toggleTripPaymentType = async (req, res) => {
+  try {
+    const { maChuyenCode } = req.params;
+    const { paymentType } = req.body; // 👈 nhận từ FE
+
+    if (!["CASH", "INVOICE"].includes(paymentType)) {
+      return res.status(400).json({
+        error: "paymentType phải là CASH hoặc INVOICE",
+      });
+    }
+
+    const trip = await ScheduleAdmin.findOne({ maChuyen: maChuyenCode });
+    if (!trip) {
+      return res.status(404).json({ error: "Không tìm thấy chuyến" });
+    }
+
+    // ❗ nếu không đổi thì khỏi làm gì
+    if (trip.paymentType === paymentType) {
+      return res.json({
+        message: "paymentType không thay đổi",
+        paymentType: trip.paymentType,
+      });
+    }
+
+    // ✅ SET TRỰC TIẾP
+    trip.paymentType = paymentType;
+    await trip.save();
+
+    // 🔄 tính lại kỳ công nợ (nếu có & chưa khóa)
+    const period = await CustomerDebtPeriod.findOne({
+      customerCode: trip.maKH,
+      fromDate: { $lte: trip.ngayGiaoHang },
+      toDate: { $gte: trip.ngayGiaoHang },
+      isLocked: false,
+    });
+
+    if (period) {
+      const trips = await ScheduleAdmin.find({
+        maKH: period.customerCode,
+        ngayGiaoHang: {
+          $gte: period.fromDate,
+          $lte: period.toDate,
+        },
+      });
+
+      const money = calcPeriodMoneyFromTrips(trips, period.vatPercent || 0);
+
+      period.totalAmountInvoice = money.totalAmountInvoice;
+      period.totalAmountCash = money.totalAmountCash;
+      period.totalAmount = money.totalAmount;
+      period.paidAmount = money.paidAmount;
+      period.remainAmount = money.remainAmount;
+      period.status = calcStatus(
+        money.totalAmount,
+        money.paidAmount,
+        money.remainAmount
+      );
+
+      await period.save();
+    }
+
+    res.json({
+      message: "Đã cập nhật paymentType",
+      paymentType: trip.paymentType,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Không cập nhật được paymentType" });
+  }
+};
 
 // =====================================================
 // 📌 THANH TOÁN KỲ CÔNG NỢ (KH CHUNG)
 // =====================================================
 exports.addPaymentReceipt = async (req, res) => {
   try {
-    const {debtCode, customerCode, amount, method, note, createdBy } = req.body;
+    const { debtCode, customerCode, amount, method, note, createdBy } =
+      req.body;
 
     if (!customerCode || !amount) {
       return res.status(400).json({ error: "Thiếu customerCode hoặc amount" });
@@ -385,12 +494,62 @@ exports.addPaymentReceipt = async (req, res) => {
     await receipt.save();
 
     res.json({
-      message: "Đã ghi nhận phiếu thu (KH chung) và tự động trừ vào kỳ công nợ cũ nhất",
+      message:
+        "Đã ghi nhận phiếu thu (KH chung) và tự động trừ vào kỳ công nợ cũ nhất",
       receipt,
     });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Không thể tạo phiếu thu" });
+  }
+};
+
+// =====================================================
+// 🔄 HUỶ PHIẾU THU
+// =====================================================
+exports.rollbackPaymentReceipt = async (req, res) => {
+  try {
+    const { receiptId } = req.params;
+
+    const receipt = await PaymentReceipt.findById(receiptId);
+    if (!receipt) {
+      return res.status(404).json({ error: "Không tìm thấy phiếu thu" });
+    }
+
+    for (const alloc of receipt.allocations) {
+      const period = await CustomerDebtPeriod.findById(alloc.debtPeriodId);
+      if (!period) continue;
+
+      // 1️⃣ rollback paidAmount
+      period.paidAmount = Math.max(
+        (period.paidAmount || 0) - alloc.amount,
+        0
+      );
+
+      // 2️⃣ TÍNH LẠI remainAmount (❗ QUAN TRỌNG)
+      period.remainAmount = Math.max(
+        (period.totalAmount || 0) - period.paidAmount,
+        0
+      );
+
+      // 3️⃣ cập nhật trạng thái
+      if (period.remainAmount <= 0) {
+        period.status = "HOAN_TAT";
+      } else if (period.paidAmount <= 0) {
+        period.status = "CHUA_TRA";
+      } else {
+        period.status = "TRA_MOT_PHAN";
+      }
+
+      await period.save();
+    }
+
+    await receipt.deleteOne();
+
+    res.json({ message: "Đã huỷ phiếu thu và rollback công nợ" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Không thể huỷ phiếu thu" });
   }
 };
 
@@ -415,7 +574,9 @@ exports.getPaymentHistoryByCustomer = async (req, res) => {
         // Lấy thông tin phân bổ từng kỳ
         const allocationsWithPeriod = await Promise.all(
           r.allocations.map(async (alloc) => {
-            const period = await CustomerDebtPeriod.findById(alloc.debtPeriodId).lean();
+            const period = await CustomerDebtPeriod.findById(
+              alloc.debtPeriodId
+            ).lean();
             if (!period) return null;
             return {
               debtPeriodId: period._id,
@@ -444,9 +605,6 @@ exports.getPaymentHistoryByCustomer = async (req, res) => {
     res.status(500).json({ error: "Không lấy được lịch sử phiếu thu" });
   }
 };
-
-
-
 
 // =====================================================
 // 📌 CHUYẾN THUỘC KỲ CÔNG NỢ
@@ -547,49 +705,6 @@ exports.unlockDebtPeriod = async (req, res) => {
   }
 };
 
-// =====================================================
-// 🔄 HUỶ PHIẾU THU
-// =====================================================
-exports.rollbackPaymentReceipt = async (req, res) => {
-  try {
-    const { receiptId } = req.params;
-
-    // 1. Lấy phiếu thu
-    const receipt = await PaymentReceipt.findById(receiptId);
-    if (!receipt) {
-      return res.status(404).json({ error: "Không tìm thấy phiếu thu" });
-    }
-
-    // 2. Rollback từng kỳ mà phiếu này phân bổ
-    for (const alloc of receipt.allocations) {
-      const period = await CustomerDebtPeriod.findById(alloc.debtPeriodId);
-      if (!period) continue; // nếu kỳ đã bị xóa thì bỏ qua
-
-      // rollback số tiền
-      period.paidAmount = Math.max((period.paidAmount || 0) - alloc.amount, 0);
-      period.remainAmount = (period.remainAmount || 0) + alloc.amount;
-
-      // cập nhật trạng thái kỳ
-      if (period.remainAmount === 0) {
-        period.status = "HOAN_TAT";
-      } else if (period.paidAmount === 0) {
-        period.status = "CHUA_TRA";
-      } else {
-        period.status = "TRA_MOT_PHAN";
-      }
-
-      await period.save();
-    }
-
-    // 3. Xóa phiếu thu
-    await receipt.deleteOne();
-
-    return res.json({ message: "Đã huỷ phiếu thu và rollback công nợ" });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Không thể huỷ phiếu thu" });
-  }
-};
 // =====================================================
 // 📌 TÍNH CÔNG NỢ KHÁCH 26 THEO TỪNG CHUYẾN (CÓ RULE MÀU GIỐNG TẤT CẢ)
 // =====================================================

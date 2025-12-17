@@ -536,6 +536,8 @@ const getSchedulesByAccountant = async (req, res) => {
       khachHang: "khachHang",
       tenLaiXe: "tenLaiXe",
       bienSoXe: "bienSoXe",
+      dienGiai: "dienGiai",
+      cuocPhi: "cuocPhi"
     };
 
     for (const [queryKey, field] of Object.entries(arrayFilterMap)) {
@@ -556,7 +558,6 @@ const getSchedulesByAccountant = async (req, res) => {
     // 🔹 FILTER TIỀN (ĐÃ NHẬP / CHƯA NHẬP)
     // =================================================
     const moneyFields = [
-      "cuocPhi",
       "bocXep",
       "ve",
       "hangVe",
@@ -651,7 +652,36 @@ const getSchedulesByAccountant = async (req, res) => {
   }
 };
 
-//Lấy danh sách KH, bsx, tên lái xe
+// Lấy tất cả danh sách KH, bsx, tên lái xe, ... không cần điều kiện
+const getAllScheduleFilterOptions = async (req, res) => {
+  try {
+    // Không cần kiểm tra quyền hay username
+    const baseFilter = { isDeleted: { $ne: true } }; // chỉ loại bỏ các bản ghi đã xóa
+
+    const [khachHang, tenLaiXe, bienSoXe, dienGiai, cuocPhi] = await Promise.all([
+      ScheduleAdmin.distinct("khachHang", baseFilter),
+      ScheduleAdmin.distinct("tenLaiXe", baseFilter),
+      ScheduleAdmin.distinct("bienSoXe", baseFilter),
+      ScheduleAdmin.distinct("dienGiai", baseFilter),
+      ScheduleAdmin.distinct("cuocPhi", baseFilter),
+    ]);
+
+    res.json({
+      khachHang: khachHang.filter(Boolean).sort(),
+      tenLaiXe: tenLaiXe.filter(Boolean).sort(),
+      bienSoXe: bienSoXe.filter(Boolean).sort(),
+      dienGiai: dienGiai.filter(Boolean).sort(),
+      cuocPhi: cuocPhi.filter(Boolean).sort()
+    });
+  } catch (err) {
+    console.error("❌ Filter options error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+
+//Lấy danh sách KH, bsx, tên lái xe theo kế toán
 const getScheduleFilterOptions = async (req, res) => {
   try {
     const user = req.user;
@@ -665,16 +695,20 @@ const getScheduleFilterOptions = async (req, res) => {
       isDeleted: { $ne: true },
     };
 
-    const [khachHang, tenLaiXe, bienSoXe] = await Promise.all([
+    const [khachHang, tenLaiXe, bienSoXe, dienGiai, cuocPhi] = await Promise.all([
       ScheduleAdmin.distinct("khachHang", baseFilter),
       ScheduleAdmin.distinct("tenLaiXe", baseFilter),
       ScheduleAdmin.distinct("bienSoXe", baseFilter),
+      ScheduleAdmin.distinct("dienGiai", baseFilter),
+      ScheduleAdmin.distinct("cuocPhi", baseFilter),
     ]);
 
     res.json({
       khachHang: khachHang.filter(Boolean).sort(),
       tenLaiXe: tenLaiXe.filter(Boolean).sort(),
       bienSoXe: bienSoXe.filter(Boolean).sort(),
+      dienGiai: dienGiai.filter(Boolean).sort(),
+      cuocPhi: cuocPhi.filter(Boolean).sort()
     });
   } catch (err) {
     console.error("❌ Filter options error:", err);
@@ -918,4 +952,5 @@ module.exports = {
   forceDeleteSchedule,
   emptyTrash,
   getScheduleFilterOptions,
+  getAllScheduleFilterOptions
 };

@@ -6,22 +6,22 @@ const {
   getCustomerDebt,
   createDebtPeriod,
   getDebtPeriodDetail,
-  updateDebtPeriod,  
+  updateDebtPeriod,
   lockDebtPeriod,
   unlockDebtPeriod,
+  toggleTripPaymentType,
 
   // ===== PHIẾU THU CÔNG NỢ =====
   addPaymentReceipt,
   rollbackPaymentReceipt,
- getPaymentHistoryByCustomer,
+  getPaymentHistoryByCustomer,
 
   // ===== KH 26 – GIỮ NGUYÊN =====
   getDebtForCustomer26,
   addTripPayment,
   getTripPaymentHistory,
-  deleteTripPayment
+  deleteTripPayment,
 } = require("../controllers/paymentHistoryController");
-
 
 // =====================================================
 // 📌 CÔNG NỢ THEO KỲ (KH CHUNG)
@@ -43,6 +43,8 @@ router.put("/debt-period/:debtCode", updateDebtPeriod);
 // GET /api/payment/debt-period/CN.BM.11.25
 router.get("/debt-period/:debtCode", getDebtPeriodDetail);
 
+//Đổi cash-invoice cho chuyến
+router.patch("/trip/:maChuyenCode/toggle-payment-type", toggleTripPaymentType);
 
 // =====================================================
 // 💰 PHIẾU THU CÔNG NỢ
@@ -51,7 +53,6 @@ router.get("/debt-period/:debtCode", getDebtPeriodDetail);
 // Lấy lịch sử phiếu thu KH chung
 // GET /api/payment/receipt/history/:customerCode
 router.get("/receipt/:customerCode/:debtCode", getPaymentHistoryByCustomer);
-
 
 // Ghi nhận phiếu thu + tự động phân bổ tiền
 // POST /api/payment/receipt
@@ -72,8 +73,6 @@ router.post("/debt-period/:debtCode/unlock", unlockDebtPeriod);
 // =====================================================
 // DELETE /api/payment/receipt/:receiptId
 router.delete("/receipt/:receiptId", rollbackPaymentReceipt);
-
-
 
 // =====================================================
 // 🚚 KHÁCH HÀNG 26 (GIỮ NGUYÊN LOGIC CŨ)

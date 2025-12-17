@@ -15,7 +15,10 @@ const CustomerDebtPeriodSchema = new mongoose.Schema(
     manageMonth: { type: String, required: true }, // vd "11/2025"
 
     // số liệu
-    totalAmount: { type: Number, default: 0 }, // tổng cước
+    vatPercent: { type: Number, default: 0, min: 0, max: 100 }, //VAT  %
+    totalAmountInvoice: { type: Number, default: 0 }, // tổng cước hoá đơn
+    totalAmountCash: { type: Number, default: 0 }, //tổng cước tiền mặt
+    totalAmount: { type: Number, default: 0 }, //tổng tất cả
     paidAmount: { type: Number, default: 0 },  // đã trả
     remainAmount: { type: Number, default: 0 },// còn lại
 

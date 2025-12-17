@@ -22,6 +22,7 @@ const scheduleAdminSchema = new mongoose.Schema(
     diemXepHang: { type: String, default: "" }, // ĐIỂM XẾP HÀNG
     diemDoHang: { type: String, default: "" }, // ĐIỂM DỠ HÀNG
     soDiem: { type: String, default: "" }, // SỐ ĐIỂM
+    themDiem: { type: String, default: "" }, // THÊM ĐIỂM
     trongLuong: { type: String, default: "" }, // TRỌNG LƯỢNG
     bienSoXe: { type: String, default: "" }, // BIỂN SỐ XE
     cuocPhi: { type: String, default: "" }, // CƯỚC PHÍ
@@ -47,7 +48,6 @@ const scheduleAdminSchema = new mongoose.Schema(
     cpKhacBS: { type: String, default: "" }, // CHI PHÍ KHÁC BỔ SUNG
     warning: { type: Boolean, default: false },
 
-
     // ⚙️ Trạng thái chuyến
     trangThai: {
       type: String,
@@ -58,6 +58,13 @@ const scheduleAdminSchema = new mongoose.Schema(
     // 🗑️ Thùng rác
     isDeleted: { type: Boolean, default: false },
     deletedAt: { type: Date, default: null },
+
+    // 💰 HÌNH THỨC THANH TOÁN (MẶC ĐỊNH)
+    paymentType: {
+      type: String,
+      enum: ["INVOICE", "CASH"],
+      default: "INVOICE", // mặc định là hoá đơn như mày nói
+    },
   },
   { timestamps: true }
 );
