@@ -2,36 +2,35 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import API from "../api";
 
-export default function TripListModal({ customer, onClose }) {
+export default function TripListModal({ customer, onClose, onPaymentTypeChanged }) {
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(false);
   const token = localStorage.getItem("token");
 
   const debtCode = customer?.debtCode;
 
-const loadTrips = async () => {
-  if (!debtCode) {
-    setTrips([]);
-    return;
-  }
+  const loadTrips = async () => {
+    if (!debtCode) {
+      setTrips([]);
+      return;
+    }
 
-  setLoading(true);
-  try {
-    const res = await axios.get(
-      `${API}/payment-history/debt-period/${debtCode}`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+    setLoading(true);
+    try {
+      const res = await axios.get(
+        `${API}/payment-history/debt-period/${debtCode}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-    setTrips(res.data.trips || []);
-    console.log("Trips:", res.data.trips);
-  } catch (err) {
-    console.error("Lỗi load trips", err);
-    setTrips([]);
-  } finally {
-    setLoading(false);
-  }
-};
-
+      setTrips(res.data.trips || []);
+      console.log("Trips:", res.data.trips);
+    } catch (err) {
+      console.error("Lỗi load trips", err);
+      setTrips([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     loadTrips();
@@ -39,9 +38,30 @@ const loadTrips = async () => {
   }, [debtCode]);
 
   const pick = (bs, base) => {
-  const bsVal = parseFloat(bs);
-  if (!isNaN(bsVal) && bsVal !== 0) return bsVal;
-  return parseFloat(base) || 0;
+    const bsVal = parseFloat(bs);
+    if (!isNaN(bsVal) && bsVal !== 0) return bsVal;
+    return parseFloat(base) || 0;
+  };
+
+const updatePaymentType = async (maChuyen, checked) => {
+  try {
+    await axios.patch(
+      `${API}/payment-history/trip/${maChuyen}/toggle-payment-type`,
+      {
+        paymentType: checked ? "INVOICE" : "CASH",
+      },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    // reload lại danh sách chuyến
+    await loadTrips();
+
+    // 🔥 reload lại bảng công nợ ở CustomerDebtPage
+    onPaymentTypeChanged?.();
+  } catch (err) {
+    console.error("Lỗi đổi paymentType", err);
+    alert("Không đổi được hình thức thanh toán");
+  }
 };
 
 
@@ -50,17 +70,24 @@ const loadTrips = async () => {
       <div className="bg-white rounded-xl w-[95vw] max-w-[1400px] max-h-[90vh] p-5 flex flex-col">
         <div className="flex justify-between items-center mb-3">
           <h2 className="text-xl font-semibold">
-  Danh sách chuyến — KH {customer?.maKH} ({customer?.debtCode})
-</h2>
+            Danh sách chuyến — KH {customer?.maKH} ({customer?.debtCode})
+          </h2>
 
-          <button onClick={onClose} className="text-red-500 font-semibold">✕</button>
+          <button onClick={onClose} className="text-red-500 font-semibold">
+            ✕
+          </button>
         </div>
 
-        <div className="overflow-auto border rounded-lg" style={{ maxHeight: "70vh" }}>
+        <div
+          className="overflow-auto border rounded-lg"
+          style={{ maxHeight: "70vh" }}
+        >
           {loading ? (
             <div className="p-4">Đang tải...</div>
           ) : !debtCode ? (
-            <div className="p-4 text-gray-500">Không có mã khách để hiện chuyến.</div>
+            <div className="p-4 text-gray-500">
+              Không có mã khách để hiện chuyến.
+            </div>
           ) : trips.length === 0 ? (
             <div className="p-4 text-gray-500">Không có chuyến cho mã này.</div>
           ) : (
@@ -80,6 +107,7 @@ const loadTrips = async () => {
                   <th className="p-2 border">Biển số xe</th>
                   <th className="p-2 border">Mã chuyến</th>
                   <th className="p-2 border">Tổng tiền</th>
+                  <th className="p-2 border text-center">TT bằng hoá đơn</th>
                   <th className="p-2 border">Đã thanh toán</th>
                   <th className="p-2 border">Còn lại</th>
                   <th className="p-2 border">Trạng thái</th>
@@ -88,16 +116,15 @@ const loadTrips = async () => {
               <tbody>
                 {trips.map((t) => {
                   const tongTien =
-  pick(t.cuocPhiBS, t.cuocPhi) +
-  pick(t.bocXepBS, t.bocXep) +
-  pick(t.veBS, t.ve) +
-  pick(t.hangVeBS, t.hangVe) +
-  pick(t.luuCaBS, t.luuCa) +
-  pick(t.cpKhacBS, t.luatChiPhiKhac);
+                    pick(t.cuocPhiBS, t.cuocPhi) +
+                    pick(t.bocXepBS, t.bocXep) +
+                    pick(t.veBS, t.ve) +
+                    pick(t.hangVeBS, t.hangVe) +
+                    pick(t.luuCaBS, t.luuCa) +
+                    pick(t.cpKhacBS, t.luatChiPhiKhac);
 
-const paid = parseFloat(t.daThanhToan || 0);
-const remain = tongTien - paid;
-
+                  const paid = parseFloat(t.daThanhToan || 0);
+                  const remain = tongTien - paid;
 
                   return (
                     <tr key={t._id}>
@@ -105,8 +132,16 @@ const remain = tongTien - paid;
                       <td className="p-2 border">{t.maKH}</td>
                       <td className="p-2 border">{t.khachHang}</td>
                       <td className="p-2 border">{t.dienGiai}</td>
-                      <td className="p-2 border">{t.ngayBocHang ? new Date(t.ngayBocHang).toLocaleDateString("vi-VN") : ""}</td>
-                      <td className="p-2 border">{t.ngayGiaoHang ? new Date(t.ngayGiaoHang).toLocaleDateString("vi-VN") : ""}</td>
+                      <td className="p-2 border">
+                        {t.ngayBocHang
+                          ? new Date(t.ngayBocHang).toLocaleDateString("vi-VN")
+                          : ""}
+                      </td>
+                      <td className="p-2 border">
+                        {t.ngayGiaoHang
+                          ? new Date(t.ngayGiaoHang).toLocaleDateString("vi-VN")
+                          : ""}
+                      </td>
                       <td className="p-2 border">{t.diemXepHang}</td>
                       <td className="p-2 border">{t.diemDoHang}</td>
                       <td className="p-2 border">{t.soDiem}</td>
@@ -115,6 +150,15 @@ const remain = tongTien - paid;
                       <td className="p-2 border">{t.maChuyen}</td>
                       <td className="p-2 border font-semibold text-blue-600">
                         {tongTien.toLocaleString()}
+                      </td>
+                      <td className="p-2 border text-center">
+                        <input
+                          type="checkbox"
+                          checked={t.paymentType === "INVOICE"}
+                          onChange={(e) =>
+                            updatePaymentType(t.maChuyen, e.target.checked)
+                          }
+                        />
                       </td>
 
                       <td className="p-2 border">{paid.toLocaleString()}</td>

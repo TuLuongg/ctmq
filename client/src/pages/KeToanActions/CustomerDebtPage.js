@@ -34,6 +34,7 @@ export default function CustomerDebtPage() {
     globalFromDate: "",
     globalToDate: "",
     note: "",
+    vatPercent: 0,
   });
 
   const [selectedCustomers, setSelectedCustomers] = useState([]);
@@ -109,11 +110,15 @@ export default function CustomerDebtPage() {
           toDate: debt?.toDate ? new Date(debt.toDate) : null,
           thangQuanLy: debt?.manageMonth || manageMonth,
           tongCuoc: Number(debt?.totalAmount || 0),
+          tongHoaDon: Number(debt?.totalAmountInvoice || 0),
+          tongTienMat: Number(debt?.totalAmountCash || 0),
+          thueVAT: Number(debt?.vatPercent || 0),
           daThanhToan: Number(debt?.paidAmount || 0),
           conLai: Number(debt?.remainAmount || 0),
           status: debt?.status || "CHUA_TRA",
           trangThai,
           soChuyen: Number(debt?.soChuyen || 0),
+          isLocked: debt?.isLocked,
         };
       });
 
@@ -151,6 +156,21 @@ export default function CustomerDebtPage() {
     }
   };
 
+  const handleUnlockDebt = async (debtCode) => {
+    try {
+      await axios.post(
+        `${API}/payment-history/debt-period/${debtCode}/unlock`,
+        { unlockedBy: user?.name },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alert("Đã mở khoá kỳ công nợ");
+      loadData();
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.error || "Lỗi khi mở khoá kỳ công nợ");
+    }
+  };
+
   // ====================== TẠO KỲ CÔNG NỢ TỰ ĐỘNG ======================
   const [isCreatingDebt, setIsCreatingDebt] = useState(false);
 
@@ -177,6 +197,7 @@ export default function CustomerDebtPage() {
             toDate: finalTo,
             manageMonth: autoDebtData.manageMonth,
             note: autoDebtData.note || "",
+            vatPercent: autoDebtData.vatPercent,
           },
           { headers: { Authorization: `Bearer ${token}` } }
         );
@@ -203,6 +224,7 @@ export default function CustomerDebtPage() {
 
   const [editFromDate, setEditFromDate] = useState("");
   const [editToDate, setEditToDate] = useState("");
+  const [editVatPercent, setEditVatPercent] = useState(0);
 
   const handleUpdateDebtPeriod = async () => {
     if (!editFromDate || !editToDate) {
@@ -216,6 +238,7 @@ export default function CustomerDebtPage() {
         {
           fromDate: editFromDate,
           toDate: editToDate,
+          vatPercent: editVatPercent,
           updatedBy: user?.name,
         },
         { headers: { Authorization: `Bearer ${token}` } }
@@ -236,6 +259,8 @@ export default function CustomerDebtPage() {
 
     return normCode.includes(normSearch) || normName.includes(normSearch);
   });
+
+  const visibleCustomerCodes = filteredDebtList.map((c) => c.maKH);
 
   // ====================== RENDER ======================
   return (
@@ -377,23 +402,71 @@ export default function CustomerDebtPage() {
       {/* Bảng công nợ */}
       <div className="overflow-auto max-h-[650px] border relative">
         <table className="w-full border-separate border-spacing-0">
-<thead className="bg-gray-200">
-      <tr>
-        <th className="border p-2 sticky top-0 bg-gray-200 z-20">
-          <input type="checkbox" />
-        </th>
-        <th className="border p-2 sticky top-0 bg-gray-200 z-20">MÃ KH</th>
-        <th className="border p-2 sticky top-0 bg-gray-200 z-20">TÊN KH</th>
-        <th className="border p-2 sticky top-0 bg-gray-200 z-20">MÃ CÔNG NỢ</th>
-        <th className="border p-2 sticky top-0 bg-gray-200 z-20">KỲ CÔNG NỢ</th>
-        <th className="border p-2 sticky top-0 bg-gray-200 z-20">TỔNG TIỀN</th>
-        <th className="border p-2 sticky top-0 bg-gray-200 z-20">ĐÃ THANH TOÁN</th>
-        <th className="border p-2 sticky top-0 bg-gray-200 z-20">CÒN LẠI</th>
-        <th className="border p-2 sticky top-0 bg-gray-200 z-20">TRẠNG THÁI</th>
-        <th className="border p-2 sticky top-0 bg-gray-200 z-20">SỐ CHUYẾN</th>
-        <th className="border p-2 sticky top-0 bg-gray-200 z-20">HÀNH ĐỘNG</th>
-      </tr>
-    </thead>
+          <thead className="bg-gray-200">
+            <tr>
+              <th className="border p-2 sticky top-0 bg-gray-200 z-20">
+                <input
+                  type="checkbox"
+                  checked={
+                    visibleCustomerCodes.length > 0 &&
+                    visibleCustomerCodes.every((code) =>
+                      selectedCustomers.includes(code)
+                    )
+                  }
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedCustomers((prev) => [
+                        ...new Set([...prev, ...visibleCustomerCodes]),
+                      ]);
+                    } else {
+                      setSelectedCustomers((prev) =>
+                        prev.filter(
+                          (code) => !visibleCustomerCodes.includes(code)
+                        )
+                      );
+                    }
+                  }}
+                />
+              </th>
+              <th className="border p-2 sticky top-0 bg-gray-200 z-20">
+                MÃ KH
+              </th>
+              <th className="border p-2 sticky top-0 bg-gray-200 z-20">
+                TÊN KH
+              </th>
+              <th className="border p-2 sticky top-0 bg-gray-200 z-20">
+                MÃ CÔNG NỢ
+              </th>
+              <th className="border p-2 sticky top-0 bg-gray-200 z-20">
+                KỲ CÔNG NỢ
+              </th>
+              <th className="border p-2 sticky top-0 bg-gray-200 z-20">
+                HOÁ ĐƠN
+              </th>
+              <th className="border p-2 sticky top-0 bg-gray-200 z-20">VAT</th>
+              <th className="border p-2 sticky top-0 bg-gray-200 z-20">
+                TIỀN MẶT
+              </th>
+              <th className="border p-2 sticky top-0 bg-gray-200 z-20">
+                TỔNG TIỀN
+              </th>
+              <th className="border p-2 sticky top-0 bg-gray-200 z-20">
+                ĐÃ THANH TOÁN
+              </th>
+              <th className="border p-2 sticky top-0 bg-gray-200 z-20">
+                CÒN LẠI
+              </th>
+              <th className="border p-2 sticky top-0 bg-gray-200 z-20">
+                TRẠNG THÁI
+              </th>
+              <th className="border p-2 sticky top-0 bg-gray-200 z-20">
+                SỐ CHUYẾN
+              </th>
+              <th className="border p-2 sticky top-0 bg-gray-200 z-20">
+                HÀNH ĐỘNG
+              </th>
+            </tr>
+          </thead>
           <tbody>
             {filteredDebtList.map((c) => (
               <tr key={c.maKH} className="h-[15px]">
@@ -419,6 +492,15 @@ export default function CustomerDebtPage() {
                     ? `${c.fromDate.toLocaleDateString()} - ${c.toDate.toLocaleDateString()}`
                     : "-"}
                 </td>
+                <td className="border p-2 text-blue-700 font-bold">
+                  {c.tongHoaDon.toLocaleString()}
+                </td>
+                <td className="border p-2 text-blue-700 font-bold">
+                  {c.thueVAT.toLocaleString()}%
+                </td>
+                <td className="border p-2 text-blue-700 font-bold">
+                  {c.tongTienMat.toLocaleString()}
+                </td>
                 <td
                   className="border p-2 text-blue-700 font-bold underline cursor-pointer"
                   onClick={() => {
@@ -428,8 +510,12 @@ export default function CustomerDebtPage() {
                 >
                   {c.tongCuoc.toLocaleString()}
                 </td>
-                <td className="border p-2 font-bold">{c.daThanhToan.toLocaleString()}</td>
-                <td className="border p-2 font-bold text-red-600">{c.conLai.toLocaleString()}</td>
+                <td className="border p-2 font-bold">
+                  {c.daThanhToan.toLocaleString()}
+                </td>
+                <td className="border p-2 font-bold text-red-600">
+                  {c.conLai.toLocaleString()}
+                </td>
                 <td className="border p-2">
                   <div
                     className="flex items-center gap-2 cursor-pointer"
@@ -465,16 +551,31 @@ export default function CustomerDebtPage() {
                 <td className="border p-2 flex gap-1 justify-center">
                   {c.debtCode && (
                     <>
-                      <button
-                        className="px-2 py-1 bg-yellow-500 text-white rounded"
-                        onClick={() => handleLockDebt(c.debtCode)}
-                      >
-                        Khoá kỳ
-                      </button>
+                      {c.isLocked ? (
+                        <button
+                          className="px-2 py-1 bg-green-600 text-white rounded"
+                          onClick={() => handleUnlockDebt(c.debtCode)}
+                        >
+                          Mở KCN
+                        </button>
+                      ) : (
+                        <button
+                          className="px-2 py-1 bg-yellow-500 text-white rounded"
+                          onClick={() => handleLockDebt(c.debtCode)}
+                        >
+                          Khoá KCN
+                        </button>
+                      )}
 
                       <button
-                        className="px-2 py-1 bg-blue-500 text-white rounded"
+                        disabled={c.isLocked}
+                        className={`px-2 py-1 rounded text-white ${
+                          c.isLocked
+                            ? "bg-gray-400 cursor-not-allowed"
+                            : "bg-blue-500"
+                        }`}
                         onClick={() => {
+                          if (c.isLocked) return;
                           setEditingDebt(c);
                           setEditFromDate(
                             c.fromDate
@@ -484,10 +585,11 @@ export default function CustomerDebtPage() {
                           setEditToDate(
                             c.toDate ? c.toDate.toISOString().slice(0, 10) : ""
                           );
+                          setEditVatPercent(c.thueVAT || 0);
                           setShowEditDebtModal(true);
                         }}
                       >
-                        Sửa kỳ
+                        Sửa
                       </button>
                     </>
                   )}
@@ -512,9 +614,8 @@ export default function CustomerDebtPage() {
       {showTripList && selectedCustomer && (
         <TripListModal
           customer={selectedCustomer}
-          month={month}
-          year={year}
           onClose={() => setShowTripList(false)}
+          onPaymentTypeChanged={loadData}
         />
       )}
 
@@ -525,7 +626,7 @@ export default function CustomerDebtPage() {
             <h2 className="text-lg font-bold mb-2">Tạo kỳ công nợ tự động</h2>
 
             {/* manageMonth + note */}
-            <div className="flex gap-2 mb-2">
+            <div className="flex gap-2 mb-2 items-center">
               <input
                 type="text"
                 placeholder="MM/YYYY"
@@ -538,6 +639,7 @@ export default function CustomerDebtPage() {
                 }
                 className="border p-2 w-36"
               />
+
               <input
                 type="text"
                 placeholder="Ghi chú"
@@ -547,6 +649,24 @@ export default function CustomerDebtPage() {
                 }
                 className="border p-2 flex-1"
               />
+
+              <div className="flex items-center gap-1">
+                <label className="text-xs whitespace-nowrap">VAT (%): </label>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={autoDebtData.vatPercent}
+                  onChange={(e) =>
+                    setAutoDebtData({
+                      ...autoDebtData,
+                      vatPercent: Number(e.target.value) || 0,
+                    })
+                  }
+                  className="border p-2 w-24"
+                  placeholder="VD: 8, 10"
+                />
+              </div>
             </div>
 
             {/* Ngày chung */}
@@ -715,6 +835,16 @@ export default function CustomerDebtPage() {
                 type="date"
                 value={editToDate}
                 onChange={(e) => setEditToDate(e.target.value)}
+                className="border p-2"
+              />
+
+              <label className="text-xs">VAT (%)</label>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                value={editVatPercent}
+                onChange={(e) => setEditVatPercent(Number(e.target.value) || 0)}
                 className="border p-2"
               />
             </div>
