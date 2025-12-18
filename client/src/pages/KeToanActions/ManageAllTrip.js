@@ -2291,7 +2291,7 @@ const [excelData, setExcelData] = useState([]);
           onClose={() => setShowAllRequestModal(false)}
           requests={allRequests}
           reload={fetchAllRequests}
-          title="📌 Danh sách yêu cầu cần phê duyệt"
+          title="Danh sách yêu cầu cần phê duyệt"
         />
       </div>
 

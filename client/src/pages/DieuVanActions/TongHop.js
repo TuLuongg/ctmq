@@ -370,7 +370,7 @@ useEffect(() => {
       setLoadedCount(mapped.length);
       setRemaining(0); // reset khi chọn file mới
 
-      console.log("📌 Dữ liệu import tạm:", mapped);
+      console.log("Dữ liệu import tạm:", mapped);
     } catch (err) {
       console.error("Lỗi đọc file excel:", err);
       alert("Lỗi khi đọc file Excel!");
@@ -747,7 +747,7 @@ useEffect(() => {
         <input
           id="excelInput"
           type="file"
-          accept=".xlsx,.xls"
+          accept=".xlsx,.xls, .xlsm"
           onChange={handleSelectExcel}
           className="border px-3 py-2 rounded"
         />
