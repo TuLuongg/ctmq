@@ -91,6 +91,41 @@ exports.requestEditRide = async (req, res) => {
   }
 };
 
+// ❌ Xoá yêu cầu chỉnh sửa (chỉ khi pending)
+exports.deleteEditRideRequest = async (req, res) => {
+  try {
+    const { requestID } = req.params;
+
+    if (!requestID) {
+      return res.status(400).json({ error: "Thiếu requestID" });
+    }
+
+    const request = await RideEditRequest.findById(requestID);
+
+    if (!request) {
+      return res.status(404).json({ error: "Không tìm thấy yêu cầu chỉnh sửa" });
+    }
+
+    // ❗ Chỉ cho xoá khi chưa xử lý
+    if (request.status !== "pending") {
+      return res.status(400).json({
+        error: "Không thể xoá yêu cầu đã được xử lý",
+      });
+    }
+
+    await RideEditRequest.findByIdAndDelete(requestID);
+
+    res.json({
+      success: true,
+      message: "Đã huỷ yêu cầu chỉnh sửa",
+    });
+  } catch (err) {
+    console.error("Lỗi xoá yêu cầu chỉnh sửa:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
 //Phê duyệt hoặc từ chối
 exports.processEditRideRequest = async (req, res) => {
   try {

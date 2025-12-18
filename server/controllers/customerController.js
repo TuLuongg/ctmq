@@ -15,11 +15,7 @@ const listCustomers = async (req, res) => {
     const filter = {};
     if (q) {
       const re = new RegExp(q, "i");
-      filter.$or = [
-        { name: re },
-        { accountant: re },
-        { code: re }
-      ];
+      filter.$or = [{ name: re }, { accountant: re }, { code: re }];
     }
     const customers = await Customer.find(filter).sort({ createdAt: -1 });
     res.json(customers);
@@ -35,9 +31,11 @@ const listCustomers = async (req, res) => {
 const getCustomer = async (req, res) => {
   try {
     const { id } = req.params;
-    if (!mongoose.isValidObjectId(id)) return res.status(400).json({ error: "ID không hợp lệ" });
+    if (!mongoose.isValidObjectId(id))
+      return res.status(400).json({ error: "ID không hợp lệ" });
     const customer = await Customer.findById(id);
-    if (!customer) return res.status(404).json({ error: "Không tìm thấy khách hàng" });
+    if (!customer)
+      return res.status(404).json({ error: "Không tìm thấy khách hàng" });
     res.json(customer);
   } catch (err) {
     console.error(err);
@@ -59,7 +57,7 @@ const createCustomer = async (req, res) => {
       accountant: body.accountant,
       code: body.code,
       accUsername: body.accUsername,
-      createdBy: req.user?.username || body.createdBy || ""
+      createdBy: req.user?.username || body.createdBy || "",
     });
     res.status(201).json(saved);
   } catch (err) {
@@ -74,9 +72,11 @@ const createCustomer = async (req, res) => {
 const updateCustomer = async (req, res) => {
   try {
     const { id } = req.params;
-    if (!mongoose.isValidObjectId(id)) return res.status(400).json({ error: "ID không hợp lệ" });
+    if (!mongoose.isValidObjectId(id))
+      return res.status(400).json({ error: "ID không hợp lệ" });
     const customer = await Customer.findById(id);
-    if (!customer) return res.status(404).json({ error: "Không tìm thấy khách hàng" });
+    if (!customer)
+      return res.status(404).json({ error: "Không tìm thấy khách hàng" });
 
     const body = req.body || {};
     Object.assign(customer, {
@@ -86,7 +86,7 @@ const updateCustomer = async (req, res) => {
       address: body.address || customer.address,
       accountant: body.accountant || customer.accountant,
       code: body.code || customer.code,
-      accUsername: body.accUsername || customer.accUsername
+      accUsername: body.accUsername || customer.accUsername,
     });
 
     await customer.save();
@@ -103,9 +103,11 @@ const updateCustomer = async (req, res) => {
 const deleteCustomer = async (req, res) => {
   try {
     const { id } = req.params;
-    if (!mongoose.isValidObjectId(id)) return res.status(400).json({ error: "ID không hợp lệ" });
+    if (!mongoose.isValidObjectId(id))
+      return res.status(400).json({ error: "ID không hợp lệ" });
     const customer = await Customer.findById(id);
-    if (!customer) return res.status(404).json({ error: "Không tìm thấy khách hàng" });
+    if (!customer)
+      return res.status(404).json({ error: "Không tìm thấy khách hàng" });
 
     await customer.deleteOne();
     res.json({ message: "Đã xóa thành công" });
@@ -124,7 +126,7 @@ const importCustomersFromExcel = async (req, res) => {
       return res.status(400).json({ error: "Chưa upload file Excel" });
     }
 
-    const mode = req.query.mode || "add"; 
+    const mode = req.query.mode || "add";
     // mode = add | overwrite
 
     const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
@@ -170,7 +172,6 @@ const importCustomersFromExcel = async (req, res) => {
           // nếu mode=add thì bỏ qua khách trùng code
           skipped++;
         }
-
       } catch (err) {
         errors.push({ row: idx + 2, error: err.message });
       }
@@ -183,13 +184,11 @@ const importCustomersFromExcel = async (req, res) => {
       skipped,
       errors,
     });
-
   } catch (err) {
     console.error("Lỗi import Excel:", err);
     res.status(500).json({ error: err.message });
   }
 };
-
 
 // ⚠️ Toggle cảnh báo
 const toggleWarning = async (req, res) => {
@@ -208,9 +207,8 @@ const toggleWarning = async (req, res) => {
     res.json({
       success: true,
       message: schedule.warning ? "Đã bật cảnh báo" : "Đã tắt cảnh báo",
-      warning: schedule.warning
+      warning: schedule.warning,
     });
-
   } catch (err) {
     console.error("❌ Lỗi toggle cảnh báo:", err);
     res.status(500).json({ error: err.message });
@@ -222,37 +220,49 @@ const toggleWarning = async (req, res) => {
 // ==============================
 // Hàm convert string số → number an toàn
 function cleanNumber(value) {
-  if (!value) return 0;
-  const cleaned = String(value).replace(/[.,]/g, "");
-  const num = parseInt(cleaned);
+  if (value === null || value === undefined || value === "") return 0;
+  if (typeof value === "number") return value;
+
+  const cleaned = String(value).replace(/[^\d-]/g, "");
+  const num = Number(cleaned);
   return isNaN(num) ? 0 : num;
 }
 
-function cloneRowStyle(sheet, sourceRowNumber, targetRowNumber) {
-  const sourceRow = sheet.getRow(sourceRowNumber);
-  const targetRow = sheet.getRow(targetRowNumber);
+function getRowSchema(sheet, sourceRowNumber) {
+  const row = sheet.getRow(sourceRowNumber);
+  const schema = {};
 
-  sourceRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-    const targetCell = targetRow.getCell(colNumber);
-
-    // ❌ KHÔNG copy value
-    targetCell.value = null;
-
-    if (cell.style) {
-      targetCell.style = JSON.parse(JSON.stringify(cell.style));
-    }
-    if (cell.border) {
-      targetCell.border = JSON.parse(JSON.stringify(cell.border));
-    }
-    if (cell.alignment) {
-      targetCell.alignment = JSON.parse(JSON.stringify(cell.alignment));
-    }
-    if (cell.numFmt) {
-      targetCell.numFmt = cell.numFmt;
-    }
+  row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+    schema[colNumber] = {
+      numFmt: cell.numFmt || null,
+      style: JSON.parse(JSON.stringify(cell.style || {})),
+      type: cell.type, // VERY IMPORTANT
+    };
   });
 
-  targetRow.height = sourceRow.height;
+  return schema;
+}
+
+function applyRowSchema(sheet, schema, targetRowNumber) {
+  const row = sheet.getRow(targetRowNumber);
+
+  Object.entries(schema).forEach(([colNumber, cfg]) => {
+    const cell = row.getCell(Number(colNumber));
+
+    // clone style
+    cell.style = JSON.parse(JSON.stringify(cfg.style || {}));
+
+    // clone numFmt
+    if (cfg.numFmt) {
+      cell.numFmt = cfg.numFmt;
+    }
+
+    // QUAN TRỌNG: reset value nhưng giữ type
+    cell.value = null;
+  });
+
+  row.height = sheet.getRow(targetRowNumber - 1).height;
+  row.commit();
 }
 
 const exportTripsByCustomer = async (req, res) => {
@@ -284,6 +294,7 @@ const exportTripsByCustomer = async (req, res) => {
     );
 
     const sheet = workbook.getWorksheet("BẢNG KÊ");
+    console.log("MERGES:", sheet._merges);
 
     // Header
     sheet.getCell("C6").value = customer.nameHoaDon || "";
@@ -291,26 +302,15 @@ const exportTripsByCustomer = async (req, res) => {
     sheet.getCell("C8").value = customer.mstCCCD || "";
 
     // ==========================
-    // FIX VỠ FORM
+    // SCHEMA
     // ==========================
     const startRow = 12;
     const templateRows = 7;
-    const extraRows =
-      trips.length > templateRows ? trips.length - templateRows : 0;
 
-    if (extraRows > 0) {
-      sheet.insertRows(
-        startRow + templateRows,
-        Array.from({ length: extraRows }, () => [])
-      );
+    const rowSchema = getRowSchema(sheet, startRow);
 
-      for (let i = 0; i < extraRows; i++) {
-        cloneRowStyle(
-          sheet,
-          startRow,
-          startRow + templateRows + i
-        );
-      }
+    if (trips.length > templateRows) {
+      sheet.duplicateRow(startRow, trips.length - templateRows, true);
     }
 
     // ==========================
@@ -320,39 +320,39 @@ const exportTripsByCustomer = async (req, res) => {
       const row = sheet.getRow(startRow + index);
 
       row.getCell("A").value = index + 1;
-      row.getCell("I").value = ""; // 🔥 CLEAR CỘT I (QUAN TRỌNG)
 
-      const cuocPhi = trip.cuocPhiBS || trip.cuocPhi;
-      const bocXep = trip.bocXepBS || trip.bocXep;
-      const ve = trip.veBS || trip.ve;
-      const hangVe = trip.hangVeBS || trip.hangVe;
-      const luuCa = trip.luuCaBS || trip.luuCa;
-      const cpKhac = trip.cpKhacBS || trip.luatChiPhiKhac;
+      // DATE – BẮT BUỘC LÀ Date object
+      if (trip.ngayGiaoHang) {
+        const d = new Date(trip.ngayGiaoHang);
+        d.setHours(0, 0, 0, 0);
+        row.getCell("B").value = d;
+      } else {
+        row.getCell("B").value = null;
+      }
 
-      row.getCell("B").value = trip.ngayGiaoHang
-        ? new Date(trip.ngayGiaoHang)
-        : "";
       row.getCell("C").value = trip.diemXepHang || "";
       row.getCell("D").value = trip.diemDoHang || "";
       row.getCell("E").value = trip.soDiem || "";
       row.getCell("F").value = trip.trongLuong || "";
       row.getCell("G").value = trip.bienSoXe || "";
-      row.getCell("I").value = trip.themDiem || "";
-      row.getCell("H").value = cuocPhi || "";
-      row.getCell("J").value = bocXep || "";
-      row.getCell("K").value = ve || "";
-      row.getCell("L").value = hangVe || "";
-      row.getCell("M").value = luuCa || "";
-      row.getCell("N").value = cpKhac || "";
-      row.getCell("Q").value = trip.maChuyen || "";
 
-      row.getCell("O").value =
-        cleanNumber(cuocPhi) +
-        cleanNumber(bocXep) +
-        cleanNumber(ve) +
-        cleanNumber(hangVe) +
-        cleanNumber(luuCa) +
-        cleanNumber(cpKhac);
+      const cuocPhi = cleanNumber(trip.cuocPhiBS || trip.cuocPhi);
+      const bocXep = cleanNumber(trip.bocXepBS || trip.bocXep);
+      const ve = cleanNumber(trip.veBS || trip.ve);
+      const hangVe = cleanNumber(trip.hangVeBS || trip.hangVe);
+      const luuCa = cleanNumber(trip.luuCaBS || trip.luuCa);
+      const cpKhac = cleanNumber(trip.cpKhacBS || trip.luatChiPhiKhac);
+
+      row.getCell("H").value = cuocPhi;
+      row.getCell("J").value = bocXep;
+      row.getCell("K").value = ve;
+      row.getCell("L").value = hangVe;
+      row.getCell("M").value = luuCa;
+      row.getCell("N").value = cpKhac;
+
+      row.getCell("O").value = cuocPhi + bocXep + ve + hangVe + luuCa + cpKhac;
+
+      row.getCell("Q").value = trip.maChuyen || "";
 
       row.commit();
     });
@@ -367,19 +367,15 @@ const exportTripsByCustomer = async (req, res) => {
       sumO += Number(sheet.getCell(`O${startRow + i}`).value) || 0;
     }
 
-    sheet.getCell(`G${lastRow}`).value = sumO;
-    sheet.getCell(`G${lastRow + 1}`).value = Math.round(sumO * 0.08);
-    sheet.getCell(`G${lastRow + 2}`).value = Math.round(sumO * 1.08);
+    const totalRow = lastRow <= 18 ? 19 : lastRow;
+    const vatRow = totalRow + 1;
+    const grandTotalRow = totalRow + 2;
+    const signRow = totalRow + 5;
 
-    // 🔥 CHỈ DÒNG NÀY CÓ GIÁ TRỊ
-    sheet.getCell(`I${lastRow + 5}`).value = customer.nameHoaDon || "";
-
-    // Font
-    sheet.eachRow(row =>
-      row.eachCell(cell => {
-        cell.font = { name: "Times New Roman", size: 12 };
-      })
-    );
+    sheet.getCell(`G${totalRow}`).value = sumO;
+    sheet.getCell(`G${vatRow}`).value = Math.round(sumO * 0.08);
+    sheet.getCell(`G${grandTotalRow}`).value = Math.round(sumO * 1.08);
+    sheet.getCell(`I${signRow}`).value = customer.nameHoaDon || "";
 
     res.setHeader(
       "Content-Disposition",
@@ -398,8 +394,6 @@ const exportTripsByCustomer = async (req, res) => {
   }
 };
 
-
-
 // ==============================
 // XOÁ TẤT CẢ KHÁCH HÀNG
 // ==============================
@@ -414,8 +408,6 @@ const deleteAllCustomers = async (req, res) => {
   }
 };
 
-
-
 module.exports = {
   listCustomers,
   getCustomer,
@@ -425,5 +417,5 @@ module.exports = {
   importCustomersFromExcel,
   toggleWarning,
   exportTripsByCustomer,
-  deleteAllCustomers
+  deleteAllCustomers,
 };

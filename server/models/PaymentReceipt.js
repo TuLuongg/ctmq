@@ -2,14 +2,26 @@ const mongoose = require("mongoose");
 
 const PaymentReceiptSchema = new mongoose.Schema(
   {
-    debtCode: { type: String, required: true }, //mã công nợ
-    customerCode: { type: String, required: true },         //mã KH
+    debtCode: { type: String, required: true },
+    customerCode: { type: String, required: true },
 
     amount: { type: Number, required: true },
-    method: { type: String, enum: ["CaNhan", "VCB", "TCB"], default: "CaNhan" },
+
+    method: {
+      type: String,
+      enum: [
+        "PERSONAL_VCB",   // TK cá nhân - VCB
+        "PERSONAL_TCB",   // TK cá nhân - TCB
+        "COMPANY_VCB",    // VCB công ty
+        "COMPANY_TCB",    // TCB công ty
+        "CASH",           // Tiền mặt
+        "OTHER",          // Khác
+      ],
+      default: "CASH",
+    },
+
     note: { type: String },
 
-    // 🔗 PHÂN BỔ TIỀN
     allocations: [
       {
         debtPeriodId: {

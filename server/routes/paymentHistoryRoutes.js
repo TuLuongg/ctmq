@@ -21,6 +21,8 @@ const {
   addTripPayment,
   getTripPaymentHistory,
   deleteTripPayment,
+  updateTripNameCustomer,
+  updateTripNoteOdd
 } = require("../controllers/paymentHistoryController");
 
 // =====================================================
@@ -91,5 +93,10 @@ router.get("/trip/:maChuyenCode/history", getTripPaymentHistory);
 router.post("/trip/add", addTripPayment);
 
 router.delete("/trip-payment/:paymentId", deleteTripPayment);
+
+//Cập nhật tên KH và ghi chú
+router.put("/update-name-customer", updateTripNameCustomer);
+router.put("/update-note-odd", updateTripNoteOdd);
+
 
 module.exports = router;

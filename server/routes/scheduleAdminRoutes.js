@@ -58,6 +58,10 @@ router.get("/history-count/:rideID", authMiddleware(["admin","dieuVan", "keToan"
 // Gửi yêu cầu chỉnh sửa chuyến
 router.post("/edit-request-ke-toan", authMiddleware(["dieuVan", "keToan", "admin"]), rideEditRequestController.requestEditRide);
 
+// Huỷ yêu cầu chỉnh sửa (chỉ pending)
+router.delete("/delete-edit-request/:requestID",authMiddleware(["dieuVan", "keToan", "admin"]), rideEditRequestController.deleteEditRideRequest);
+
+
 // Phê duyệt hoặc từ chối yêu cầu chỉnh sửa
 router.post("/edit-process", authMiddleware(["admin", "dieuVan", "keToan"]), rideEditRequestController.processEditRideRequest);
 

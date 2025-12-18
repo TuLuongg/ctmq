@@ -1,4 +1,3 @@
-const PaymentHistory = require("../models/PaymentHistory");
 const TripPayment = require("../models/TripPayment");
 const CustomerDebtPeriod = require("../models/CustomerDebtPeriod");
 const PaymentReceipt = require("../models/PaymentReceipt");
@@ -805,19 +804,32 @@ exports.getTripPaymentHistory = async (req, res) => {
 // =====================================================
 exports.addTripPayment = async (req, res) => {
   try {
-    const { maChuyenCode, amount, method, note, createdBy } = req.body;
+    const {
+      maChuyenCode,
+      createdDay, // 👈 nhận từ input date
+      amount,
+      method,
+      note,
+      createdBy,
+    } = req.body;
 
     if (!maChuyenCode || !amount) {
       return res.status(400).json({ error: "Thiếu maChuyenCode hoặc amount" });
     }
 
+    // ⚠️ Convert createdDay (YYYY-MM-DD) → Date
+    const createdDayDate = createdDay
+      ? new Date(createdDay + "T00:00:00.000Z")
+      : new Date();
+
     // 1️⃣ Thêm record thanh toán mới
     const payment = new TripPayment({
       maChuyenCode,
-      amount,
-      method: method || "CaNhan",
+      amount: Number(amount),
+      method: method || "CASH",
       note: note || "",
       createdBy: createdBy || "",
+      createdDay: createdDayDate, // ✅ lưu ngày người dùng chọn
     });
 
     await payment.save();
@@ -828,13 +840,14 @@ exports.addTripPayment = async (req, res) => {
       return res.status(404).json({ error: "Không tìm thấy chuyến" });
     }
 
-    // Tăng daThanhToan
-    trip.daThanhToan = (parseFloat(trip.daThanhToan) || 0) + parseFloat(amount);
+    // Tăng đã thanh toán
+    trip.daThanhToan =
+      (parseFloat(trip.daThanhToan) || 0) + parseFloat(amount);
 
-    // Tính lại tổng cước
+    // Tính tổng tiền chuyến
     const tongTien = calcTripCost(trip);
 
-    // Tính conLai
+    // Còn lại
     trip.conLai = tongTien - trip.daThanhToan;
 
     await trip.save();
@@ -850,6 +863,7 @@ exports.addTripPayment = async (req, res) => {
     res.status(500).json({ error: "Không thể thêm thanh toán cho chuyến" });
   }
 };
+
 
 // =====================================================
 // 📌 XOÁ THANH TOÁN THEO CHUYẾN (CẬP NHẬT LẠI ScheduleAdmin)
@@ -901,3 +915,67 @@ exports.deleteTripPayment = async (req, res) => {
     res.status(500).json({ error: "Không thể xoá thanh toán" });
   }
 };
+
+// =====================================================
+// ✏️ CẬP NHẬT nameCustomer THEO DANH SÁCH CHUYẾN
+// =====================================================
+exports.updateTripNameCustomer = async (req, res) => {
+  try {
+    const { maChuyenList, nameCustomer } = req.body;
+
+    if (!Array.isArray(maChuyenList) || maChuyenList.length === 0) {
+      return res.status(400).json({ error: "maChuyenList không hợp lệ" });
+    }
+
+    if (nameCustomer === undefined) {
+      return res.status(400).json({ error: "Thiếu nameCustomer" });
+    }
+
+    const result = await ScheduleAdmin.updateMany(
+      { maChuyen: { $in: maChuyenList } },
+      { $set: { nameCustomer } }
+    );
+
+    res.json({
+      message: "Đã cập nhật nameCustomer cho các chuyến",
+      matched: result.matchedCount,
+      modified: result.modifiedCount,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Không thể cập nhật nameCustomer" });
+  }
+};
+
+// =====================================================
+// ✏️ CẬP NHẬT noteOdd THEO DANH SÁCH CHUYẾN
+// =====================================================
+exports.updateTripNoteOdd = async (req, res) => {
+  try {
+    const { maChuyenList, noteOdd } = req.body;
+
+    if (!Array.isArray(maChuyenList) || maChuyenList.length === 0) {
+      return res.status(400).json({ error: "maChuyenList không hợp lệ" });
+    }
+
+    // noteOdd cho phép rỗng => chỉ check undefined
+    if (noteOdd === undefined) {
+      return res.status(400).json({ error: "Thiếu noteOdd" });
+    }
+
+    const result = await ScheduleAdmin.updateMany(
+      { maChuyen: { $in: maChuyenList } },
+      { $set: { noteOdd } }
+    );
+
+    res.json({
+      message: "Đã cập nhật noteOdd cho các chuyến",
+      matched: result.matchedCount,
+      modified: result.modifiedCount,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Không thể cập nhật noteOdd" });
+  }
+};
+

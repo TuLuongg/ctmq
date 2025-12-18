@@ -65,6 +65,8 @@ const scheduleAdminSchema = new mongoose.Schema(
       enum: ["INVOICE", "CASH"],
       default: "INVOICE", // mặc định là hoá đơn như mày nói
     },
+    nameCustomer: { type: String, default: "" },
+    noteOdd: { type: String, default: "" },
   },
   { timestamps: true }
 );
