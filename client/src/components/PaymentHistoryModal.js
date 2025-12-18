@@ -2,6 +2,72 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import API from "../api";
 
+function numberToVietnameseText(num) {
+  if (!num || isNaN(num)) return "";
+
+  const units = [
+    "không",
+    "một",
+    "hai",
+    "ba",
+    "bốn",
+    "năm",
+    "sáu",
+    "bảy",
+    "tám",
+    "chín",
+  ];
+
+  function readTriple(n) {
+    let hundred = Math.floor(n / 100);
+    let ten = Math.floor((n % 100) / 10);
+    let unit = n % 10;
+    let result = "";
+
+    if (hundred > 0) {
+      result += units[hundred] + " trăm";
+      if (ten === 0 && unit > 0) result += " lẻ";
+    }
+
+    if (ten > 1) {
+      result += " " + units[ten] + " mươi";
+      if (unit === 1) result += " mốt";
+      else if (unit === 5) result += " lăm";
+      else if (unit > 0) result += " " + units[unit];
+    } else if (ten === 1) {
+      result += " mười";
+      if (unit === 5) result += " lăm";
+      else if (unit > 0) result += " " + units[unit];
+    } else if (ten === 0 && unit > 0 && hundred === 0) {
+      result += units[unit];
+    }
+
+    return result.trim();
+  }
+
+  const levels = ["", " nghìn", " triệu", " tỷ"];
+  let text = "";
+  let level = 0;
+
+  while (num > 0) {
+    const triple = num % 1000;
+    if (triple > 0) {
+      text = readTriple(triple) + levels[level] + (text ? " " + text : "");
+    }
+    num = Math.floor(num / 1000);
+    level++;
+  }
+
+  return text.charAt(0).toUpperCase() + text.slice(1) + " VNĐ";
+}
+
+const formatMoneyInput = (value) => {
+  if (!value) return "";
+  const num = Number(value);
+  if (isNaN(num)) return "";
+  return num.toLocaleString("vi-VN");
+};
+
 export default function PaymentHistoryModal({
   debtCode,
   customerCode,
@@ -9,21 +75,20 @@ export default function PaymentHistoryModal({
   onPaymentAdded,
 }) {
   const [history, setHistory] = useState([]);
-  const [amount, setAmount] = useState("");
-  const [method, setMethod] = useState("Cá nhân");
+  const [amount, setAmount] = useState(""); // số THẬT (100000)
+  const [amountView, setAmountView] = useState(""); // hiển thị (100.000)
+
+  const [method, setMethod] = useState("PERSONAL_VCB");
   const [note, setNote] = useState("");
   const token = localStorage.getItem("token");
 
-  const displayMap = {
-    CaNhan: "Cá nhân",
-    VCB: "VCB Công ty",
-    TCB: "TCB Công ty",
-  };
-
-  const methodMap = {
-    "Cá nhân": "CaNhan",
-    "VCB công ty": "VCB",
-    "TCB công ty": "TCB",
+  const METHOD_LABEL = {
+    PERSONAL_VCB: "TK cá nhân - VCB",
+    PERSONAL_TCB: "TK cá nhân - TCB",
+    COMPANY_VCB: "VCB công ty",
+    COMPANY_TCB: "TCB công ty",
+    CASH: "Tiền mặt",
+    OTHER: "Khác",
   };
 
   const loadHistory = async () => {
@@ -53,8 +118,8 @@ export default function PaymentHistoryModal({
         {
           debtCode,
           customerCode,
-          amount: parseFloat(amount),
-          method: methodMap[method],
+          amount: Number(amount),
+          method,
           note,
           createdBy: localStorage.getItem("username") || "unknown",
         },
@@ -89,11 +154,15 @@ export default function PaymentHistoryModal({
 
         <div className="flex gap-2 mb-4">
           <input
-            type="number"
+            type="text"
             placeholder="Số tiền"
             className="border p-2 flex-1 rounded"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            value={amountView}
+            onChange={(e) => {
+              const raw = e.target.value.replace(/[^\d]/g, ""); // bỏ dấu chấm
+              setAmount(raw);
+              setAmountView(formatMoneyInput(raw));
+            }}
           />
 
           <select
@@ -101,9 +170,12 @@ export default function PaymentHistoryModal({
             value={method}
             onChange={(e) => setMethod(e.target.value)}
           >
-            <option>Cá nhân</option>
-            <option>VCB công ty</option>
-            <option>TCB công ty</option>
+            <option value="PERSONAL_VCB">TK cá nhân - VCB</option>
+            <option value="PERSONAL_TCB">TK cá nhân - TCB</option>
+            <option value="COMPANY_VCB">VCB công ty</option>
+            <option value="COMPANY_TCB">TCB công ty</option>
+            <option value="CASH">Tiền mặt</option>
+            <option value="OTHER">Khác</option>
           </select>
 
           <input
@@ -121,6 +193,11 @@ export default function PaymentHistoryModal({
             Thêm
           </button>
         </div>
+        {amount && (
+          <div className="text-xs text-red-600 italic mt-[-10px] mb-2">
+            {numberToVietnameseText(Number(amount))}
+          </div>
+        )}
 
         <div
           className="overflow-y-auto border rounded-lg"
@@ -146,8 +223,9 @@ export default function PaymentHistoryModal({
                     {h.amount.toLocaleString()}
                   </td>
                   <td className="p-2 border">
-                    {displayMap[h.method] || h.method}
+                    {METHOD_LABEL[h.method] || h.method}
                   </td>
+
                   <td className="p-2 border">{h.note}</td>
                   <td className="p-2 border">
                     {h.allocations.map((a, idx) => (

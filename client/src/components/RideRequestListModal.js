@@ -1,5 +1,9 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { format } from "date-fns";
+import axios from "axios";
+import API from "../api";
+
+const API_URL = `${API}/schedule-admin`;
 
 /* =====================
    FIELD MAP
@@ -63,15 +67,21 @@ export default function RideRequestListModal({
   title = "Danh sách yêu cầu chỉnh sửa",
   requests = [],
 }) {
+  const [localRequests, setLocalRequests] = useState(requests);
+  useEffect(() => {
+    setLocalRequests(requests);
+    setPage(1); // optional: reset về trang 1
+  }, [requests]);
+
   const PER_PAGE = 20;
   const [page, setPage] = useState(1);
 
-  const totalPages = Math.ceil(requests.length / PER_PAGE);
+  const totalPages = Math.ceil(localRequests.length / PER_PAGE);
 
   const paginated = useMemo(() => {
     const start = (page - 1) * PER_PAGE;
-    return requests.slice(start, start + PER_PAGE);
-  }, [page, requests]);
+    return localRequests.slice(start, start + PER_PAGE);
+  }, [page, localRequests]);
 
   if (!open) return null;
 
@@ -86,6 +96,35 @@ export default function RideRequestListModal({
         {map[status]?.text || status}
       </span>
     );
+  };
+
+  const handleCancelRequest = async (req) => {
+    if (req.status !== "pending") return;
+
+    const ok = window.confirm("Bạn chắc chắn muốn huỷ yêu cầu chỉnh sửa này?");
+    if (!ok) return;
+
+    try {
+      const token = localStorage.getItem("token");
+
+      await axios.delete(`${API_URL}/delete-edit-request/${req._id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      // ✅ XOÁ DÒNG KHỎI MODAL
+      setLocalRequests((prev) => prev.filter((r) => r._id !== req._id));
+
+      // nếu trang hiện tại bị rỗng thì lùi lại 1 trang
+      setPage((p) => {
+        const maxPage = Math.ceil((localRequests.length - 1) / PER_PAGE);
+        return p > maxPage ? Math.max(maxPage, 1) : p;
+      });
+    } catch (err) {
+      console.error("Huỷ yêu cầu thất bại:", err);
+      alert(err?.response?.data?.error || "Huỷ yêu cầu chỉnh sửa thất bại");
+    }
   };
 
   return (
@@ -195,15 +234,16 @@ export default function RideRequestListModal({
                     </td>
 
                     <td className="border p-2 sticky right-0 bg-white z-20 text-center">
-                      <button
-                        className="text-red-600 hover:underline font-semibold"
-                        onClick={() => {
-                          // TODO: bạn gắn API huỷ ở đây
-                          console.log("Cancel request:", req._id);
-                        }}
-                      >
-                        Huỷ
-                      </button>
+                      {req.status === "pending" ? (
+                        <button
+                          className="text-red-600 hover:underline font-semibold"
+                          onClick={() => handleCancelRequest(req)}
+                        >
+                          Huỷ
+                        </button>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
                     </td>
                   </tr>
                 );

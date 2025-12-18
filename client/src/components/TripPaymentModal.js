@@ -2,21 +2,123 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import API from "../api";
 
-export default function TripPaymentModal({ maChuyenCode, onClose, onChange }) {
+const PAYMENT_METHODS = [
+  { value: "PERSONAL_VCB", label: "TK cá nhân - VCB" },
+  { value: "PERSONAL_TCB", label: "TK cá nhân - TCB" },
+  { value: "COMPANY_VCB", label: "VCB công ty" },
+  { value: "COMPANY_TCB", label: "TCB công ty" },
+  { value: "CASH", label: "Tiền mặt" },
+  { value: "OTHER", label: "Khác" },
+];
+
+const formatMoneyInput = (value) => {
+  if (!value) return "";
+  const num = value.replace(/[^\d]/g, "");
+  return num.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+};
+
+const parseMoneyToNumber = (value) => {
+  if (!value) return 0;
+  return Number(value.replace(/\./g, ""));
+};
+
+const numberToVietnameseWords = (num) => {
+  if (!num || num <= 0) return "";
+
+  const units = [
+    "",
+    "một",
+    "hai",
+    "ba",
+    "bốn",
+    "năm",
+    "sáu",
+    "bảy",
+    "tám",
+    "chín",
+  ];
+
+  const scales = ["", "nghìn", "triệu", "tỷ"];
+
+  const readTriple = (n) => {
+    let str = "";
+    const hundred = Math.floor(n / 100);
+    const ten = Math.floor((n % 100) / 10);
+    const unit = n % 10;
+
+    if (hundred > 0) {
+      str += units[hundred] + " trăm";
+      if (ten === 0 && unit > 0) str += " lẻ";
+    }
+
+    if (ten > 1) {
+      str += " " + units[ten] + " mươi";
+      if (unit === 1) str += " mốt";
+      else if (unit === 5) str += " lăm";
+      else if (unit > 0) str += " " + units[unit];
+    } else if (ten === 1) {
+      str += " mười";
+      if (unit === 5) str += " lăm";
+      else if (unit > 0) str += " " + units[unit];
+    } else if (ten === 0 && unit > 0 && hundred === 0) {
+      str += units[unit];
+    }
+
+    return str.trim();
+  };
+
+  let result = "";
+  let scaleIndex = 0;
+
+  while (num > 0) {
+    const chunk = num % 1000;
+    if (chunk > 0) {
+      const chunkText = readTriple(chunk);
+      result = chunkText + " " + scales[scaleIndex] + " " + result;
+    }
+    num = Math.floor(num / 1000);
+    scaleIndex++;
+  }
+
+  return (
+    result.trim().charAt(0).toUpperCase() + result.trim().slice(1) + " đồng"
+  );
+};
+
+export default function TripPaymentModal({
+  maChuyenCode,
+  onClose,
+  onChange,
+  onReloadPayment,
+}) {
   const [payments, setPayments] = useState([]);
   const [amount, setAmount] = useState("");
-  const [method, setMethod] = useState("CaNhan");
+  const [method, setMethod] = useState("CASH");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
+  const today = new Date().toISOString().slice(0, 10);
+  const [createdDay, setCreatedDay] = useState(today);
+
+  const PAYMENT_METHOD_LABEL_MAP = {
+    PERSONAL_VCB: "TK cá nhân - VCB",
+    PERSONAL_TCB: "TK cá nhân - TCB",
+    COMPANY_VCB: "VCB công ty",
+    COMPANY_TCB: "TCB công ty",
+    CASH: "Tiền mặt",
+    OTHER: "Khác",
+  };
 
   // Load lịch sử thanh toán
   const loadPayments = async () => {
     if (!maChuyenCode) return;
     try {
       setLoading(true);
-      const res = await axios.get(`${API}/payment-history/trip/${maChuyenCode}/history`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      });
+      const res = await axios.get(
+        `${API}/payment-history/trip/${maChuyenCode}/history`,
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        }
+      );
       setPayments(res.data);
     } catch (err) {
       console.error("Lỗi tải lịch sử thanh toán:", err);
@@ -33,17 +135,32 @@ export default function TripPaymentModal({ maChuyenCode, onClose, onChange }) {
   // Thêm thanh toán mới
   const handleAddPayment = async () => {
     if (!amount) return alert("Nhập số tiền!");
+
+    const numericAmount = parseMoneyToNumber(amount);
+    if (!numericAmount) return alert("Số tiền không hợp lệ");
+
     try {
       await axios.post(
         `${API}/payment-history/trip/add`,
-        { maChuyenCode, amount: Number(amount), method, note },
-        { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+        {
+          maChuyenCode,
+          amount: numericAmount,
+          method,
+          note,
+          createdDay,
+        },
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        }
       );
+
       setAmount("");
       setNote("");
-      setMethod("CaNhan");
-      loadPayments(); // reload danh sách
-      if (onChange) onChange(); // <- báo parent reload bảng
+      setMethod("CASH");
+
+      loadPayments();
+      onReloadPayment();
+      if (onChange) onChange();
     } catch (err) {
       console.error("Lỗi thêm thanh toán:", err);
       alert("Không thể thêm thanh toán");
@@ -58,6 +175,8 @@ export default function TripPaymentModal({ maChuyenCode, onClose, onChange }) {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
       loadPayments(); // reload danh sách sau khi xoá
+      onReloadPayment();
+
       if (onChange) onChange(); // <- báo parent reload bảng
     } catch (err) {
       console.error("Lỗi xoá thanh toán:", err);
@@ -68,28 +187,51 @@ export default function TripPaymentModal({ maChuyenCode, onClose, onChange }) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50">
       <div className="bg-white rounded shadow-lg w-[600px] max-h-[80vh] overflow-auto p-4">
-        <h2 className="text-lg font-bold mb-4">Thanh toán chuyến {maChuyenCode}</h2>
+        <h2 className="text-lg font-bold mb-4">
+          Thanh toán chuyến {maChuyenCode}
+        </h2>
 
         {/* Form thêm thanh toán */}
         <div className="flex flex-col gap-2 mb-4">
+          <div className="flex flex-col-2 gap-1 items-center">
+            <label className="text-xs font-medium mr-1">
+              Ngày thanh toán:{" "}
+            </label>
+            <input
+              type="date"
+              className="border p-1"
+              value={createdDay}
+              onChange={(e) => setCreatedDay(e.target.value)}
+            />
+          </div>
+
           <div className="flex gap-2">
             <input
-              type="number"
+              type="text"
               placeholder="Số tiền"
               className="border p-1 flex-1"
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(e) => setAmount(formatMoneyInput(e.target.value))}
             />
+
             <select
               className="border p-1"
               value={method}
               onChange={(e) => setMethod(e.target.value)}
             >
-              <option value="CaNhan">CaNhan</option>
-              <option value="VCB">VCB</option>
-              <option value="TCB">TCB</option>
+              {PAYMENT_METHODS.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
             </select>
           </div>
+          {amount && (
+            <div className="text-xs italic text-red-600 mt-[-5px]">
+              {numberToVietnameseWords(parseMoneyToNumber(amount))}
+            </div>
+          )}
+
           <input
             type="text"
             placeholder="Ghi chú"
@@ -114,7 +256,7 @@ export default function TripPaymentModal({ maChuyenCode, onClose, onChange }) {
           <table className="w-full border text-sm">
             <thead className="bg-gray-100">
               <tr>
-                <th className="border p-1">Ngày tạo</th>
+                <th className="border p-1">Ngày thanh toán</th>
                 <th className="border p-1">Số tiền</th>
                 <th className="border p-1">Phương thức</th>
                 <th className="border p-1">Ghi chú</th>
@@ -125,14 +267,19 @@ export default function TripPaymentModal({ maChuyenCode, onClose, onChange }) {
               {payments.map((p) => (
                 <tr key={p._id}>
                   <td className="border p-1">
-                    {new Date(p.createdAt).toLocaleString("vi-VN")}
+                    {new Date(p.createdDay).toLocaleDateString("vi-VN")}
                   </td>
-                  <td className="border p-1 text-right">{p.amount.toLocaleString()}</td>
-                  <td className="border p-1">{p.method}</td>
+                  <td className="border p-1">
+                    {p.amount.toLocaleString("vi-VN")}
+                  </td>
+
+                  <td className="border p-1">
+                    {PAYMENT_METHOD_LABEL_MAP[p.method] || p.method}
+                  </td>
                   <td className="border p-1">{p.note}</td>
                   <td className="border p-1 text-center">
                     <button
-                      className="bg-red-500 text-white px-2 py-1 rounded"
+                      className="bg-red-500 text-white px-2 py-0 rounded"
                       onClick={() => handleDeletePayment(p._id)}
                     >
                       Xoá
