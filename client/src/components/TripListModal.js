@@ -44,6 +44,15 @@ export default function TripListModal({ customer, onClose, onPaymentTypeChanged 
   };
 
 const updatePaymentType = async (maChuyen, checked) => {
+  // 🔥 optimistic update (cập nhật UI trước)
+  setTrips((prev) =>
+    prev.map((t) =>
+      t.maChuyen === maChuyen
+        ? { ...t, paymentType: checked ? "INVOICE" : "CASH" }
+        : t
+    )
+  );
+
   try {
     await axios.patch(
       `${API}/payment-history/trip/${maChuyen}/toggle-payment-type`,
@@ -52,17 +61,32 @@ const updatePaymentType = async (maChuyen, checked) => {
       },
       { headers: { Authorization: `Bearer ${token}` } }
     );
-
-    // reload lại danh sách chuyến
-    await loadTrips();
-
-    // 🔥 reload lại bảng công nợ ở CustomerDebtPage
-    onPaymentTypeChanged?.();
   } catch (err) {
     console.error("Lỗi đổi paymentType", err);
+
+    // ❌ rollback nếu lỗi
+    setTrips((prev) =>
+      prev.map((t) =>
+        t.maChuyen === maChuyen
+          ? { ...t, paymentType: checked ? "CASH" : "INVOICE" }
+          : t
+      )
+    );
+
     alert("Không đổi được hình thức thanh toán");
   }
 };
+
+
+const handleClose = async () => {
+  try {
+    // 🔥 reload lại bảng công nợ / chuyến ở page cha
+    await onPaymentTypeChanged?.();
+  } finally {
+    onClose();
+  }
+};
+
 
 
   return (
@@ -73,7 +97,7 @@ const updatePaymentType = async (maChuyen, checked) => {
             Danh sách chuyến — KH {customer?.maKH} ({customer?.debtCode})
           </h2>
 
-          <button onClick={onClose} className="text-red-500 font-semibold">
+          <button onClick={handleClose} className="text-red-500 font-semibold">
             ✕
           </button>
         </div>
