@@ -3,14 +3,46 @@ const Voucher = require("../models/Voucher");
 // =========================
 //  TẠO PHIẾU
 // =========================
+const generateVoucherCode = async (date) => {
+  const d = date ? new Date(date) : new Date();
+
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = String(d.getFullYear()).slice(-2);
+
+  // lấy ngày đầu & cuối tháng
+  const startOfMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+  const endOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
+
+  // đếm số phiếu trong tháng
+  const count = await Voucher.countDocuments({
+    dateCreated: {
+      $gte: startOfMonth,
+      $lte: endOfMonth
+    }
+  });
+
+  const index = String(count + 1).padStart(3, "0");
+
+  return `PC.${month}.${year}.${index}`;
+};
+
+
 exports.createVoucher = async (req, res) => {
   try {
     const data = req.body;
 
+    const dateCreated = data.dateCreated
+      ? new Date(data.dateCreated)
+      : new Date();
+
+    // 🔹 BE tự sinh mã
+    const voucherCode = await generateVoucherCode(dateCreated);
+
     const v = new Voucher({
       ...data,
-      dateCreated: data.dateCreated ? new Date(data.dateCreated) : new Date(),
-      status: "waiting_check",   // trạng thái mặc định
+      voucherCode,              // gán mã tại đây
+      dateCreated,
+      status: "waiting_check",  // trạng thái mặc định
     });
 
     const saved = await v.save();
@@ -40,14 +72,27 @@ exports.getAllVouchers = async (req, res) => {
       filter.dateCreated = { $gte: start, $lte: end };
     }
 
-    const list = await Voucher.find(filter).sort({ dateCreated: -1 });
+    const list = await Voucher.find(filter)
+      .sort({ dateCreated: -1 })
+      .lean(); // chuyển thành object thường để sửa thêm
 
-    res.json(list);
+    // Thêm voucherCode của phiếu gốc nếu có
+    const listWithOrig = await Promise.all(
+      list.map(async (v) => {
+        if (v.adjustedFrom) {
+          const orig = await Voucher.findById(v.adjustedFrom);
+          if (orig) v.origVoucherCode = orig.voucherCode;
+        }
+        return v;
+      })
+    );
 
+    res.json(listWithOrig);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 
 
@@ -139,14 +184,24 @@ exports.approveVoucher = async (req, res) => {
 exports.adjustVoucher = async (req, res) => {
   try {
     const orig = await Voucher.findById(req.params.id);
-    if (!orig) return res.status(404).json({ error: "Phiếu gốc không tồn tại" });
+    if (!orig)
+      return res.status(404).json({ error: "Phiếu gốc không tồn tại" });
 
     const data = req.body;
 
+    // 🔹 sinh mã phiếu mới cho phiếu điều chỉnh
+    const voucherCode = await generateVoucherCode(
+      data.dateCreated || new Date()
+    );
+
     const newVoucher = new Voucher({
       ...data,
-      adjustedFrom: orig._id,
-      dateCreated: data.dateCreated ? new Date(data.dateCreated) : new Date(),
+      voucherCode,                 // ✅ BẮT BUỘC
+      adjustedFrom: orig._id,       // liên kết phiếu gốc
+      origVoucherCode: orig.voucherCode, //lưu voucherCode của phiếu gốc
+      dateCreated: data.dateCreated
+        ? new Date(data.dateCreated)
+        : new Date(),
       status: "waiting_check",
     });
 
@@ -157,6 +212,7 @@ exports.adjustVoucher = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 // =========================
 //  IN PHIẾU
@@ -190,3 +246,64 @@ exports.printVoucher = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// =========================
+//  DUYỆT PHIẾU ĐIỀU CHỈNH
+// =========================
+exports.approveAdjustedVoucher = async (req, res) => {
+  try {
+    const adj = await Voucher.findById(req.params.id);
+    if (!adj) return res.status(404).json({ error: "Không tìm thấy phiếu điều chỉnh" });
+
+    if (adj.status !== "waiting_check")
+      return res.status(400).json({ error: "Phiếu điều chỉnh không ở trạng thái chờ duyệt" });
+
+    if (!adj.adjustedFrom)
+      return res.status(400).json({ error: "Phiếu này không phải phiếu điều chỉnh" });
+
+    const orig = await Voucher.findById(adj.adjustedFrom);
+    if (!orig) return res.status(404).json({ error: "Phiếu gốc không tồn tại" });
+
+    // 🔁 ĐÈ DỮ LIỆU (GIỮ LẠI voucherCode)
+    const fieldsToOverwrite = [
+      "paymentSource",
+      "receiverName",
+      "receiverCompany",
+      "receiverBankAccount",
+      "transferContent",
+      "reason",
+      "expenseType",
+      "amount",
+      "amountInWords",
+      "note"
+    ];
+
+    fieldsToOverwrite.forEach(f => {
+      if (adj[f] !== undefined) {
+        orig[f] = adj[f];
+      }
+    });
+
+    orig.status = "approved";   // vẫn là phiếu hợp lệ
+    await orig.save();
+
+    // 🔥 ĐÁNH DẤU PHIẾU GỐC ĐÃ BỊ ĐIỀU CHỈNH (LỊCH SỬ)
+    await Voucher.updateOne(
+      { _id: orig._id },
+      { $set: { status: "adjusted" } }
+    );
+
+    // ❌ XOÁ PHIẾU ĐIỀU CHỈNH
+    await adj.deleteOne();
+
+    res.json({
+      success: true,
+      message: "Đã duyệt điều chỉnh, phiếu gốc được cập nhật",
+      voucher: orig
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+

@@ -12,6 +12,8 @@ router.delete("/:id", voucherController.deleteVoucher);
 
 router.post("/:id/approve", voucherController.approveVoucher);
 router.post("/:id/adjust", voucherController.adjustVoucher);
+router.post("/:id/approve-adjust", voucherController.approveAdjustedVoucher);
+
 router.get("/:id/print", voucherController.printVoucher);
 
 module.exports = router;

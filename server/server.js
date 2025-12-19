@@ -13,6 +13,7 @@ const customerRoutes = require('./routes/customerRoutes');
 const vehicleRoutes = require('./routes/vehicleRoutes');
 const paymentHistoryRoutes = require('./routes/paymentHistoryRoutes')
 const voucherRoutes = require('./routes/voucherRoutes');
+const expenseRoutes = require('./routes/expenseRoutes')
 
 require('./models/cron');
 
@@ -37,6 +38,7 @@ app.use("/api/customers", customerRoutes);
 app.use("/api/vehicles", vehicleRoutes);
 app.use("/api/payment-history", paymentHistoryRoutes);
 app.use("/api/vouchers", voucherRoutes);
+app.use("/api/expense", expenseRoutes);
 
 app.get('/', (req, res) => {
   res.send('Server hoạt động!');

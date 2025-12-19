@@ -1,6 +1,13 @@
 const mongoose = require("mongoose");
 
 const voucherSchema = new mongoose.Schema({
+  // ====== MÃ PHIẾU ======
+  voucherCode: {
+    type: String,
+    required: true,
+    unique: true,          // không trùng
+    index: true
+  },
 
   // ====== THÔNG TIN CƠ BẢN ======
   dateCreated: { type: Date, required: true },         // Ngày lập phiếu
@@ -25,7 +32,7 @@ const voucherSchema = new mongoose.Schema({
   // ====== TRẠNG THÁI DUYỆT ======
   status: {
     type: String,
-    enum: ["waiting_check", "approved"],
+    enum: ["waiting_check", "approved", "adjusted"],
     default: "waiting_check"
   },
 
@@ -35,6 +42,7 @@ const voucherSchema = new mongoose.Schema({
     ref: "Voucher", 
     default: null 
   },
+  origVoucherCode: { type: String, default: ""}
 
 }, { timestamps: true });
 
