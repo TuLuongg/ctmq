@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import API from "../../api";
 import axios from "axios";
 
@@ -94,6 +94,39 @@ export default function VoucherAdjustModal({ id, customers, onClose, onSuccess }
     amount: "",
     createdBy: "",
   });
+
+  useEffect(() => {
+  async function loadOriginalVoucher() {
+    try {
+      const res = await axios.get(`${API}/vouchers/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const v = res.data;
+
+      // Đổ toàn bộ dữ liệu phiếu gốc vào form
+      setForm({
+        dateCreated: new Date().toISOString().slice(0, 10), // ngày mới
+        paymentSource: v.paymentSource || "congTy",
+        receiverName: v.receiverName || "",
+        receiverCompany: v.receiverCompany || "",
+        receiverBankAccount: v.receiverBankAccount || "",
+        transferContent: v.transferContent || "",
+        reason: "",                 // ❗ lý do điều chỉnh để trống
+        expenseType: v.expenseType || "",
+        amount: String(v.amount || ""),
+        createdBy: v.createdBy || "",
+      });
+
+    } catch (err) {
+      alert("Không tải được phiếu gốc");
+      onClose?.();
+    }
+  }
+
+  if (id) loadOriginalVoucher();
+}, [id]);
+
 
   const [saving, setSaving] = useState(false);
   const [nameSuggestions, setNameSuggestions] = useState([]);

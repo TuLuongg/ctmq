@@ -5,6 +5,34 @@ import VoucherDetailModal from "../../components/VoucherActions/VoucherDetailMod
 import API from "../../api";
 import axios from "axios";
 
+const ORIGIN_COL_WIDTH = {
+  stt: 60,
+  date: 110,
+  code: 140,
+  source: 120,
+  receiver: 200,
+  company: 200,
+  content: 320,
+  reason: 260,
+  amount: 140,
+  status: 140,
+  action: 140,
+};
+
+const ADJUST_COL_WIDTH = {
+  stt: 60,
+  date: 110,
+  source: 120,
+  receiver: 200,
+  company: 200,
+  content: 300,
+  reason: 280,
+  amount: 140,
+  orig: 150,
+  status: 140,
+  action: 140,
+};
+
 export default function VoucherListPage() {
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -74,12 +102,73 @@ export default function VoucherListPage() {
     fetchCustomers();
   }, []);
 
+  const handleApproveAdjusted = async (id) => {
+    if (
+      !window.confirm("Duyệt phiếu điều chỉnh này? Phiếu gốc sẽ được cập nhật!")
+    )
+      return;
+
+    try {
+      await axios.post(
+        `${API}/vouchers/${id}/approve-adjust`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      alert("Đã duyệt phiếu điều chỉnh");
+      load();
+    } catch (err) {
+      alert(err.response?.data?.error || "Duyệt thất bại");
+    }
+  };
+
   // Tách ra 2 danh sách
   const vouchersOriginal = list.filter((v) => !v.adjustedFrom);
   const vouchersAdjusted = list.filter((v) => v.adjustedFrom);
 
   // Lấy thông tin phiếu gốc từ ID
   const getOriginalVoucher = (id) => list.find((v) => v._id === id);
+
+  // ==== DRAG + RESIZE CỘT ====
+  const [dragCol, setDragCol] = useState(null);
+
+  // thứ tự cột PHIẾU GỐC
+  const [originColOrder, setOriginColOrder] = useState([
+    "stt",
+    "date",
+    "code",
+    "source",
+    "receiver",
+    "company",
+    "content",
+    "reason",
+    "amount",
+    "status",
+    "action",
+  ]);
+
+  // thứ tự cột PHIẾU ĐIỀU CHỈNH
+  const [adjustColOrder, setAdjustColOrder] = useState([
+    "stt",
+    "date",
+    "source",
+    "receiver",
+    "company",
+    "content",
+    "reason",
+    "amount",
+    "orig",
+    "status",
+    "action",
+  ]);
+
+  const moveCol = (cols, from, to, setCols) => {
+    const next = [...cols];
+    const iFrom = next.indexOf(from);
+    const iTo = next.indexOf(to);
+    next.splice(iTo, 0, next.splice(iFrom, 1)[0]);
+    setCols(next);
+  };
 
   return (
     <div className="p-4 text-xs">
@@ -211,76 +300,168 @@ export default function VoucherListPage() {
 
       {/* Bảng phiếu gốc */}
       <h2 className="font-bold mb-2">Phiếu gốc</h2>
-      <div className="overflow-auto mb-6">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-100 sticky top-0">
+      <div className="overflow-auto mb-6 max-h-[600px] border min-w-0">
+        <table className="text-xs w-max">
+          <thead className="bg-gray-100 sticky top-0 z-10">
             <tr>
-              <th className="border p-2">STT</th>
-              <th className="border p-2">Ngày</th>
-              <th className="border p-2">Tài khoản chi</th>
-              <th className="border p-2">Người nhận</th>
-              <th className="border p-2">Tên công ty</th>
-              <th className="border p-2">Nội dung</th>
-              <th className="border p-2">Số tiền</th>
-              <th className="border p-2">Trạng thái</th>
-              <th className="border p-2">Hành động</th>
+              {originColOrder.map((key) => (
+                <th
+                  key={key}
+                  draggable
+                  onDragStart={() => setDragCol(key)}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={() =>
+                    moveCol(originColOrder, dragCol, key, setOriginColOrder)
+                  }
+                  className="border p-2 resize-x overflow-hidden select-none"
+                  style={{
+                    resize: "horizontal",
+                    width: ORIGIN_COL_WIDTH[key],
+                    minWidth: ORIGIN_COL_WIDTH[key],
+                  }}
+                >
+                  {
+                    {
+                      stt: "STT",
+                      date: "Ngày",
+                      code: "Mã phiếu chi",
+                      source: "Tài khoản chi",
+                      receiver: "Người nhận",
+                      company: "Tên công ty",
+                      content: "Nội dung",
+                      reason: "Lý do chi",
+                      amount: "Số tiền",
+                      status: "Trạng thái",
+                      action: "Hành động",
+                    }[key]
+                  }
+                </th>
+              ))}
             </tr>
           </thead>
+
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="9" className="p-4 text-center">
+                <td colSpan={originColOrder.length} className="p-4 text-center">
                   Đang tải...
                 </td>
               </tr>
             ) : vouchersOriginal.length === 0 ? (
               <tr>
-                <td colSpan="9" className="p-4 text-center">
+                <td colSpan={originColOrder.length} className="p-4 text-center">
                   Không có phiếu gốc
                 </td>
               </tr>
             ) : (
               vouchersOriginal.map((v, idx) => (
                 <tr key={v._id} className="hover:bg-gray-50">
-                  <td className="border p-2">{idx + 1}</td>
-                  <td className="border p-2">
-                    {new Date(v.dateCreated).toLocaleDateString("vi-VN")}
-                  </td>
-                  <td className="border p-2">
-                    {v.paymentSource === "caNhan" ? "Cá nhân" : "Công ty"}
-                  </td>
-                  <td className="border p-2">{v.receiverName}</td>
-                  <td className="border p-2">{v.receiverCompany}</td>
-                  <td className="border p-2">
-                    {v.transferContent || v.reason}
-                  </td>
-                  <td className="border p-2 text-right">
-                    {v.amount?.toLocaleString()}
-                  </td>
-                  <td className="border p-2 text-center font-semibold">
-                    {v.status === "waiting_check" && (
-                      <span className="text-yellow-600">Đang chờ duyệt</span>
-                    )}
-                    {v.status === "approved" && (
-                      <span className="text-green-600">Đã duyệt</span>
-                    )}
-                  </td>
-                  <td className="border p-2">
-                    <div className="flex justify-center items-center gap-2">
-                      <button
-                        className="text-blue-600"
-                        onClick={() => setDetailId(v._id)}
-                      >
-                        Xem
-                      </button>
-                      <button
-                        className="text-red-600"
-                        onClick={() => window.open(`/voucher/${v._id}/print`)}
-                      >
-                        In phiếu
-                      </button>
-                    </div>
-                  </td>
+                  {originColOrder.map((col) => {
+                    switch (col) {
+                      case "stt":
+                        return (
+                          <td key={col} className="border p-2">
+                            {idx + 1}
+                          </td>
+                        );
+                      case "date":
+                        return (
+                          <td key={col} className="border p-2">
+                            {new Date(v.dateCreated).toLocaleDateString(
+                              "vi-VN"
+                            )}
+                          </td>
+                        );
+                      case "code":
+                        return (
+                          <td key={col} className="border p-2">
+                            {v.voucherCode}
+                          </td>
+                        );
+                      case "source":
+                        return (
+                          <td key={col} className="border p-2">
+                            {v.paymentSource === "caNhan"
+                              ? "Cá nhân"
+                              : "Công ty"}
+                          </td>
+                        );
+                      case "receiver":
+                        return (
+                          <td key={col} className="border p-2">
+                            {v.receiverName}
+                          </td>
+                        );
+                      case "company":
+                        return (
+                          <td key={col} className="border p-2">
+                            {v.receiverCompany}
+                          </td>
+                        );
+                      case "content":
+                        return (
+                          <td key={col} className="border p-2">
+                            {v.transferContent}
+                          </td>
+                        );
+                      case "reason":
+                        return (
+                          <td key={col} className="border p-2">
+                            {v.reason}
+                          </td>
+                        );
+                      case "amount":
+                        return (
+                          <td key={col} className="border p-2 text-right">
+                            {v.amount?.toLocaleString()}
+                          </td>
+                        );
+                      case "status":
+                        return (
+                          <td
+                            key={col}
+                            className="border p-2 text-center font-semibold"
+                          >
+                            {v.status === "waiting_check" && (
+                              <span className="text-yellow-600">
+                                Đang chờ duyệt
+                              </span>
+                            )}
+                            {v.status === "approved" && (
+                              <span className="text-green-600">Đã duyệt</span>
+                            )}
+                            {v.status === "adjusted" && (
+                              <span className="text-purple-600">
+                                Đã điều chỉnh
+                              </span>
+                            )}
+                          </td>
+                        );
+                      case "action":
+                        return (
+                          <td key={col} className="border p-2">
+                            <div className="flex justify-center gap-2">
+                              <button
+                                className="text-blue-600"
+                                onClick={() => setDetailId(v._id)}
+                              >
+                                Xem
+                              </button>
+                              <button
+                                className="text-red-600"
+                                onClick={() =>
+                                  window.open(`/voucher/${v._id}/print`)
+                                }
+                              >
+                                In phiếu
+                              </button>
+                            </div>
+                          </td>
+                        );
+                      default:
+                        return null;
+                    }
+                  })}
                 </tr>
               ))
             )}
@@ -290,32 +471,56 @@ export default function VoucherListPage() {
 
       {/* Bảng phiếu điều chỉnh */}
       <h2 className="font-bold mb-2">Phiếu điều chỉnh</h2>
-      <div className="overflow-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-100 sticky top-0">
+      <div className="overflow-auto max-h-[600px] border min-w-0">
+        <table className="w-max text-xs">
+          <thead className="bg-gray-100 sticky top-0 z-10">
             <tr>
-              <th className="border p-2">STT</th>
-              <th className="border p-2">Ngày</th>
-              <th className="border p-2">Tài khoản chi</th>
-              <th className="border p-2">Người nhận</th>
-              <th className="border p-2">Tên công ty</th>
-              <th className="border p-2">Nội dung</th>
-              <th className="border p-2">Số tiền</th>
-              <th className="border p-2">Phiếu gốc</th>
-              <th className="border p-2">Trạng thái</th>
-              <th className="border p-2">Hành động</th>
+              {adjustColOrder.map((key) => (
+                <th
+                  key={key}
+                  draggable
+                  onDragStart={() => setDragCol(key)}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={() =>
+                    moveCol(adjustColOrder, dragCol, key, setAdjustColOrder)
+                  }
+                  className="border p-2 resize-x overflow-hidden select-none"
+                  style={{
+                    resize: "horizontal",
+                    width: ADJUST_COL_WIDTH[key],
+                    minWidth: ADJUST_COL_WIDTH[key],
+                  }}
+                >
+                  {
+                    {
+                      stt: "STT",
+                      date: "Ngày",
+                      source: "Tài khoản chi",
+                      receiver: "Người nhận",
+                      company: "Tên công ty",
+                      content: "Nội dung",
+                      reason: "Lý do chi",
+                      amount: "Số tiền",
+                      orig: "Phiếu gốc",
+                      status: "Trạng thái",
+                      action: "Hành động",
+                    }[key]
+                  }
+                </th>
+              ))}
             </tr>
           </thead>
+
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="10" className="p-4 text-center">
+                <td colSpan={adjustColOrder.length} className="p-4 text-center">
                   Đang tải...
                 </td>
               </tr>
             ) : vouchersAdjusted.length === 0 ? (
               <tr>
-                <td colSpan="10" className="p-4 text-center">
+                <td colSpan={adjustColOrder.length} className="p-4 text-center">
                   Không có phiếu điều chỉnh
                 </td>
               </tr>
@@ -324,58 +529,162 @@ export default function VoucherListPage() {
                 const orig = getOriginalVoucher(v.adjustedFrom);
                 return (
                   <tr key={v._id} className="hover:bg-gray-50">
-                    <td className="border p-2">{idx + 1}</td>
-                    <td className="border p-2">
-                      {new Date(v.dateCreated).toLocaleDateString("vi-VN")}
-                    </td>
-                    <td className="border p-2">
-                      {v.paymentSource === "caNhan" ? "Cá nhân" : "Công ty"}
-                    </td>
-                    <td className="border p-2">{v.receiverName}</td>
-                    <td className="border p-2">{v.receiverCompany}</td>
-                    <td className="border p-2">
-                      {v.transferContent || v.reason}
-                    </td>
-                    <td className="border p-2 text-right">
-                      {v.amount?.toLocaleString()}
-                    </td>
-                    <td className="border p-2">
-                      {orig ? (
-                        <button
-                          className="text-blue-600 underline"
-                          onClick={() => setShowOrigDetail(orig._id)}
-                        >
-                          {orig._id.slice(-6)}{" "}
-                          {/* hiển thị 6 ký tự cuối làm tham chiếu */}
-                        </button>
-                      ) : (
-                        "-"
-                      )}
-                    </td>
-                    <td className="border p-2 text-center font-semibold">
-                      {v.status === "waiting_check" && (
-                        <span className="text-yellow-600">Đang chờ duyệt</span>
-                      )}
-                      {v.status === "approved" && (
-                        <span className="text-green-600">Đã duyệt</span>
-                      )}
-                    </td>
-                    <td className="border p-2">
-                      <div className="flex justify-center items-center gap-2">
-                        <button
-                          className="text-blue-600"
-                          onClick={() => setDetailId(v._id)}
-                        >
-                          Xem
-                        </button>
-                        <button
-                          className="text-red-600"
-                          onClick={() => window.open(`/voucher/${v._id}/print`)}
-                        >
-                          In phiếu
-                        </button>
-                      </div>
-                    </td>
+                    {adjustColOrder.map((col) => {
+                      switch (col) {
+                        case "stt":
+                          return (
+                            <td key={col} className="border p-2">
+                              {idx + 1}
+                            </td>
+                          );
+                        case "date":
+                          return (
+                            <td
+                              key={col}
+                              className={`border p-2 ${
+                                v.dateCreated !== orig?.dateCreated
+                                  ? "text-red-600"
+                                  : ""
+                              }`}
+                            >
+                              {new Date(v.dateCreated).toLocaleDateString(
+                                "vi-VN"
+                              )}
+                            </td>
+                          );
+                        case "source":
+                          return (
+                            <td
+                              key={col}
+                              className={`border p-2 ${
+                                v.paymentSource !== orig?.paymentSource
+                                  ? "text-red-600"
+                                  : ""
+                              }`}
+                            >
+                              {v.paymentSource === "caNhan"
+                                ? "Cá nhân"
+                                : "Công ty"}
+                            </td>
+                          );
+                        case "receiver":
+                          return (
+                            <td
+                              key={col}
+                              className={`border p-2 ${
+                                v.receiverName !== orig?.receiverName
+                                  ? "text-red-600"
+                                  : ""
+                              }`}
+                            >
+                              {v.receiverName}
+                            </td>
+                          );
+                        case "company":
+                          return (
+                            <td
+                              key={col}
+                              className={`border p-2 ${
+                                v.receiverCompany !== orig?.receiverCompany
+                                  ? "text-red-600"
+                                  : ""
+                              }`}
+                            >
+                              {v.receiverCompany}
+                            </td>
+                          );
+                        case "content":
+                          return (
+                            <td
+                              key={col}
+                              className={`border p-2 ${
+                                v.transferContent !== orig?.transferContent
+                                  ? "text-red-600"
+                                  : ""
+                              }`}
+                            >
+                              {v.transferContent}
+                            </td>
+                          );
+                        case "reason":
+                          return (
+                            <td
+                              key={col}
+                              className={`border p-2 ${
+                                v.reason !== orig?.reason ? "text-red-600" : ""
+                              }`}
+                            >
+                              {v.reason}
+                            </td>
+                          );
+                        case "amount":
+                          return (
+                            <td
+                              key={col}
+                              className={`border p-2 text-right ${
+                                v.amount !== orig?.amount ? "text-red-600" : ""
+                              }`}
+                            >
+                              {v.amount?.toLocaleString()}
+                            </td>
+                          );
+                        case "orig":
+                          return (
+                            <td key={col} className="border p-2">
+                              {v.origVoucherCode ? (
+                                <button
+                                  className="text-blue-600 underline"
+                                  onClick={() =>
+                                    setShowOrigDetail(v.adjustedFrom)
+                                  }
+                                >
+                                  {v.origVoucherCode}
+                                </button>
+                              ) : (
+                                "-"
+                              )}
+                            </td>
+                          );
+                        case "status":
+                          return (
+                            <td className="border p-2 text-center font-semibold">
+                              {v.status === "waiting_check" && (
+                                <span className="text-yellow-600">
+                                  Đang chờ duyệt
+                                </span>
+                              )}
+                            </td>
+                          );
+                        case "action":
+                          return (
+                            <td key={col} className="border p-2">
+                              <div className="flex justify-center gap-2">
+                                <button
+                                  className="text-blue-600"
+                                  onClick={() => setDetailId(v._id)}
+                                >
+                                  Xem
+                                </button>
+                                {v.status === "waiting_check" &&
+                                  user?.permissions?.includes(
+                                    "approve_voucher"
+                                  ) && (
+                                    <button
+                                      className="text-green-600"
+                                      onClick={() =>
+                                        handleApproveAdjusted(v._id)
+                                      }
+                                    >
+                                      Duyệt
+                                    </button>
+                                  )}
+                              </div>
+                            </td>
+                          );
+                        default:
+                          return null;
+                      }
+                    })}
                   </tr>
                 );
               })

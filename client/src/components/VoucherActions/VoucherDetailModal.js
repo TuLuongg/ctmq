@@ -8,10 +8,15 @@ import VoucherAdjustModal from "./VoucherAdjustModal";
 function formatAccountNumber(raw) {
   if (!raw) return "";
   const digits = raw.replace(/\D/g, "");
-  return digits.replace(/(.{4})/g, "$1 ").trim(); 
+  return digits.replace(/(.{4})/g, "$1 ").trim();
 }
 
-export default function VoucherDetailModal({ id, customers, onClose, onSuccess }) {
+export default function VoucherDetailModal({
+  id,
+  customers,
+  onClose,
+  onSuccess,
+}) {
   const [v, setV] = useState(null);
   const [showEdit, setShowEdit] = useState(false);
   const [showAdjust, setShowAdjust] = useState(false);
@@ -36,10 +41,9 @@ export default function VoucherDetailModal({ id, customers, onClose, onSuccess }
   async function handleApprove() {
     if (!window.confirm("Bạn chắc chắn muốn duyệt?")) return;
 
-    await axios.post(
-      `${API}/vouchers/${id}/approve`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+    await axios.post(`${API}/vouchers/${id}/approve`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
     await load();
     onSuccess?.();
@@ -62,86 +66,110 @@ export default function VoucherDetailModal({ id, customers, onClose, onSuccess }
         <h3 className="text-lg font-bold mb-2">Phiếu chi</h3>
 
         <div className="grid grid-cols-2 gap-2 text-sm">
-          <div><b>Ngày:</b> {new Date(v.dateCreated).toLocaleDateString("vi-VN")}</div>
-          <div><b>Trạng thái:</b>                    {v.status === "waiting_check" && (
-                      <span className="text-yellow-600">Đang chờ duyệt</span>
-                    )}
-
-                    {v.status === "approved" && (
-                      <span className="text-green-600">Đã duyệt</span>
-                    )}</div>
-          <div><b>Tài khoản chi:</b> {v.paymentSource === "caNhan" ? "Cá nhân" : "Công ty"}</div>
-          <div><b>Tên công ty:</b> {v.receiverCompany}</div>
-          <div><b>Người nhận:</b> {v.receiverName}</div>
-          <div><b>Số tài khoản nhận tiền:</b> {formatAccountNumber(v.receiverBankAccount)}</div>
-          <div><b>Phân loại chi:</b> {v.expenseType}</div>
-          <div className="col-span-2"><b>Nội dung chuyển khoản:</b> {v.transferContent}</div>
-          <div className="col-span-2"><b>Lý do chi:</b> {v.reason}</div>
-          <div><b>Số tiền:</b> {v.amount?.toLocaleString()}</div>
-          <div><b>Bằng chữ:</b> {v.amountInWords}</div>
+          <div>
+            <b>Ngày:</b> {new Date(v.dateCreated).toLocaleDateString("vi-VN")}
+          </div>
+          <div>
+            <b>Trạng thái:</b>{" "}
+            {v.status === "waiting_check" && (
+              <span className="text-yellow-600">Đang chờ duyệt</span>
+            )}
+            {v.status === "approved" && (
+              <span className="text-green-600">Đã duyệt</span>
+            )}
+            {v.status === "adjusted" && (
+              <span className="text-purple-600">Đã điều chỉnh</span>
+            )}
+          </div>
+          <div>
+            <b>Tài khoản chi:</b>{" "}
+            {v.paymentSource === "caNhan" ? "Cá nhân" : "Công ty"}
+          </div>
+          <div>
+            <b>Tên công ty:</b> {v.receiverCompany}
+          </div>
+          <div>
+            <b>Người nhận:</b> {v.receiverName}
+          </div>
+          <div>
+            <b>Số tài khoản nhận tiền:</b>{" "}
+            {formatAccountNumber(v.receiverBankAccount)}
+          </div>
+          <div>
+            <b>Phân loại chi:</b> {v.expenseType}
+          </div>
+          <div className="col-span-2">
+            <b>Nội dung chuyển khoản:</b> {v.transferContent}
+          </div>
+          <div className="col-span-2">
+            <b>Lý do chi:</b> {v.reason}
+          </div>
+          <div>
+            <b>Số tiền:</b> {v.amount?.toLocaleString()}
+          </div>
+          <div>
+            <b>Bằng chữ:</b> {v.amountInWords}
+          </div>
         </div>
 
-<div className="flex gap-2 mt-4">
+        <div className="flex gap-2 mt-4">
+          {/* ============================== */}
+          {/* Khi CHƯA duyệt → hiện nút theo permissions */}
+          {/* ============================== */}
+          {v.status !== "approved" && v.status !== "adjusted" && (
+            <>
+              {/* ---- nếu có quyền EDIT ---- */}
+              {permissions.includes("edit_voucher") && (
+                <>
+                  <button
+                    onClick={() => setShowEdit(true)}
+                    className="px-3 py-1 bg-yellow-500 text-white rounded"
+                  >
+                    Sửa
+                  </button>
 
-  {/* ============================== */}
-  {/* Khi CHƯA duyệt → hiện nút theo permissions */}
-  {/* ============================== */}
-  {v.status !== "approved" && (
-    <>
+                  <button
+                    onClick={handleDelete}
+                    className="px-3 py-1 bg-red-600 text-white rounded"
+                  >
+                    Xóa
+                  </button>
+                </>
+              )}
 
-      {/* ---- nếu có quyền EDIT ---- */}
-      {permissions.includes("edit_voucher") && (
-        <>
+              {/* ---- nếu có quyền APPROVE ---- */}
+              {permissions.includes("approve_voucher") && (
+                <button
+                  onClick={handleApprove}
+                  className="px-3 py-1 bg-green-600 text-white rounded"
+                >
+                  Duyệt
+                </button>
+              )}
+            </>
+          )}
+
+          {/* ============================== */}
+          {/* Khi ĐÃ duyệt → chỉ hiện Tạo điều chỉnh */}
+          {/* ============================== */}
+          {v.status === "approved" ||
+            (v.status === "adjusted" && (
+              <button
+                onClick={() => setShowAdjust(true)}
+                className="px-3 py-1 bg-purple-600 text-white rounded"
+              >
+                Tạo điều chỉnh
+              </button>
+            ))}
+
+          {/* Nút đóng */}
           <button
-            onClick={() => setShowEdit(true)}
-            className="px-3 py-1 bg-yellow-500 text-white rounded"
+            onClick={onClose}
+            className="px-3 py-1 bg-gray-400 text-white rounded ml-auto"
           >
-            Sửa
+            Đóng
           </button>
-
-          <button
-            onClick={handleDelete}
-            className="px-3 py-1 bg-red-600 text-white rounded"
-          >
-            Xóa
-          </button>
-        </>
-      )}
-
-      {/* ---- nếu có quyền APPROVE ---- */}
-      {permissions.includes("approve_voucher") && (
-        <button
-          onClick={handleApprove}
-          className="px-3 py-1 bg-green-600 text-white rounded"
-        >
-          Duyệt
-        </button>
-      )}
-    </>
-  )}
-
-  {/* ============================== */}
-  {/* Khi ĐÃ duyệt → chỉ hiện Tạo điều chỉnh */}
-  {/* ============================== */}
-  {v.status === "approved" && (
-    <button
-      onClick={() => setShowAdjust(true)}
-      className="px-3 py-1 bg-purple-600 text-white rounded"
-    >
-      Tạo điều chỉnh
-    </button>
-  )}
-
-  {/* Nút đóng */}
-  <button
-    onClick={onClose}
-    className="px-3 py-1 bg-gray-400 text-white rounded ml-auto"
-  >
-    Đóng
-  </button>
-</div>
-
-
+        </div>
 
         {showEdit && (
           <VoucherEditModal

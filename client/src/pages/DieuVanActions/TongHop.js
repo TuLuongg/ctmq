@@ -198,11 +198,10 @@ export default function TongHop({ user, onLogout }) {
     fetchManagers();
   }, []);
 
-useEffect(() => {
-  fetchAllRides();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [filters, date, page, rangeStart, rangeEnd]);
-
+  useEffect(() => {
+    fetchAllRides();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters, date, page, rangeStart, rangeEnd]);
 
   // 🔹 Hàm lấy fullname từ id
   const getFullName = (id) => {
@@ -695,7 +694,6 @@ useEffect(() => {
           className="border rounded px-3 py-2"
         />
 
-
         {/* 🔹 Nút Xóa lọc */}
         <button
           onClick={() => {
@@ -715,7 +713,7 @@ useEffect(() => {
             // Tắt ô filter cột đang mở
             setActiveFilterCol(null);
             setRangeEnd();
-            setRangeStart()
+            setRangeStart();
           }}
           className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg shadow-sm"
         >
@@ -784,6 +782,18 @@ useEffect(() => {
             📌 Đã load được {loadedCount.toLocaleString()} chuyến
           </span>
         )}
+        <a
+          href="/form_mau_chuyen.xlsm"
+          download
+          style={{
+            color: "#0d6efd", // xanh bootstrap
+            fontStyle: "italic", // chữ nghiêng
+            textDecoration: "underline",
+            cursor: "pointer",
+          }}
+        >
+          (-- Tải file Excel mẫu --)
+        </a>
       </div>
 
       <div className="m-2 flex items-center gap-2 flex-wrap">
