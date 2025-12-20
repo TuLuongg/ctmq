@@ -216,8 +216,8 @@ export default function AdminPage({ onLogout }) {
                 <th className="px-4 py-2 border-b text-center">Quản lý lái xe</th>
                 <th className="px-4 py-2 border-b text-center">Quản lý khách hàng</th>
                 <th className="px-4 py-2 border-b text-center">Quản lý xe</th>
-                <th className="px-4 py-2 border-b text-center">Quản lý chuyến ban đầu</th>
-                <th className="px-4 py-2 border-b text-center">Quản lý toàn bộ dữ liệu chuyến</th>
+                <th className="px-4 py-2 border-b text-center">Quản lý chuyến gốc</th>
+                <th className="px-4 py-2 border-b text-center">Quản lý toàn bộ cước phí BS</th>
                 <th className="px-4 py-2 border-b text-center">Quản lý phiếu chi</th>
                 <th className="px-4 py-2 border-b text-center">Duyệt phiếu chi</th>
                 <th className="px-4 py-2 border-b text-center">Công nợ KH 26</th>

@@ -67,6 +67,15 @@ function formatAccountNumber(raw) {
   return digits.replace(/(.{4})/g, "$1 ").trim();
 }
 
+const PAYMENT_SOURCE_OPTIONS = [
+  { value: "PERSONAL_VCB", label: "Cá nhân - VCB" },
+  { value: "PERSONAL_TCB", label: "Cá nhân - TCB" },
+  { value: "COMPANY_VCB", label: "Công ty - VCB" },
+  { value: "COMPANY_TCB", label: "Công ty - TCB" },
+  { value: "CASH", label: "Tiền mặt" },
+  { value: "OTHER", label: "Khác" },
+];
+
 export default function VoucherEditModal({ id, voucher, onClose }) {
   const [form, setForm] = useState({ ...voucher });
   const [saving, setSaving] = useState(false);
@@ -236,15 +245,18 @@ export default function VoucherEditModal({ id, voucher, onClose }) {
 
           {/* Tài khoản chi */}
           <div className="flex flex-col">
-            <label className="font-semibold mb-1">Nguồn chi</label>
+            <label className="font-semibold mb-1">Tài khoản chi</label>
             <select
               name="paymentSource"
               value={form.paymentSource}
               onChange={change}
-              className="border p-2 rounded"
+              className="border border-gray-300 rounded-md outline-none p-2 w-48 mt-2"
             >
-              <option value="congTy">Công ty</option>
-              <option value="caNhan">Cá nhân</option>
+              {PAYMENT_SOURCE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
             </select>
           </div>
 

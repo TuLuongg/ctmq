@@ -11,6 +11,16 @@ function formatAccountNumber(raw) {
   return digits.replace(/(.{4})/g, "$1 ").trim();
 }
 
+const PAYMENT_SOURCE_LABEL = {
+  PERSONAL_VCB: "Cá nhân - VCB",
+  PERSONAL_TCB: "Cá nhân - TCB",
+  COMPANY_VCB: "Công ty - VCB",
+  COMPANY_TCB: "Công ty - TCB",
+  CASH: "Tiền mặt",
+  OTHER: "Khác",
+};
+
+
 export default function VoucherDetailModal({
   id,
   customers,
@@ -83,7 +93,7 @@ export default function VoucherDetailModal({
           </div>
           <div>
             <b>Tài khoản chi:</b>{" "}
-            {v.paymentSource === "caNhan" ? "Cá nhân" : "Công ty"}
+            {PAYMENT_SOURCE_LABEL[v.paymentSource] || v.paymentSource}
           </div>
           <div>
             <b>Tên công ty:</b> {v.receiverCompany}

@@ -252,6 +252,28 @@ export default function CustomerDebtPage() {
     }
   };
 
+  //Xoá kỳ công nợ
+  const handleDeleteDebtPeriod = async (debtCode) => {
+    if (!debtCode) return;
+
+    const ok = window.confirm(
+      "Bạn chắc chắn muốn XOÁ kỳ công nợ này?\nThao tác này KHÔNG THỂ hoàn tác."
+    );
+    if (!ok) return;
+
+    try {
+      await axios.delete(`${API}/payment-history/delete/debt-period/${debtCode}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      alert("Đã xoá kỳ công nợ");
+      loadData();
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.error || "Không xoá được kỳ công nợ");
+    }
+  };
+
   const filteredDebtList = debtList.filter((c) => {
     const normSearch = normalizeString(searchText);
     const normCode = normalizeString(c.maKH);
@@ -462,7 +484,7 @@ export default function CustomerDebtPage() {
               <th className="border p-2 sticky top-0 bg-gray-200 z-20">
                 SỐ CHUYẾN
               </th>
-              <th className="border p-2 sticky top-0 bg-gray-200 z-20">
+              <th className="border p-2 sticky top-0 bg-gray-200 z-20 w-[180px]">
                 HÀNH ĐỘNG
               </th>
             </tr>
@@ -590,6 +612,19 @@ export default function CustomerDebtPage() {
                         }}
                       >
                         Sửa
+                      </button>
+
+                      {/* 🗑️ NÚT XOÁ */}
+                      <button
+                        disabled={c.isLocked}
+                        className={`px-2 py-1 rounded text-white ${
+                          c.isLocked
+                            ? "bg-gray-400 cursor-not-allowed"
+                            : "bg-red-600"
+                        }`}
+                        onClick={() => handleDeleteDebtPeriod(c.debtCode)}
+                      >
+                        Xoá
                       </button>
                     </>
                   )}

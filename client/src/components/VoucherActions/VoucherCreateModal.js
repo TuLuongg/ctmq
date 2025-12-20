@@ -113,12 +113,21 @@ function formatMoneyDisplay(raw) {
   return Number(digits).toLocaleString("vi-VN");
 }
 
+const PAYMENT_SOURCE_OPTIONS = [
+  { value: "PERSONAL_VCB", label: "Cá nhân - VCB" },
+  { value: "PERSONAL_TCB", label: "Cá nhân - TCB" },
+  { value: "COMPANY_VCB", label: "Công ty - VCB" },
+  { value: "COMPANY_TCB", label: "Công ty - TCB" },
+  { value: "CASH", label: "Tiền mặt" },
+  { value: "OTHER", label: "Khác" },
+];
+
 export default function VoucherCreateModal({ customers, onClose, onSuccess }) {
   const token = localStorage.getItem("token");
 
   const [form, setForm] = useState({
     dateCreated: new Date().toISOString().slice(0, 10),
-    paymentSource: "congTy",
+    paymentSource: "COMPANY_VCB",
     receiverName: "",
     receiverCompany: "",
     receiverBankAccount: "",
@@ -330,10 +339,13 @@ export default function VoucherCreateModal({ customers, onClose, onSuccess }) {
             name="paymentSource"
             value={form.paymentSource}
             onChange={change}
-            className="border border-gray-300 rounded-md outline-none p-2 w-40 mt-2"
+            className="border border-gray-300 rounded-md outline-none p-2 w-48 mt-2"
           >
-            <option value="congTy">CÔNG TY</option>
-            <option value="caNhan">CÁ NHÂN</option>
+            {PAYMENT_SOURCE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
           </select>
         </div>
 

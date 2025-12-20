@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 
 export default function RideEditTripModal({
   initialData,
@@ -8,223 +8,253 @@ export default function RideEditTripModal({
 }) {
   const [formData, setFormData] = useState({});
 
-  const LT_ONL_OFF = ["ltState", "onlState", "offState"];
+  const canEditFinancial = currentUser?.permissions?.includes("edit_trip_full");
 
-  const allColumns = [
-    { key: "dieuVan", label: "ĐIỀU VẬN" },
-    { key: "createdBy", label: "NGƯỜI NHẬP" },
-    { key: "tenLaiXe", label: "TÊN LÁI XE" },
-    { key: "maKH", label: "MÃ KH" },
-    { key: "dienGiai", label: "DIỄN GIẢI" },
-    { key: "ngayBocHang", label: "NGÀY ĐÓNG HÀNG" },
-    { key: "ngayGiaoHang", label: "NGÀY GIAO HÀNG" },
-    { key: "diemXepHang", label: "ĐIỂM ĐÓNG HÀNG" },
-    { key: "diemDoHang", label: "ĐIỂM GIAO HÀNG" },
-    { key: "soDiem", label: "SỐ ĐIỂM" },
-    { key: "trongLuong", label: "TRỌNG LƯỢNG" },
-    { key: "bienSoXe", label: "BIỂN SỐ XE" },
-    { key: "cuocPhiBS", label: "CƯỚC PHÍ (BỔ SUNG)" },
-    { key: "daThanhToan", label: "ĐÃ THANH TOÁN" },
-    { key: "bocXepBS", label: "BỐC XẾP (BỔ SUNG)" },
-    { key: "veBS", label: "VÉ (BỔ SUNG)" },
-    { key: "hangVeBS", label: "HÀNG VỀ (BỔ SUNG)" },
-    { key: "luuCaBS", label: "LƯU CA (BỔ SUNG)" },
-    { key: "cpKhacBS", label: "LUẬT CP KHÁC (BỔ SUNG)" },
-    { key: "maChuyen", label: "MÃ CHUYẾN" },
-    { key: "khachHang", label: "KHÁCH HÀNG" },
-    { key: "keToanPhuTrach", label: "KẾ TOÁN PHỤ TRÁCH" },
-    { key: "maHoaDon", label: "MÃ HOÁ ĐƠN" },
-
-    { key: "laiXeThuCuoc", label: "LÁI XE THU CƯỚC" },
-    { key: "cuocPhi", label: "CƯỚC PHÍ BĐ" },
-    { key: "bocXep", label: "BỐC XẾP BĐ" },
-    { key: "ve", label: "VÉ BĐ" },
-    { key: "hangVe", label: "HÀNG VỀ BĐ" },
-    { key: "luuCa", label: "LƯU CA BĐ" },
-    { key: "luatChiPhiKhac", label: "LUẬT CP KHÁC BĐ" },
-    { key: "ghiChu", label: "GHI CHÚ (BẮT BUỘC)" },
-  ];
-
-  const financialColumns = [
-    "maHoaDon",
+  const moneyFields = [
+    "cuocPhi",
+    "bocXep",
+    "ve",
+    "hangVe",
+    "luuCa",
+    "luatChiPhiKhac",
     "cuocPhiBS",
-    "daThanhToan",
     "bocXepBS",
     "veBS",
     "hangVeBS",
     "luuCaBS",
     "cpKhacBS",
+    "daThanhToan",
   ];
-  // Format 1000000 => 1.000.000
-const formatMoney = (value) => {
-  if (!value) return "";
-  return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-};
 
-const moneyFields = [
-  "cuocPhi", "bocXep", "ve", "hangVe", "luuCa", "luatChiPhiKhac",
-  "cuocPhiBS", "bocXepBS", "veBS", "hangVeBS", "luuCaBS", "cpKhacBS",
-  "daThanhToan"
-];
+  const formatMoney = (value) =>
+    value ? value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") : "";
 
-
-  const canEditFinancial =
-    currentUser?.permissions?.includes("edit_trip_full");
+  const formatDate = (v) => (v ? v.split("T")[0] : "");
 
   useEffect(() => {
     if (initialData) {
-      setFormData({
-        ...initialData,
-        ghiChu: initialData.ghiChu || "",
-      });
+      setFormData({ ...initialData, ghiChu: initialData.ghiChu || "" });
     }
   }, [initialData]);
 
-const handleChange = (key, value) => {
-  // xử lý tiền
-  if (moneyFields.includes(key)) {
-    // bỏ dấu chấm trước khi lưu
-    const raw = value.replace(/\./g, "");
-
-    // Nếu user nhập ký tự không phải số → bỏ qua
-    if (isNaN(raw)) return;
-
-    setFormData((prev) => ({
-      ...prev,
-      [key]: raw
-    }));
-    return;
-  }
-
-  // xử lý bình thường
-  setFormData((prev) => ({
-    ...prev,
-    [key]: value,
-  }));
-};
-
-  // 🔥 Nếu chỉ thay đổi 3 trường LT–ONL–OFF → không cần ghi chú
-  const isOnlyStatusChanged = () => {
-    const changedFields = [];
-
-    for (const key in formData) {
-      if (formData[key] !== initialData[key]) {
-        changedFields.push(key);
-      }
+  const handleChange = (key, value) => {
+    if (moneyFields.includes(key)) {
+      const raw = value.replace(/\./g, "");
+      if (isNaN(raw)) return;
+      setFormData((p) => ({ ...p, [key]: raw }));
+      return;
     }
-
-    // Nếu chỉ thay đổi 3 trường trạng thái
-    return (
-      changedFields.length > 0 &&
-      changedFields.every((k) => LT_ONL_OFF.includes(k))
-    );
+    setFormData((p) => ({ ...p, [key]: value }));
   };
 
   const handleSubmit = () => {
-    if (!isOnlyStatusChanged()) {
-      if (!formData.ghiChu?.trim()) {
-        alert("Vui lòng nhập ghi chú!");
-        return;
-      }
-    }
-
     onSubmit(formData);
-  };
-
-  const formatDate = (value) => {
-    if (!value) return "";
-    try {
-      return value.split("T")[0];
-    } catch {
-      return value;
-    }
   };
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-lg w-full max-w-5xl shadow-lg overflow-y-auto max-h-[90vh]">
+      <div className="bg-white p-6 rounded-lg shadow-lg w-3/4 max-h-[90vh] overflow-y-auto">
         <h2 className="text-xl font-bold mb-4">
-          Chỉnh sửa chuyến: {initialData?.maChuyen || initialData?._id}
+          Chỉnh sửa chuyến: {formData.maChuyen || formData._id}
         </h2>
 
-        {/* 🔥 LT - ONL - OFF TRÊN 1 DÒNG */}
-        <div className="flex gap-4 mb-4">
-          {LT_ONL_OFF.map((key) => (
-            <div key={key} className="flex flex-col w-1/3">
-              <label className="font-semibold">
-                {key === "ltState" ? "LT" : key === "onlState" ? "ONL" : "OFF"}
-              </label>
+        <div className="grid grid-cols-2 gap-6">
+          {/* ================== TRÁI ================== */}
+          <div className="border rounded p-4">
+            {/* LT – ONL – OFF */}
+            <div className="grid grid-cols-3 gap-3 mb-3">
+              {["ltState", "onlState", "offState"].map((k) => (
+                <div key={k}>
+                  <label className="font-semibold">{k.toUpperCase()}</label>
+                  <input
+                    className="border rounded w-full p-2 mt-1"
+                    value={formData[k] || ""}
+                    onChange={(e) => handleChange(k, e.target.value)}
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* KH */}
+            <div className="grid grid-cols-3 gap-3 mb-3">
+              <div>
+                <label className="font-semibold">Mã KH</label>
+                <input
+                  className="border rounded p-2 bg-gray-200 w-full"
+                  readOnly
+                  value={formData.maKH || ""}
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="font-semibold">Khách hàng</label>
+                <input
+                  className="border rounded p-2 bg-gray-200 w-full"
+                  readOnly
+                  value={formData.khachHang || ""}
+                />
+              </div>
+            </div>
+
+            <label className="font-semibold">Điểm đóng hàng</label>
+            <input
+              className="border rounded p-2 w-full mb-3"
+              value={formData.diemXepHang || ""}
+              onChange={(e) => handleChange("diemXepHang", e.target.value)}
+            />
+
+            <label className="font-semibold">Điểm giao hàng</label>
+            <input
+              className="border rounded p-2 w-full mb-3"
+              value={formData.diemDoHang || ""}
+              onChange={(e) => handleChange("diemDoHang", e.target.value)}
+            />
+
+            <div className="grid grid-cols-2 gap-3 mb-3">
               <input
-                type="text"
-                value={formData[key] || ""}
                 className="border rounded p-2"
-                onChange={(e) => handleChange(key, e.target.value)}
+                placeholder="Số điểm"
+                value={formData.soDiem || ""}
+                onChange={(e) => handleChange("soDiem", e.target.value)}
+              />
+              <input
+                className="border rounded p-2"
+                placeholder="Trọng lượng"
+                value={formData.trongLuong || ""}
+                onChange={(e) => handleChange("trongLuong", e.target.value)}
               />
             </div>
-          ))}
-        </div>
 
-        {/* FORM CHÍNH */}
-        <div className="grid grid-cols-2 gap-4">
-          {allColumns.map(({ key, label }) => {
-            if (!canEditFinancial && financialColumns.includes(key)) {
-              return null;
-            }
+            {canEditFinancial && (
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  className="border rounded p-2"
+                  placeholder="Cước phí"
+                  value={formatMoney(formData.cuocPhi)}
+                  onChange={(e) => handleChange("cuocPhi", e.target.value)}
+                />
+                <input
+                  className="border rounded p-2"
+                  placeholder="Đã thanh toán"
+                  value={formatMoney(formData.daThanhToan)}
+                  onChange={(e) => handleChange("daThanhToan", e.target.value)}
+                />
+              </div>
+            )}
+          </div>
 
-            const isReadOnly = key === "maChuyen";
-            const value = formData[key];
+          {/* ================== PHẢI ================== */}
+          <div className="border rounded p-4">
+            <label className="font-semibold">Tên lái xe</label>
+            <input
+              className="border rounded p-2 w-full mb-3"
+              value={formData.tenLaiXe || ""}
+              onChange={(e) => handleChange("tenLaiXe", e.target.value)}
+            />
 
-            const inputType =
-              key.toLowerCase().includes("ngay") ? "date"
-              : typeof value === "number" ? "number"
-              : "text";
+            <label className="font-semibold">Diễn giải</label>
+            <input
+              className="border rounded p-2 w-full mb-3"
+              value={formData.dienGiai || ""}
+              onChange={(e) => handleChange("dienGiai", e.target.value)}
+            />
 
-            return (
-              <div key={key} className="flex flex-col">
-                <label className="font-semibold">{label}</label>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <input
+                type="date"
+                className="border rounded p-2"
+                value={formatDate(formData.ngayBocHang)}
+                onChange={(e) => handleChange("ngayBocHang", e.target.value)}
+              />
+              <input
+                type="date"
+                className="border rounded p-2"
+                value={formatDate(formData.ngayGiaoHang)}
+                onChange={(e) => handleChange("ngayGiaoHang", e.target.value)}
+              />
+            </div>
 
-                {isReadOnly ? (
-                  <div className="p-2 mt-1 border rounded bg-gray-100 text-gray-600">
-                    {value}
+            {/* ===== CƯỚC PHÍ PHỤ GỐC (BĐ) ===== */}
+            {canEditFinancial && (
+              <div className="mb-4">
+                <label className="font-semibold">Cước phí phụ (BĐ)</label>
+
+                {/* Dòng 1 */}
+                <div className="grid grid-cols-2 gap-3 mt-2">
+                  <div>
+                    <label className="text-sm">Bốc xếp</label>
+                    <input
+                      className="border rounded p-2 w-full"
+                      value={formatMoney(formData.bocXep)}
+                      onChange={(e) => handleChange("bocXep", e.target.value)}
+                    />
                   </div>
-                ) : (
-                  <input
-                    type={inputType}
-                    className="border rounded w-full p-2 mt-1"
-                    value={
-  inputType === "date"
-    ? formatDate(value)
-    : moneyFields.includes(key)
-      ? formatMoney(value)
-      : value || ""
-}
 
+                  <div>
+                    <label className="text-sm">Hàng về</label>
+                    <input
+                      className="border rounded p-2 w-full"
+                      value={formatMoney(formData.hangVe)}
+                      onChange={(e) => handleChange("hangVe", e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Dòng 2 */}
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  <div>
+                    <label className="text-sm">Vé</label>
+                    <input
+                      className="border rounded p-2 w-full"
+                      value={formatMoney(formData.ve)}
+                      onChange={(e) => handleChange("ve", e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm">Lưu ca</label>
+                    <input
+                      className="border rounded p-2 w-full"
+                      value={formatMoney(formData.luuCa)}
+                      onChange={(e) => handleChange("luuCa", e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Dòng 3 – full width */}
+                <div className="mt-3">
+                  <label className="text-sm">Luật chi phí khác</label>
+                  <input
+                    className="border rounded p-2 w-full"
+                    value={formatMoney(formData.luatChiPhiKhac)}
                     onChange={(e) =>
-                      handleChange(
-                        key,
-                        inputType === "number"
-                          ? Number(e.target.value)
-                          : e.target.value
-                      )
+                      handleChange("luatChiPhiKhac", e.target.value)
                     }
                   />
-                )}
+                </div>
               </div>
-            );
-          })}
+            )}
+          </div>
         </div>
 
-        {/* ACTIONS */}
-        <div className="flex justify-end gap-2 mt-6">
-          <button
-            onClick={onClose}
-            className="bg-gray-300 px-4 py-2 rounded hover:bg-gray-400"
-          >
+        {/* GHI CHÚ */}
+        <div className="mt-4">
+          <label className="font-semibold">Ghi chú (bắt buộc)</label>
+          <textarea
+            rows={3}
+            className="border rounded w-full p-2 mt-1"
+            value={formData.ghiChu}
+            onChange={(e) => handleChange("ghiChu", e.target.value)}
+          />
+        </div>
+
+        {/* ACTION */}
+        <div className="flex justify-end gap-3 mt-6">
+          <button onClick={onClose} className="bg-gray-300 px-4 py-2 rounded">
             Hủy
           </button>
           <button
             onClick={handleSubmit}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            className="bg-blue-600 text-white px-4 py-2 rounded"
           >
             Lưu lại
           </button>

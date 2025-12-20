@@ -6,14 +6,16 @@ import API from "../../api";
 import axios from "axios";
 
 const ORIGIN_COL_WIDTH = {
-  stt: 60,
+  select: 30, // ✅ thêm
+  stt: 40,
   date: 110,
+  transferDate: 120, // ✅ thêm
   code: 140,
   source: 120,
-  receiver: 200,
+  receiver: 160,
   company: 200,
-  content: 320,
-  reason: 260,
+  content: 280,
+  reason: 220,
   amount: 140,
   status: 140,
   action: 140,
@@ -32,6 +34,16 @@ const ADJUST_COL_WIDTH = {
   status: 140,
   action: 140,
 };
+
+const PAYMENT_SOURCE_LABEL = {
+  PERSONAL_VCB: "Cá nhân - VCB",
+  PERSONAL_TCB: "Cá nhân - TCB",
+  COMPANY_VCB: "Công ty - VCB",
+  COMPANY_TCB: "Công ty - TCB",
+  CASH: "Tiền mặt",
+  OTHER: "Khác",
+};
+
 
 export default function VoucherListPage() {
   const [list, setList] = useState([]);
@@ -134,6 +146,7 @@ export default function VoucherListPage() {
 
   // thứ tự cột PHIẾU GỐC
   const [originColOrder, setOriginColOrder] = useState([
+    "select",
     "stt",
     "date",
     "code",
@@ -142,6 +155,7 @@ export default function VoucherListPage() {
     "company",
     "content",
     "reason",
+    "transferDate",
     "amount",
     "status",
     "action",
@@ -168,6 +182,69 @@ export default function VoucherListPage() {
     const iTo = next.indexOf(to);
     next.splice(iTo, 0, next.splice(iFrom, 1)[0]);
     setCols(next);
+  };
+
+  const [selectedIds, setSelectedIds] = useState([]);
+  const toggleSelectAll = (list) => {
+    if (selectedIds.length === list.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(list.map((v) => v._id));
+    }
+  };
+
+  const toggleSelectOne = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const [transferDateBulk, setTransferDateBulk] = useState("");
+  const [updating, setUpdating] = useState(false);
+
+  const handleUpdateTransferDateBulk = async () => {
+    if (selectedIds.length === 0) {
+      alert("Chưa chọn phiếu nào");
+      return;
+    }
+
+    if (!transferDateBulk) {
+      alert("Chưa chọn ngày chuyển tiền");
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `Cập nhật ngày chuyển tiền cho ${selectedIds.length} phiếu?`
+      )
+    )
+      return;
+
+    try {
+      setUpdating(true);
+
+      await axios.put(
+        `${API}/vouchers/transfer-date/bulk`,
+        {
+          voucherIds: selectedIds,
+          transferDate: transferDateBulk,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      alert("Cập nhật ngày chuyển tiền thành công");
+
+      setSelectedIds([]);
+      setTransferDateBulk("");
+      load();
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || "Cập nhật thất bại");
+    } finally {
+      setUpdating(false);
+    }
   };
 
   return (
@@ -300,6 +377,31 @@ export default function VoucherListPage() {
 
       {/* Bảng phiếu gốc */}
       <h2 className="font-bold mb-2">Phiếu gốc</h2>
+      <div className="flex items-center gap-3 mb-2">
+        <span className="font-semibold">
+          Đã chọn: {selectedIds.length} phiếu
+        </span>
+
+        <input
+          type="date"
+          value={transferDateBulk}
+          onChange={(e) => setTransferDateBulk(e.target.value)}
+          className="border px-2 py-1 rounded"
+        />
+
+        <button
+          disabled={updating || selectedIds.length === 0}
+          onClick={handleUpdateTransferDateBulk}
+          className={`px-3 py-1 rounded text-white ${
+            updating || selectedIds.length === 0
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-green-600 hover:bg-green-700"
+          }`}
+        >
+          {updating ? "Đang cập nhật..." : "Cập nhật ngày chuyển tiền"}
+        </button>
+      </div>
+
       <div className="overflow-auto mb-6 max-h-[600px] border min-w-0">
         <table className="text-xs w-max">
           <thead className="bg-gray-100 sticky top-0 z-10">
@@ -322,14 +424,25 @@ export default function VoucherListPage() {
                 >
                   {
                     {
+                      select: (
+                        <input
+                          type="checkbox"
+                          checked={
+                            vouchersOriginal.length > 0 &&
+                            selectedIds.length === vouchersOriginal.length
+                          }
+                          onChange={() => toggleSelectAll(vouchersOriginal)}
+                        />
+                      ),
                       stt: "STT",
-                      date: "Ngày",
+                      date: "Ngày tạo phiếu",
                       code: "Mã phiếu chi",
                       source: "Tài khoản chi",
                       receiver: "Người nhận",
                       company: "Tên công ty",
                       content: "Nội dung",
                       reason: "Lý do chi",
+                      transferDate: "Ngày chuyển tiền",
                       amount: "Số tiền",
                       status: "Trạng thái",
                       action: "Hành động",
@@ -358,6 +471,17 @@ export default function VoucherListPage() {
                 <tr key={v._id} className="hover:bg-gray-50">
                   {originColOrder.map((col) => {
                     switch (col) {
+                      case "select":
+                        return (
+                          <td key={col} className="border p-2 text-center">
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.includes(v._id)}
+                              onChange={() => toggleSelectOne(v._id)}
+                            />
+                          </td>
+                        );
+
                       case "stt":
                         return (
                           <td key={col} className="border p-2">
@@ -381,9 +505,7 @@ export default function VoucherListPage() {
                       case "source":
                         return (
                           <td key={col} className="border p-2">
-                            {v.paymentSource === "caNhan"
-                              ? "Cá nhân"
-                              : "Công ty"}
+                            {PAYMENT_SOURCE_LABEL[v.paymentSource] || v.paymentSource}
                           </td>
                         );
                       case "receiver":
@@ -410,6 +532,17 @@ export default function VoucherListPage() {
                             {v.reason}
                           </td>
                         );
+                      case "transferDate":
+                        return (
+                          <td key={col} className="border p-2 text-center">
+                            {v.transferDate
+                              ? new Date(v.transferDate).toLocaleDateString(
+                                  "vi-VN"
+                                )
+                              : "-"}
+                          </td>
+                        );
+
                       case "amount":
                         return (
                           <td key={col} className="border p-2 text-right">
@@ -562,9 +695,7 @@ export default function VoucherListPage() {
                                   : ""
                               }`}
                             >
-                              {v.paymentSource === "caNhan"
-                                ? "Cá nhân"
-                                : "Công ty"}
+                              {PAYMENT_SOURCE_LABEL[v.paymentSource] || v.paymentSource}
                             </td>
                           );
                         case "receiver":

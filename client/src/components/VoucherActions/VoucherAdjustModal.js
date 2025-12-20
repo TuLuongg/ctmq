@@ -6,7 +6,18 @@ import axios from "axios";
 function numberToVietnameseWords(number) {
   if (number === 0) return "0 đồng";
 
-  const units = ["", "một", "hai", "ba", "bốn", "năm", "sáu", "bảy", "tám", "chín"];
+  const units = [
+    "",
+    "một",
+    "hai",
+    "ba",
+    "bốn",
+    "năm",
+    "sáu",
+    "bảy",
+    "tám",
+    "chín",
+  ];
 
   function readThreeDigits(n) {
     const hundreds = Math.floor(n / 100);
@@ -79,7 +90,21 @@ function formatMoneyDisplay(raw) {
   return Number(digits).toLocaleString("vi-VN");
 }
 
-export default function VoucherAdjustModal({ id, customers, onClose, onSuccess }) {
+const PAYMENT_SOURCE_OPTIONS = [
+  { value: "PERSONAL_VCB", label: "Cá nhân - VCB" },
+  { value: "PERSONAL_TCB", label: "Cá nhân - TCB" },
+  { value: "COMPANY_VCB", label: "Công ty - VCB" },
+  { value: "COMPANY_TCB", label: "Công ty - TCB" },
+  { value: "CASH", label: "Tiền mặt" },
+  { value: "OTHER", label: "Khác" },
+];
+
+export default function VoucherAdjustModal({
+  id,
+  customers,
+  onClose,
+  onSuccess,
+}) {
   const token = localStorage.getItem("token");
 
   const [form, setForm] = useState({
@@ -96,37 +121,35 @@ export default function VoucherAdjustModal({ id, customers, onClose, onSuccess }
   });
 
   useEffect(() => {
-  async function loadOriginalVoucher() {
-    try {
-      const res = await axios.get(`${API}/vouchers/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+    async function loadOriginalVoucher() {
+      try {
+        const res = await axios.get(`${API}/vouchers/${id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-      const v = res.data;
+        const v = res.data;
 
-      // Đổ toàn bộ dữ liệu phiếu gốc vào form
-      setForm({
-        dateCreated: new Date().toISOString().slice(0, 10), // ngày mới
-        paymentSource: v.paymentSource || "congTy",
-        receiverName: v.receiverName || "",
-        receiverCompany: v.receiverCompany || "",
-        receiverBankAccount: v.receiverBankAccount || "",
-        transferContent: v.transferContent || "",
-        reason: "",                 // ❗ lý do điều chỉnh để trống
-        expenseType: v.expenseType || "",
-        amount: String(v.amount || ""),
-        createdBy: v.createdBy || "",
-      });
-
-    } catch (err) {
-      alert("Không tải được phiếu gốc");
-      onClose?.();
+        // Đổ toàn bộ dữ liệu phiếu gốc vào form
+        setForm({
+          dateCreated: new Date().toISOString().slice(0, 10), // ngày mới
+          paymentSource: v.paymentSource || "congTy",
+          receiverName: v.receiverName || "",
+          receiverCompany: v.receiverCompany || "",
+          receiverBankAccount: v.receiverBankAccount || "",
+          transferContent: v.transferContent || "",
+          reason: "", // ❗ lý do điều chỉnh để trống
+          expenseType: v.expenseType || "",
+          amount: String(v.amount || ""),
+          createdBy: v.createdBy || "",
+        });
+      } catch (err) {
+        alert("Không tải được phiếu gốc");
+        onClose?.();
+      }
     }
-  }
 
-  if (id) loadOriginalVoucher();
-}, [id]);
-
+    if (id) loadOriginalVoucher();
+  }, [id]);
 
   const [saving, setSaving] = useState(false);
   const [nameSuggestions, setNameSuggestions] = useState([]);
@@ -149,33 +172,32 @@ export default function VoucherAdjustModal({ id, customers, onClose, onSuccess }
     setForm((s) => ({ ...s, [name]: value }));
   }
 
-async function submit() {
-  try {
-    setSaving(true);
+  async function submit() {
+    try {
+      setSaving(true);
 
-    const payload = {
-      ...form,
-      amount: Number(form.amount || 0),
-      amountInWords: numberToVietnameseWords(Number(form.amount || 0)),
-    };
+      const payload = {
+        ...form,
+        amount: Number(form.amount || 0),
+        amountInWords: numberToVietnameseWords(Number(form.amount || 0)),
+      };
 
-    const res = await axios.post(`${API}/vouchers/${id}/adjust`, payload, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+      const res = await axios.post(`${API}/vouchers/${id}/adjust`, payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-    if (res.data && res.data._id) {
-      onSuccess?.();  // cập nhật dữ liệu ở parent
-      onClose?.();    // **đóng modal sau khi tạo thành công**
-    } else {
-      alert("Tạo phiếu điều chỉnh thất bại");
+      if (res.data && res.data._id) {
+        onSuccess?.(); // cập nhật dữ liệu ở parent
+        onClose?.(); // **đóng modal sau khi tạo thành công**
+      } else {
+        alert("Tạo phiếu điều chỉnh thất bại");
+      }
+    } catch (err) {
+      alert(err.response?.data?.error || err.message || "Lỗi!");
+    } finally {
+      setSaving(false);
     }
-  } catch (err) {
-    alert(err.response?.data?.error || err.message || "Lỗi!");
-  } finally {
-    setSaving(false);
   }
-}
-
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -198,15 +220,18 @@ async function submit() {
 
         {/* NGUỒN CHI */}
         <div className="mb-3">
-          <label className="font-semibold mr-2">TÀI KHOẢN NGUỒN CHI</label>
+          <label className="font-semibold mr-2">TÀI KHOẢN CHI</label>
           <select
             name="paymentSource"
             value={form.paymentSource}
             onChange={change}
-            className="border border-gray-300 rounded-md outline-none p-2 w-40 mt-2"
+            className="border border-gray-300 rounded-md outline-none p-2 w-48 mt-2"
           >
-            <option value="congTy">CÔNG TY</option>
-            <option value="caNhan">CÁ NHÂN</option>
+            {PAYMENT_SOURCE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -233,7 +258,9 @@ async function submit() {
                 const text = e.target.value.trim();
                 if (!text) return setNameSuggestions([]);
                 const match = customers.filter((c) =>
-                  removeVietnameseTone(c.name || "").includes(removeVietnameseTone(text))
+                  removeVietnameseTone(c.name || "").includes(
+                    removeVietnameseTone(text)
+                  )
                 );
                 setNameSuggestions(match.slice(0, 8));
               }}
@@ -332,7 +359,10 @@ async function submit() {
 
         {/* BUTTON */}
         <div className="flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 rounded bg-gray-400 text-white">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded bg-gray-400 text-white"
+          >
             Đóng
           </button>
 

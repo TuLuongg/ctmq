@@ -67,6 +67,10 @@ const KeToanPage = () => {
     navigate("/voucher-list", { state: { user } });
   };
 
+  const handleGoToCostManagement = () => {
+    navigate("/cost-management", { state: { user } });
+  };
+
   const handleExport = async () => {
     if (!selectedDate) return alert("Vui lòng chọn ngày.");
     try {
@@ -285,6 +289,12 @@ const KeToanPage = () => {
           className="bg-blue-500 text-white px-3 py-1 rounded"
         >
           Sổ phiếu chi
+        </button>
+        <button
+          onClick={handleGoToCostManagement}
+          className="bg-blue-500 text-white px-3 py-1 rounded"
+        >
+          Các mục chi phí
         </button>
       </div>
 

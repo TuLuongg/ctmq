@@ -14,7 +14,7 @@ import ManageVehicle from "./pages/KeToanActions/ManageVehicle";
 import ManageTrip from "./pages/KeToanActions/ManageTrip";
 import ManageAllTrip from "./pages/KeToanActions/ManageAllTrip";
 import ManageTripAdmin from "./pages/AdminActions/ManageTripAdmin";
-import FinalPage from "./pages/FinalPage"
+import FinalPage from "./pages/FinalPage";
 import CustomerDebtPage from "./pages/KeToanActions/CustomerDebtPage";
 import CustomerDebt26Page from "./pages/KeToanActions/CustomerDebt26Page";
 import VoucherListPage from "./pages/KeToanActions/VoucherListPage";
@@ -23,7 +23,17 @@ import ManageCustomerDV from "./pages/DieuVanActions/MaganeCustomerDV";
 import ManageVehicleDV from "./pages/DieuVanActions/ManageVehicleDV";
 import VoucherPrintPage from "./components/VoucherActions/VoucherPrintPage";
 import ScheduleTrashPage from "./pages/DieuVanActions/ScheduleTrashPage";
-
+import CostManagementPage from "./pages/CostManagementPage";
+import DepreciationPage from "./pages/CostManagementTables/DepreciationPage";
+import EpassMonthPage from "./pages/CostManagementTables/EpassMonthPage";
+import EpassTurnPage from "./pages/CostManagementTables/EpassTurnPage";
+import EtcCostPage from "./pages/CostManagementTables/EtcCostPage";
+import FuelCostPage from "./pages/CostManagementTables/FuelCostPage";
+import RepairCostPage from "./pages/CostManagementTables/RepairCostPage";
+import TireCostPage from "./pages/CostManagementTables/TireCostPage";
+import SalaryCostPage from "./pages/CostManagementTables/SalaryCostPage";
+import VehicleLegalCostPage from "./pages/CostManagementTables/VehicleLegalCostPage";
+import TripPaymentPage from "./pages/CostManagementTables/TripPaymentPage";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -45,19 +55,10 @@ function App() {
     <BrowserRouter>
       <Routes>
         {/* Trang đăng nhập */}
-        <Route
-          path="/login"
-          element={<Login setUser={setUser} />}
-        />
+        <Route path="/login" element={<Login setUser={setUser} />} />
 
-        <Route
-          path="/driver"
-          element={<DriverPage/>}
-        />
-        <Route
-          path="/final"
-          element={<FinalPage />}
-        />
+        <Route path="/driver" element={<DriverPage />} />
+        <Route path="/final" element={<FinalPage />} />
 
         {/* Admin */}
         <Route
@@ -100,6 +101,27 @@ function App() {
             </PrivateRoute>
           }
         />
+        <Route
+          path="/cost-management"
+          element={
+            <PrivateRoute roles={["keToan"]}>
+              <CostManagementPage user={user} onLogout={handleLogout} />
+            </PrivateRoute>
+          }
+        >
+          {/* ROUTE CON */}
+          <Route index element={<FuelCostPage />} /> {/* mặc định */}
+          <Route path="fuel" element={<FuelCostPage />} />
+          <Route path="repair" element={<RepairCostPage />} />
+          <Route path="tire" element={<TireCostPage />} />
+          <Route path="salary" element={<SalaryCostPage />} />
+          <Route path="depreciation" element={<DepreciationPage />} />
+          <Route path="epass-month" element={<EpassMonthPage />} />
+          <Route path="epass-turn" element={<EpassTurnPage />} />
+          <Route path="etc" element={<EtcCostPage />} />
+          <Route path="vehicle-legal" element={<VehicleLegalCostPage />} />
+          <Route path="trip-payment" element={<TripPaymentPage />} />
+        </Route>
 
         {/* Điều vận */}
         <Route
@@ -165,7 +187,7 @@ function App() {
           path="/manage-driver"
           element={
             <PrivateRoute roles={["keToan"]}>
-              <ManageDriver user={user}/>
+              <ManageDriver user={user} />
             </PrivateRoute>
           }
         />
@@ -173,7 +195,7 @@ function App() {
           path="/manage-customer"
           element={
             <PrivateRoute roles={["keToan"]}>
-              <ManageCustomer user={user}/>
+              <ManageCustomer user={user} />
             </PrivateRoute>
           }
         />
@@ -181,7 +203,7 @@ function App() {
           path="/manage-vehicle"
           element={
             <PrivateRoute roles={["keToan"]}>
-              <ManageVehicle user={user}/>
+              <ManageVehicle user={user} />
             </PrivateRoute>
           }
         />
@@ -189,7 +211,7 @@ function App() {
           path="/manage-trip"
           element={
             <PrivateRoute roles={["keToan"]}>
-              <ManageTrip user={user}/>
+              <ManageTrip user={user} />
             </PrivateRoute>
           }
         />
@@ -197,7 +219,7 @@ function App() {
           path="/manage-all-trip"
           element={
             <PrivateRoute roles={["keToan"]}>
-              <ManageAllTrip user={user}/>
+              <ManageAllTrip user={user} />
             </PrivateRoute>
           }
         />
@@ -205,7 +227,7 @@ function App() {
           path="/voucher/:id/print"
           element={
             <PrivateRoute roles={["keToan"]}>
-              <VoucherPrintPage user={user}/>
+              <VoucherPrintPage user={user} />
             </PrivateRoute>
           }
         />

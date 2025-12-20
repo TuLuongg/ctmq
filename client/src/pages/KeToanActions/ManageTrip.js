@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { FaEdit, FaHistory, FaExclamationTriangle } from "react-icons/fa";
 import axios from "axios";
 import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import RideEditModal from "../../components/RideEditModal";
 import RideRequestListModal from "../../components/RideRequestListModal";
@@ -18,6 +19,101 @@ const normalize = (s = "") =>
 
 // helper để dựng key trong localStorage (theo user)
 const prefKey = (userId) => `trips_table_prefs_${userId || "guest"}`;
+
+const FORM_COLUMN_MAP = [
+  { col: "A", field: "ltState" },
+  { col: "B", field: "onlState" },
+  { col: "C", field: "offState" },
+  { col: "D", field: "tenLaiXe" },
+  { col: "E", field: "maKH" },
+  { col: "F", field: "khachHang" },
+  { col: "G", field: "dienGiai" },
+  { col: "H", field: "ngayBocHang", type: "date" },
+  { col: "I", field: "ngayGiaoHang", type: "date" },
+  { col: "J", field: "diemXepHang" },
+  { col: "K", field: "diemDoHang" },
+  { col: "L", field: "soDiem" },
+  { col: "M", field: "trongLuong" },
+  { col: "N", field: "bienSoXe" },
+
+  // ===== TIỀN =====
+  {
+    col: "O",
+    field: { base: "cuocPhi", bs: "cuocPhiBS" },
+    type: "number",
+  },
+  {
+    col: "P",
+    field: { base: "daThanhToan", bs: "daThanhToan" },
+    type: "number",
+  },
+  {
+    col: "Q",
+    field: { base: "bocXep", bs: "bocXepBS" },
+    type: "number",
+  },
+  {
+    col: "R",
+    field: { base: "ve", bs: "veBS" },
+    type: "number",
+  },
+  {
+    col: "S",
+    field: { base: "hangVe", bs: "hangVeBS" },
+    type: "number",
+  },
+  {
+    col: "T",
+    field: { base: "luuCa", bs: "luuCaBS" },
+    type: "number",
+  },
+  {
+    col: "U",
+    field: { base: "luatChiPhiKhac", bs: "cpKhacBS" },
+    type: "number",
+  },
+
+  { col: "V", field: "ghiChu" },
+  { col: "W", field: "maChuyen" },
+  { col: "X", field: "accountUsername" },
+];
+
+const columnGroups = [
+  {
+    label: "LT / ONL / OFF",
+    keys: ["ltState", "onlState", "offState"],
+  },
+  {
+    label: "MÃ KH / KH",
+    keys: ["maKH", "khachHang"],
+  },
+  {
+    label: "NGÀY ĐÓNG / GIAO",
+    keys: ["ngayBocHang", "ngayGiaoHang"],
+  },
+  {
+    label: "ĐIỂM ĐÓNG / GIAO",
+    keys: ["diemXepHang", "diemDoHang"],
+  },
+  {
+    label: "CHI PHÍ BỐ SUNG",
+    keys: [
+      "cuocPhiBS",
+      "bocXepBS",
+      "veBS",
+      "hangVeBS",
+      "luuCaBS",
+      "cpKhacBS",
+      "daThanhToan",
+    ],
+  },
+  {
+    label: "CHI PHÍ GỐC",
+    keys: ["cuocPhi", "bocXep", "ve", "hangVe", "luuCa", "luatChiPhiKhac"],
+  },
+];
+
+const groupColumnKeys = columnGroups.flatMap((g) => g.keys);
 
 export default function ManageTrip({ user, onLogout }) {
   const [rides, setRides] = useState([]);
@@ -436,58 +532,81 @@ export default function ManageTrip({ user, onLogout }) {
     }
   };
 
-  // 🔹 Xuất Excel chỉ các cột đang hiển thị
-  const exportToExcel = () => {
-    if (!rides.length) return alert("Không có dữ liệu để xuất Excel!");
+  // 🔹 Xuất Excel
+  const exportToExcel = async (mode = "base") => {
+    if (!rides.length) {
+      alert("Không có dữ liệu để xuất");
+      return;
+    }
 
-    const exportColumns = allColumns.filter((col) =>
-      visibleColumns.includes(col.key)
-    );
-    const headers = exportColumns.map((col) => col.label);
+    const res = await fetch("/form_mau.xlsx");
+    const buffer = await res.arrayBuffer();
 
-    // 🟦 Danh sách các cột là số
-    const data = rides.map((r) => {
-      const row = {};
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
 
-      exportColumns.forEach((col) => {
-        const key = col.key;
+    // ✅ KHÔNG HARDCODE TÊN SHEET
+    const sheet = workbook.worksheets[0];
 
-        if (key === "dieuVan") {
-          row[key] = getFullName(r.dieuVanID);
-        } else if (["ngayBoc", "ngayBocHang", "ngayGiaoHang"].includes(key)) {
-          row[key] = formatDate(r[key]);
+    const START_ROW = 2;
+
+    rides.forEach((ride, i) => {
+      const rowNumber = START_ROW + i;
+      const row = sheet.getRow(rowNumber);
+
+      FORM_COLUMN_MAP.forEach(({ col, field, type }) => {
+        let realField = field;
+
+        // 🔥 chọn field gốc / BS
+        if (typeof field === "object") {
+          realField = field[mode];
         }
 
-        // 🟧 Convert string -> number khi xuất Excel
-        else if (numberColumns.includes(key)) {
-          const raw = r[key] ?? "";
+        let value = ride[realField] ?? "";
 
-          // Chuyển "1.000.000" → 1000000
-          const numeric = Number(
-            raw.toString().replace(/\./g, "").replace(/,/g, "")
+        if (type === "dieuVan") {
+          value = getFullName(ride.dieuVanID);
+        }
+
+        if (type === "date") {
+          value = value ? new Date(value) : null;
+        }
+
+        if (type === "number") {
+          const num = Number(
+            value.toString().replace(/\./g, "").replace(/,/g, "")
           );
-
-          row[key] = isNaN(numeric) ? 0 : numeric;
-        } else {
-          row[key] = r[key] ?? "";
+          value = isNaN(num) ? 0 : num;
         }
+
+        row.getCell(col).value = value;
       });
 
-      return row;
+      row.commit();
     });
 
-    const worksheet = XLSX.utils.json_to_sheet(data, {
-      header: exportColumns.map((c) => c.key),
-    });
+    workbook.calcProperties.fullCalcOnLoad = true;
 
-    XLSX.utils.sheet_add_aoa(worksheet, [headers], { origin: "A1" });
+    // =========================
+    // 📛 TÊN FILE
+    // =========================
+    const count = rides.length;
 
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Tổng hợp chuyến");
+    // lấy tháng từ filter ngày (ưu tiên)
+    const now = new Date();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const year = now.getFullYear();
 
+    const monthLabel = `${month}_${year}`;
+
+    const fileName = `DANH_SACH_CHUYEN_${monthLabel}_${count}_data.xlsx`;
+
+    const out = await workbook.xlsx.writeBuffer();
     saveAs(
-      new Blob([XLSX.write(workbook, { bookType: "xlsx", type: "array" })]),
-      `TongHop_${format(today, "ddMMyyyy_HHmm")}.xlsx`
+      new Blob([out], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      }),
+      fileName
     );
   };
 
@@ -1023,10 +1142,16 @@ export default function ManageTrip({ user, onLogout }) {
         </button>
 
         <button
-          onClick={exportToExcel}
+          onClick={() => exportToExcel("base")}
           className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm"
         >
-          Xuất Excel
+          Xuất File gốc
+        </button>
+        <button
+          onClick={() => exportToExcel("bs")}
+          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm"
+        >
+          Xuất File BS
         </button>
 
         <div className="flex items-center gap-2">
@@ -1087,7 +1212,7 @@ export default function ManageTrip({ user, onLogout }) {
       </div>
 
       {/* UI CHỌN HIỆN / ẨN CỘT */}
-      <div className="w-full flex items-center justify-between mb-2">
+      <div className="w-full flex items-center justify-between mb-2 text-xs">
         {/* BÊN TRÁI: Hiện / Ẩn cột */}
         <div className="relative inline-block" ref={boxRef}>
           <button
@@ -1118,25 +1243,54 @@ export default function ManageTrip({ user, onLogout }) {
 
               {/* Danh sách cột */}
               <div className="max-h-64 overflow-y-auto pr-1 space-y-1">
-                {allColumns.map((col) => (
+                {columnGroups.map((g) => (
                   <label
-                    key={col.key}
-                    className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-100 px-1 py-1 rounded"
+                    key={g.label}
+                    className="flex items-center gap-2 text-[11px] cursor-pointer hover:bg-gray-100 px-1 py-1 rounded"
                   >
                     <input
                       type="checkbox"
-                      checked={!hiddenColumns.includes(col.key)}
+                      checked={g.keys.every((k) => !hiddenColumns.includes(k))}
                       onChange={() => {
-                        setHiddenColumns((prev) =>
-                          prev.includes(col.key)
-                            ? prev.filter((k) => k !== col.key)
-                            : [...prev, col.key]
-                        );
+                        setHiddenColumns((prev) => {
+                          const dangHien = g.keys.every(
+                            (k) => !prev.includes(k)
+                          );
+
+                          // đang hiện → ẩn cả cụm
+                          if (dangHien) {
+                            return [...new Set([...prev, ...g.keys])];
+                          }
+
+                          // đang ẩn → hiện cả cụm
+                          return prev.filter((k) => !g.keys.includes(k));
+                        });
                       }}
                     />
-                    {col.label}
+                    {g.label}
                   </label>
                 ))}
+                {allColumns
+                  .filter((col) => !groupColumnKeys.includes(col.key))
+                  .map((col) => (
+                    <label
+                      key={col.key}
+                      className="flex items-center gap-2 text-[11px] cursor-pointer hover:bg-gray-100 px-1 py-1 rounded"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!hiddenColumns.includes(col.key)}
+                        onChange={() => {
+                          setHiddenColumns((prev) =>
+                            prev.includes(col.key)
+                              ? prev.filter((k) => k !== col.key)
+                              : [...prev, col.key]
+                          );
+                        }}
+                      />
+                      {col.label}
+                    </label>
+                  ))}
               </div>
             </div>
           )}

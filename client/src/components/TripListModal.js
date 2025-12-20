@@ -140,12 +140,12 @@ const handleClose = async () => {
               <tbody>
                 {trips.map((t) => {
                   const tongTien =
-                    pick(t.cuocPhiBS, t.cuocPhi) +
-                    pick(t.bocXepBS, t.bocXep) +
-                    pick(t.veBS, t.ve) +
-                    pick(t.hangVeBS, t.hangVe) +
-                    pick(t.luuCaBS, t.luuCa) +
-                    pick(t.cpKhacBS, t.luatChiPhiKhac);
+                    pick(t.cuocPhiBS) +
+                    pick(t.bocXepBS) +
+                    pick(t.veBS) +
+                    pick(t.hangVeBS) +
+                    pick(t.luuCaBS) +
+                    pick(t.cpKhacBS);
 
                   const paid = parseFloat(t.daThanhToan || 0);
                   const remain = tongTien - paid;

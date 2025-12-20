@@ -73,6 +73,7 @@ export default function RideHistoryModal({ ride, historyData, onClose, role }) {
                   
                   <td className="border p-2 space-y-1 text-left">
                     {Object.keys(h.newData).map((key) => {
+                      if (key === "updatedAt") return null;
                       // Nếu role là điều vận → chỉ cho xem trong main + extra
                       if (role === "dieuVan" && !allowedKeys.includes(key)) {
                         return null; 
@@ -84,8 +85,8 @@ export default function RideHistoryModal({ ride, historyData, onClose, role }) {
                         return (
                           <div key={key}>
                             <span className="font-semibold">{columnLabels[key] || key}:</span>{" "}
-                            <span className="text-red-500">{oldVal || "-"}</span> →{" "}
-                            <span className="text-green-600">{newVal || "-"}</span>
+                            <span className="text-red-500">{oldVal || "0"}</span> →{" "}
+                            <span className="text-green-600">{newVal || "0"}</span>
                           </div>
                         );
                       }

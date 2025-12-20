@@ -3,7 +3,15 @@ import React, { useEffect, useState } from "react";
 export default function RideEditModal({ ride, onSubmit, onClose }) {
   const [formData, setFormData] = useState({});
 
-  const moneyFields = ["cuocPhi", "bocXep", "ve", "hangVe", "luuCa", "chiPhiKhac", "daThanhToan"];
+  const moneyFields = [
+    "cuocPhi",
+    "bocXep",
+    "ve",
+    "hangVe",
+    "luuCa",
+    "chiPhiKhac",
+    "daThanhToan",
+  ];
 
   const formatMoney = (value) => {
     if (!value) return "";
@@ -34,10 +42,6 @@ export default function RideEditModal({ ride, onSubmit, onClose }) {
   };
 
   const handleSubmit = () => {
-    if (!formData.reason?.trim()) {
-      alert("Vui lòng nhập lý do!");
-      return;
-    }
     onSubmit(formData);
   };
 
@@ -55,16 +59,13 @@ export default function RideEditModal({ ride, onSubmit, onClose }) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
       <div className="bg-white p-6 rounded-lg shadow-lg overflow-y-auto max-h-[90vh] w-3/4">
-
         <h2 className="text-xl font-bold mb-4">
           Chỉnh sửa chuyến: {ride.maChuyen || ride._id}
         </h2>
 
         <div className="grid grid-cols-2 gap-6">
-
           {/* ======================== BÊN TRÁI ========================== */}
           <div className="border rounded p-4">
-
             {/* LT – ONL – OFF */}
             <div className="grid grid-cols-3 gap-2 mb-3">
               <div>
@@ -185,7 +186,9 @@ export default function RideEditModal({ ride, onSubmit, onClose }) {
                 <input
                   className="border rounded w-full p-2 mt-1"
                   value={formData.keToanPhuTrach || ""}
-                  onChange={(e) => handleChange("keToanPhuTrach", e.target.value)}
+                  onChange={(e) =>
+                    handleChange("keToanPhuTrach", e.target.value)
+                  }
                 />
               </div>
 
@@ -243,152 +246,153 @@ export default function RideEditModal({ ride, onSubmit, onClose }) {
               </div>
             </div>
 
-{/* ===== CƯỚC PHÍ PHỤ ===== */}
-<div className="mb-3">
-  <label className="font-semibold">Cước phí phụ BĐ</label>
+            {/* ===== CƯỚC PHÍ PHỤ ===== */}
+            <div className="mb-3">
+              <label className="font-semibold">Cước phí phụ BĐ</label>
 
-  {/* Dòng 1: Bốc xếp – Hàng về */}
-  <div className="grid grid-cols-2 gap-3 mt-2">
-    {/* BỐC XẾP */}
-    <div className="flex items-center gap-2">
-      <input
-        type="checkbox"
-        checked={!!formData.bocXepEnabled}
-        onChange={(e) =>
-          setFormData((prev) => ({
-            ...prev,
-            bocXepEnabled: e.target.checked,
-            bocXep: e.target.checked
-              ? prev.bocXep || ride.bocXep || ""
-              : prev.bocXep, // ẩn nhưng giữ nguyên
-          }))
-        }
-      />
-      <span className="whitespace-nowrap">Bốc xếp</span>
+              {/* Dòng 1: Bốc xếp – Hàng về */}
+              <div className="grid grid-cols-2 gap-3 mt-2">
+                {/* BỐC XẾP */}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={!!formData.bocXepEnabled}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        bocXepEnabled: e.target.checked,
+                        bocXep: e.target.checked
+                          ? prev.bocXep || ride.bocXep || ""
+                          : prev.bocXep, // ẩn nhưng giữ nguyên
+                      }))
+                    }
+                  />
+                  <span className="whitespace-nowrap">Bốc xếp</span>
 
-      {formData.bocXepEnabled && (
-        <input
-          className="border rounded p-2 w-full"
-          value={formatMoney(formData.bocXep || "")}
-          onChange={(e) => handleChange("bocXep", e.target.value)}
-        />
-      )}
-    </div>
+                  {formData.bocXepEnabled && (
+                    <input
+                      className="border rounded p-2 w-full"
+                      value={formatMoney(formData.bocXep || "")}
+                      onChange={(e) => handleChange("bocXep", e.target.value)}
+                    />
+                  )}
+                </div>
 
-    {/* HÀNG VỀ */}
-    <div className="flex items-center gap-2">
-      <input
-        type="checkbox"
-        checked={!!formData.hangVeEnabled}
-        onChange={(e) =>
-          setFormData((prev) => ({
-            ...prev,
-            hangVeEnabled: e.target.checked,
-            hangVe: e.target.checked
-              ? prev.hangVe || ride.hangVe || ""
-              : prev.hangVe,
-          }))
-        }
-      />
-      <span className="whitespace-nowrap">Hàng về</span>
+                {/* HÀNG VỀ */}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={!!formData.hangVeEnabled}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        hangVeEnabled: e.target.checked,
+                        hangVe: e.target.checked
+                          ? prev.hangVe || ride.hangVe || ""
+                          : prev.hangVe,
+                      }))
+                    }
+                  />
+                  <span className="whitespace-nowrap">Hàng về</span>
 
-      {formData.hangVeEnabled && (
-        <input
-          className="border rounded p-2 w-full"
-          value={formatMoney(formData.hangVe || "")}
-          onChange={(e) => handleChange("hangVe", e.target.value)}
-        />
-      )}
-    </div>
-  </div>
+                  {formData.hangVeEnabled && (
+                    <input
+                      className="border rounded p-2 w-full"
+                      value={formatMoney(formData.hangVe || "")}
+                      onChange={(e) => handleChange("hangVe", e.target.value)}
+                    />
+                  )}
+                </div>
+              </div>
 
-  {/* Dòng 2: Vé – Lưu ca */}
-  <div className="grid grid-cols-2 gap-3 mt-3">
-    {/* VÉ */}
-    <div className="flex items-center gap-2">
-      <input
-        type="checkbox"
-        checked={!!formData.veEnabled}
-        onChange={(e) =>
-          setFormData((prev) => ({
-            ...prev,
-            veEnabled: e.target.checked,
-            ve: e.target.checked ? prev.ve || ride.ve || "" : prev.ve,
-          }))
-        }
-      />
-      <span className="whitespace-nowrap">Vé</span>
+              {/* Dòng 2: Vé – Lưu ca */}
+              <div className="grid grid-cols-2 gap-3 mt-3">
+                {/* VÉ */}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={!!formData.veEnabled}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        veEnabled: e.target.checked,
+                        ve: e.target.checked
+                          ? prev.ve || ride.ve || ""
+                          : prev.ve,
+                      }))
+                    }
+                  />
+                  <span className="whitespace-nowrap">Vé</span>
 
-      {formData.veEnabled && (
-        <input
-          className="border rounded p-2 w-full"
-          value={formatMoney(formData.ve || "")}
-          onChange={(e) => handleChange("ve", e.target.value)}
-        />
-      )}
-    </div>
+                  {formData.veEnabled && (
+                    <input
+                      className="border rounded p-2 w-full"
+                      value={formatMoney(formData.ve || "")}
+                      onChange={(e) => handleChange("ve", e.target.value)}
+                    />
+                  )}
+                </div>
 
-    {/* LƯU CA */}
-    <div className="flex items-center gap-2">
-      <input
-        type="checkbox"
-        checked={!!formData.luuCaEnabled}
-        onChange={(e) =>
-          setFormData((prev) => ({
-            ...prev,
-            luuCaEnabled: e.target.checked,
-            luuCa: e.target.checked ? prev.luuCa || ride.luuCa || "" : prev.luuCa,
-          }))
-        }
-      />
-      <span className="whitespace-nowrap">Lưu ca</span>
+                {/* LƯU CA */}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={!!formData.luuCaEnabled}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        luuCaEnabled: e.target.checked,
+                        luuCa: e.target.checked
+                          ? prev.luuCa || ride.luuCa || ""
+                          : prev.luuCa,
+                      }))
+                    }
+                  />
+                  <span className="whitespace-nowrap">Lưu ca</span>
 
-      {formData.luuCaEnabled && (
-        <input
-          className="border rounded p-2 w-full"
-          value={formatMoney(formData.luuCa || "")}
-          onChange={(e) => handleChange("luuCa", e.target.value)}
-        />
-      )}
-    </div>
-  </div>
+                  {formData.luuCaEnabled && (
+                    <input
+                      className="border rounded p-2 w-full"
+                      value={formatMoney(formData.luuCa || "")}
+                      onChange={(e) => handleChange("luuCa", e.target.value)}
+                    />
+                  )}
+                </div>
+              </div>
 
-  {/* Dòng 3: Chi phí khác full width */}
-  <div className="mt-3 flex items-center gap-3">
-    <input
-      type="checkbox"
-      checked={!!formData.chiPhiKhacEnabled}
-      onChange={(e) =>
-        setFormData((prev) => ({
-          ...prev,
-          chiPhiKhacEnabled: e.target.checked,
-          chiPhiKhac: e.target.checked
-            ? prev.chiPhiKhac || ride.chiPhiKhac || ""
-            : prev.chiPhiKhac,
-        }))
-      }
-    />
-    <span className="whitespace-nowrap">Chi phí khác</span>
+              {/* Dòng 3: Chi phí khác full width */}
+              <div className="mt-3 flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={!!formData.chiPhiKhacEnabled}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      chiPhiKhacEnabled: e.target.checked,
+                      chiPhiKhac: e.target.checked
+                        ? prev.chiPhiKhac || ride.chiPhiKhac || ""
+                        : prev.chiPhiKhac,
+                    }))
+                  }
+                />
+                <span className="whitespace-nowrap">Chi phí khác</span>
 
-    {formData.chiPhiKhacEnabled && (
-      <input
-        className="border rounded p-2 w-full"
-        value={formatMoney(formData.chiPhiKhac || "")}
-        onChange={(e) => handleChange("chiPhiKhac", e.target.value)}
-      />
-    )}
-  </div>
-</div>
-
-
-
+                {formData.chiPhiKhacEnabled && (
+                  <input
+                    className="border rounded p-2 w-full"
+                    value={formatMoney(formData.chiPhiKhac || "")}
+                    onChange={(e) => handleChange("chiPhiKhac", e.target.value)}
+                  />
+                )}
+              </div>
+            </div>
 
             {/* Điều vận */}
             <div className="mb-3">
-              <label className="font-semibold">Điều vận</label>
+              <label className="font-semibold">Ghi chú</label>
               <input
                 className="border rounded w-full p-2 mt-1"
-                value={formData.dieuVan || ""}
+                value={formData.ghiChu || ""}
                 onChange={(e) => handleChange("dieuVan", e.target.value)}
               />
             </div>
@@ -430,7 +434,6 @@ export default function RideEditModal({ ride, onSubmit, onClose }) {
             Gửi yêu cầu
           </button>
         </div>
-
       </div>
     </div>
   );
