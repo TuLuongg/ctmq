@@ -307,3 +307,39 @@ exports.approveAdjustedVoucher = async (req, res) => {
   }
 };
 
+//Cập nhật ngày chuyển tiền cho nhiều phiếu
+exports.updateTransferDateBulk = async (req, res) => {
+  try {
+    const { voucherIds, transferDate } = req.body;
+
+    if (!Array.isArray(voucherIds) || voucherIds.length === 0) {
+      return res.status(400).json({
+        message: "voucherIds phải là mảng và không được rỗng"
+      });
+    }
+
+    if (!transferDate) {
+      return res.status(400).json({
+        message: "Thiếu transferDate"
+      });
+    }
+
+    const result = await Voucher.updateMany(
+      { _id: { $in: voucherIds } },
+      {
+        $set: {
+          transferDate: new Date(transferDate)
+        }
+      }
+    );
+
+    return res.json({
+      success: true,
+      matched: result.matchedCount,
+      modified: result.modifiedCount
+    });
+  } catch (err) {
+    console.error("updateTransferDateBulk error:", err);
+    res.status(500).json({ message: "Lỗi server" });
+  }
+};

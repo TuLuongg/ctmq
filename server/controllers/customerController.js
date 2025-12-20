@@ -243,27 +243,6 @@ function getRowSchema(sheet, sourceRowNumber) {
   return schema;
 }
 
-function applyRowSchema(sheet, schema, targetRowNumber) {
-  const row = sheet.getRow(targetRowNumber);
-
-  Object.entries(schema).forEach(([colNumber, cfg]) => {
-    const cell = row.getCell(Number(colNumber));
-
-    // clone style
-    cell.style = JSON.parse(JSON.stringify(cfg.style || {}));
-
-    // clone numFmt
-    if (cfg.numFmt) {
-      cell.numFmt = cfg.numFmt;
-    }
-
-    // QUAN TRỌNG: reset value nhưng giữ type
-    cell.value = null;
-  });
-
-  row.height = sheet.getRow(targetRowNumber - 1).height;
-  row.commit();
-}
 
 const exportTripsByCustomer = async (req, res) => {
   try {

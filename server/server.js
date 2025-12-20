@@ -40,6 +40,10 @@ app.use("/api/payment-history", paymentHistoryRoutes);
 app.use("/api/vouchers", voucherRoutes);
 app.use("/api/expense", expenseRoutes);
 
+app.use("/api/fuel-vinh-khuc", require("./routes/fuelVinhKhuc.routes"));
+app.use("/api/fuel-ngoc-long", require("./routes/fuelNgocLong.routes"));
+
+
 app.get('/', (req, res) => {
   res.send('Server hoạt động!');
 });

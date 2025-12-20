@@ -14,29 +14,40 @@ const fieldMap = {
   luuCa: { base: "luuCa", bs: "luuCaBS" },
 };
 
-// Lấy giá trị theo rule: nếu có bổ sung → dùng bổ sung, không thì dùng base.
-const pickValue = (obj, field) => {
+
+const pickBaseOnly = (obj, field) => {
   const map = fieldMap[field];
   if (!map) return 0;
 
-  const baseVal = parseFloat(obj[map.base]) || 0;
-  const bsVal = parseFloat(obj[map.bs]) || 0;
-
-  if (obj[map.bs] !== undefined && obj[map.bs] !== null && obj[map.bs] !== "")
-    return bsVal;
-
-  return baseVal;
+  return Number(obj[map.base]) || 0;
 };
 
-// Tính tổng tiền 1 chuyến
-const calcTripCost = (trip) => {
+const pickBsOnly = (obj, field) => {
+  const map = fieldMap[field];
+  if (!map) return 0;
+
+  return Number(obj[map.bs]) || 0;
+};
+
+const calcTripCostOddCustomer = (trip) => {
   return (
-    pickValue(trip, "cuocPhi") +
-    pickValue(trip, "bocXep") +
-    pickValue(trip, "ve") +
-    pickValue(trip, "hangVe") +
-    pickValue(trip, "luuCa") +
-    pickValue(trip, "chiPhiKhac")
+    pickBaseOnly(trip, "cuocPhi") +
+    pickBaseOnly(trip, "bocXep") +
+    pickBaseOnly(trip, "ve") +
+    pickBaseOnly(trip, "hangVe") +
+    pickBaseOnly(trip, "luuCa") +
+    pickBaseOnly(trip, "chiPhiKhac")
+  );
+};
+
+const calcTripCostSharedCustomer = (trip) => {
+  return (
+    pickBsOnly(trip, "cuocPhi") +
+    pickBsOnly(trip, "bocXep") +
+    pickBsOnly(trip, "ve") +
+    pickBsOnly(trip, "hangVe") +
+    pickBsOnly(trip, "luuCa") +
+    pickBsOnly(trip, "chiPhiKhac")
   );
 };
 
@@ -59,7 +70,7 @@ const calcPeriodMoneyFromTrips = (trips, vatPercent = 0) => {
   let paidAmount = 0;
 
   for (const t of trips) {
-    const tripTotal = calcTripCost(t);
+    const tripTotal = calcTripCostSharedCustomer(t);
     const tripPaid = parseFloat(t.daThanhToan) || 0;
 
     if (t.paymentType === "CASH") {
@@ -705,6 +716,57 @@ exports.unlockDebtPeriod = async (req, res) => {
 };
 
 // =====================================================
+// 🗑️ XOÁ 1 KỲ CÔNG NỢ (KH CHUNG)
+// =====================================================
+exports.deleteDebtPeriod = async (req, res) => {
+  try {
+    const { debtCode } = req.params;
+
+    if (!debtCode) {
+      return res.status(400).json({ error: "Thiếu debtCode" });
+    }
+
+    // 1️⃣ Lấy kỳ công nợ
+    const period = await CustomerDebtPeriod.findOne({ debtCode });
+    if (!period) {
+      return res.status(404).json({ error: "Không tìm thấy kỳ công nợ" });
+    }
+
+    // 2️⃣ Không cho xoá nếu kỳ đã khoá
+    if (period.isLocked) {
+      return res.status(400).json({
+        error: "Kỳ công nợ đã bị khoá, không thể xoá",
+      });
+    }
+
+    // 3️⃣ Check có phiếu thu liên quan không
+    const existedReceipt = await PaymentReceipt.findOne({
+      "allocations.debtPeriodId": period._id,
+    });
+
+    if (existedReceipt) {
+      return res.status(400).json({
+        error: "Kỳ công nợ đã có phiếu thu, không thể xoá",
+      });
+    }
+
+    // 4️⃣ Xoá kỳ công nợ
+    await period.deleteOne();
+
+    res.json({
+      message: "Đã xoá kỳ công nợ thành công",
+      debtCode,
+      customerCode: period.customerCode,
+      manageMonth: period.manageMonth,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Không thể xoá kỳ công nợ" });
+  }
+};
+
+
+// =====================================================
 // 📌 TÍNH CÔNG NỢ KHÁCH 26 THEO TỪNG CHUYẾN (CÓ RULE MÀU GIỐNG TẤT CẢ)
 // =====================================================
 exports.getDebtForCustomer26 = async (req, res) => {
@@ -728,7 +790,7 @@ exports.getDebtForCustomer26 = async (req, res) => {
 
     const list = await Promise.all(
       trips.map(async (t) => {
-        const tongTien = calcTripCost(t);
+        const tongTien = calcTripCostOddCustomer(t);
         const daThanhToan = parseFloat(t.daThanhToan) || 0;
         const conLai = tongTien - daThanhToan;
 
@@ -845,7 +907,7 @@ exports.addTripPayment = async (req, res) => {
       (parseFloat(trip.daThanhToan) || 0) + parseFloat(amount);
 
     // Tính tổng tiền chuyến
-    const tongTien = calcTripCost(trip);
+    const tongTien = calcTripCostOddCustomer(trip);
 
     // Còn lại
     trip.conLai = tongTien - trip.daThanhToan;
@@ -897,7 +959,7 @@ exports.deleteTripPayment = async (req, res) => {
     trip.daThanhToan = (parseFloat(trip.daThanhToan) || 0) - parseFloat(amount);
 
     // Tính lại tổng cước
-    const tongTien = calcTripCost(trip);
+    const tongTien = calcTripCostOddCustomer(trip);
 
     // Tính lại conLai
     trip.conLai = tongTien - trip.daThanhToan;

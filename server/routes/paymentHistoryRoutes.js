@@ -10,6 +10,7 @@ const {
   lockDebtPeriod,
   unlockDebtPeriod,
   toggleTripPaymentType,
+  deleteDebtPeriod,
 
   // ===== PHIẾU THU CÔNG NỢ =====
   addPaymentReceipt,
@@ -47,6 +48,9 @@ router.get("/debt-period/:debtCode", getDebtPeriodDetail);
 
 //Đổi cash-invoice cho chuyến
 router.patch("/trip/:maChuyenCode/toggle-payment-type", toggleTripPaymentType);
+
+//Xoá kỳ công nợ
+router.delete("/delete/debt-period/:debtCode", deleteDebtPeriod)
 
 // =====================================================
 // 💰 PHIẾU THU CÔNG NỢ
