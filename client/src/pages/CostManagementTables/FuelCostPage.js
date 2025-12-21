@@ -19,19 +19,81 @@ export default function FuelCostPage() {
   const baseUrl =
     source === "vinh-khuc" ? `${API}/fuel-vinh-khuc` : `${API}/fuel-ngoc-long`;
 
-  /* ================= FETCH ================= */
+  const [vehicleFilterOptions, setVehicleFilterOptions] = useState([]); // danh sách số xe duy nhất
+
+  const fetchVehicleFilterOptions = async () => {
+    try {
+      const url =
+        source === "vinh-khuc"
+          ? `${API}/fuel-vinh-khuc/fuel-vehicle`
+          : `${API}/fuel-ngoc-long/fuel-vehicle`;
+
+      const res = await axios.get(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const options = res.data || [];
+      setVehicleFilterOptions(options);
+
+      // 🔹 Mặc định chọn tất cả
+      setVehicleFilter(options);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Gọi khi đổi source hoặc load lần đầu
+  useEffect(() => {
+    fetchVehicleFilterOptions();
+  }, [source]);
+
+  /* ================= STATE FILTER ================= */
+  const [monthFilter, setMonthFilter] = useState(""); // format YYYY-MM
+  const [vehicleFilter, setVehicleFilter] = useState([]); // mảng số xe đang lọc
+  const [vehicleFilterSearch, setVehicleFilterSearch] = useState("");
+  const [showVehicleFilterDropdown, setShowVehicleFilterDropdown] =
+    useState(false);
+
+  /* ================= FETCH + FILTER ================= */
   const fetchData = async () => {
     setLoading(true);
     try {
       const res = await axios.get(baseUrl, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setData(res.data || []);
+
+      let fetchedData = res.data || [];
+
+      // ⬇️ APPLY MONTH FILTER
+      if (monthFilter) {
+        fetchedData = fetchedData.filter((r) => {
+          if (!r.dateFull) return false;
+          const rMonth = new Date(r.dateFull).toISOString().slice(0, 7); // "YYYY-MM"
+          return rMonth === monthFilter;
+        });
+      }
+
+      // ⬇️ APPLY VEHICLE FILTER (mảng)
+      if (vehicleFilter && vehicleFilter.length > 0) {
+        fetchedData = fetchedData.filter((r) => {
+          if (source === "vinh-khuc")
+            return vehicleFilter.includes(r.vehicleNo);
+          if (source === "ngoc-long")
+            return vehicleFilter.includes(r.vehiclePlate);
+          return true;
+        });
+      } else {
+        // 🔹 nếu mảng trống => không show dòng nào
+        fetchedData = [];
+      }
+
+      setData(fetchedData);
     } finally {
       setLoading(false);
     }
   };
 
+  /* ================= USE EFFECT ================= */
   useEffect(() => {
     fetchData();
     setEditing(null);
@@ -41,7 +103,7 @@ export default function FuelCostPage() {
     setImporting(false);
     setImportTotal(0);
     setImportDone(0);
-  }, [source]);
+  }, [source, monthFilter, vehicleFilter]); // 🔹 thêm filter vào dependency
 
   /* ================= IMPORT ================= */
   const [importFile, setImportFile] = useState(null);
@@ -150,6 +212,8 @@ export default function FuelCostPage() {
     });
     fetchData();
   };
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
+
   const renderNewRowVinhKhuc = () => {
     if (editing !== "new") return null;
 
@@ -373,16 +437,108 @@ export default function FuelCostPage() {
                   "Số lít",
                   "Tiền đổ dầu ngoài",
                   "Số lít đổ ngoài",
-                  "Tổng",
+                  "Tổng cộng",
                   "Giá dầu",
                   "Ghi chú",
                   "Hành động",
                 ].map((h) => (
                   <th
                     key={h}
-                    className="border bg-blue-600 px-2 py-2 font-semibold text-white whitespace-nowrap"
+                    className="border bg-blue-600 px-2 py-2 font-semibold text-white whitespace-nowrap relative"
                   >
-                    {h}
+                    {h === "Số Xe" ? (
+                      <div className="flex flex-col relative">
+                        <span
+                          className="cursor-pointer"
+                          onClick={(e) => {
+                            const rect = e.target.getBoundingClientRect();
+                            setDropdownPos({
+                              top: rect.bottom + window.scrollY,
+                              left: rect.left,
+                            });
+                            setShowVehicleFilterDropdown(
+                              !showVehicleFilterDropdown
+                            );
+                          }}
+                        >
+                          {h}
+                        </span>
+
+                        {showVehicleFilterDropdown && (
+                          <div
+                            className="fixed z-[999] w-48 border rounded bg-white text-black p-2 shadow-lg"
+                            style={{
+                              top: `${dropdownPos.top}px`,
+                              left: `${dropdownPos.left}px`,
+                            }}
+                          >
+                            {/* Input search */}
+                            <input
+                              type="text"
+                              placeholder="Tìm số xe..."
+                              className="w-full border rounded px-1 mb-1"
+                              value={vehicleFilterSearch}
+                              onChange={(e) =>
+                                setVehicleFilterSearch(e.target.value)
+                              }
+                            />
+
+                            {/* Checkbox chọn tất cả */}
+                            <label className="flex items-center gap-1 mb-1">
+                              <input
+                                type="checkbox"
+                                checked={
+                                  vehicleFilterOptions.length > 0 &&
+                                  vehicleFilter.length ===
+                                    vehicleFilterOptions.length
+                                }
+                                onChange={(e) => {
+                                  if (e.target.checked)
+                                    setVehicleFilter([...vehicleFilterOptions]);
+                                  else setVehicleFilter([]);
+                                }}
+                              />
+                              <span>Chọn tất cả</span>
+                            </label>
+
+                            {/* Checkbox từng số xe */}
+                            <div className="max-h-40 overflow-auto">
+                              {vehicleFilterOptions
+                                .filter((v) =>
+                                  v
+                                    .toLowerCase()
+                                    .includes(vehicleFilterSearch.toLowerCase())
+                                )
+                                .map((v) => (
+                                  <label
+                                    key={v}
+                                    className="flex items-center gap-1"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={vehicleFilter.includes(v)}
+                                      onChange={(e) => {
+                                        if (e.target.checked)
+                                          setVehicleFilter([
+                                            ...vehicleFilter,
+                                            v,
+                                          ]);
+                                        else
+                                          setVehicleFilter(
+                                            vehicleFilter.filter((x) => x !== v)
+                                          );
+                                      }}
+                                    />
+                                    <span>{v}</span>
+                                  </label>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      h
+                    )}
                   </th>
                 ))}
               </tr>
@@ -533,19 +689,21 @@ export default function FuelCostPage() {
                         {r.fuelPriceChanged?.toLocaleString("vi-VN")}
                       </td>
                       <td className="border px-2">{r.note}</td>
-                      <td className="border px-2 whitespace-nowrap">
-                        <button
-                          onClick={() => handleEdit(r)}
-                          className="text-blue-600"
-                        >
-                          Sửa
-                        </button>
-                        <button
-                          onClick={() => handleDelete(r._id)}
-                          className="text-red-600 ml-2"
-                        >
-                          Xóa
-                        </button>
+                      <td className="border px-2">
+                        <div className="flex justify-center">
+                          <button
+                            onClick={() => handleEdit(r)}
+                            className="text-blue-600 mr-2"
+                          >
+                            Sửa
+                          </button>
+                          <button
+                            onClick={() => handleDelete(r._id)}
+                            className="text-red-600"
+                          >
+                            Xóa
+                          </button>
+                        </div>
                       </td>
                     </>
                   )}
@@ -583,26 +741,118 @@ export default function FuelCostPage() {
             <thead className="sticky top-0 z-20 bg-blue-600">
               <tr>
                 {[
+                  "Ngày Tháng năm",
                   "Ngày",
-                  "Ngày số",
-                  "Biển số",
+                  "Biển số xe",
                   "Mã xe",
                   "Số tiền",
                   "Số lít",
                   "Ghi chú",
-                  "Cơ M1",
-                  "Cơ M2",
-                  "ĐT M1",
-                  "ĐT M2",
-                  "Giá nội bộ",
+                  "cộng dồn lít số cơ máy 1",
+                  "cộng dồn lít số cơ máy 2",
+                  "cộng dồn lít số điện tử máy 1",
+                  "cộng dồn lít số điện tử máy 2",
+                  "Giá dầu Nội bộ đã gồm VAT",
                   "Tồn dầu",
                   "Hành động",
                 ].map((h) => (
                   <th
                     key={h}
-                    className="border bg-blue-600 px-2 py-2 font-semibold text-white whitespace-nowrap"
+                    className="border bg-blue-600 px-2 py-2 font-semibold text-white whitespace-nowrap relative"
                   >
-                    {h}
+                    {h === "Biển số xe" ? (
+                      <div className="flex flex-col">
+                        <span
+                          className="cursor-pointer"
+                          onClick={(e) => {
+                            const rect = e.target.getBoundingClientRect();
+                            setDropdownPos({
+                              top: rect.bottom + window.scrollY,
+                              left: rect.left,
+                            });
+                            setShowVehicleFilterDropdown(
+                              !showVehicleFilterDropdown
+                            );
+                          }}
+                        >
+                          {h}
+                        </span>
+
+                        {showVehicleFilterDropdown && (
+                          <div
+                            className="fixed w-48 border rounded bg-white text-black p-2 shadow-lg z-[999]"
+                            style={{
+                              top: `${dropdownPos.top}px`,
+                              left: `${dropdownPos.left}px`,
+                            }}
+                          >
+                            {/* Input search */}
+                            <input
+                              type="text"
+                              placeholder="Tìm số xe..."
+                              className="w-full border rounded px-1 mb-1"
+                              value={vehicleFilterSearch}
+                              onChange={(e) =>
+                                setVehicleFilterSearch(e.target.value)
+                              }
+                            />
+
+                            {/* Checkbox chọn tất cả */}
+                            <label className="flex items-center gap-1 mb-1">
+                              <input
+                                type="checkbox"
+                                checked={
+                                  vehicleFilterOptions.length > 0 &&
+                                  vehicleFilter.length ===
+                                    vehicleFilterOptions.length
+                                }
+                                onChange={(e) => {
+                                  if (e.target.checked)
+                                    setVehicleFilter([...vehicleFilterOptions]);
+                                  else setVehicleFilter([]);
+                                }}
+                              />
+                              <span>Chọn tất cả</span>
+                            </label>
+
+                            {/* Checkbox từng số xe */}
+                            <div className="max-h-40 overflow-auto">
+                              {vehicleFilterOptions
+                                .filter((v) =>
+                                  v
+                                    .toLowerCase()
+                                    .includes(vehicleFilterSearch.toLowerCase())
+                                )
+                                .map((v) => (
+                                  <label
+                                    key={v}
+                                    className="flex items-center gap-1"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={vehicleFilter.includes(v)}
+                                      onChange={(e) => {
+                                        if (e.target.checked)
+                                          setVehicleFilter([
+                                            ...vehicleFilter,
+                                            v,
+                                          ]);
+                                        else
+                                          setVehicleFilter(
+                                            vehicleFilter.filter((x) => x !== v)
+                                          );
+                                      }}
+                                    />
+                                    <span>{v}</span>
+                                  </label>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      h
+                    )}
                   </th>
                 ))}
               </tr>
@@ -724,13 +974,16 @@ export default function FuelCostPage() {
                           className="w-full border px-1"
                         />
                       </td>
-                      <td className="border px-2 whitespace-nowrap">
-                        <button onClick={handleSave} className="text-green-600">
+                      <td className="border px-2 text-center">
+                        <button
+                          onClick={handleSave}
+                          className="text-green-600 mr-2"
+                        >
                           Lưu
                         </button>
                         <button
                           onClick={handleCancel}
-                          className="text-gray-600 ml-2"
+                          className="text-gray-600"
                         >
                           Huỷ
                         </button>
@@ -742,16 +995,20 @@ export default function FuelCostPage() {
                         {r.dateFull &&
                           new Date(r.dateFull).toLocaleDateString("vi-VN")}
                       </td>
-                      <td className="border px-2">{r.day}</td>
-                      <td className="border px-2">{r.vehiclePlate}</td>
-                      <td className="border px-2">{r.vehicleCode}</td>
+                      <td className="border px-2 text-center">{r.day}</td>
+                      <td className="border px-2 text-center">
+                        {r.vehiclePlate}
+                      </td>
+                      <td className="border px-2 text-center">
+                        {r.vehicleCode}
+                      </td>
                       <td className="border px-2 text-right">
                         {r.amount?.toLocaleString("vi-VN")}
                       </td>
                       <td className="border px-2 text-right">
                         {r.liter?.toLocaleString("vi-VN")}
                       </td>
-                      <td className="border px-2">{r.note}</td>
+                      <td className="border px-2 text-center">{r.note}</td>
                       <td className="border px-2 text-right">
                         {r.cumulativeMechanical1?.toLocaleString("vi-VN")}
                       </td>
@@ -770,19 +1027,21 @@ export default function FuelCostPage() {
                       <td className="border px-2 text-right">
                         {r.fuelRemaining?.toLocaleString("vi-VN")}
                       </td>
-                      <td className="border px-2 whitespace-nowrap">
-                        <button
-                          onClick={() => handleEdit(r)}
-                          className="text-blue-600"
-                        >
-                          Sửa
-                        </button>
-                        <button
-                          onClick={() => handleDelete(r._id)}
-                          className="text-red-600 ml-2"
-                        >
-                          Xóa
-                        </button>
+                      <td className="border px-2">
+                        <div className="flex justify-center">
+                          <button
+                            onClick={() => handleEdit(r)}
+                            className="text-blue-600 mr-2"
+                          >
+                            Sửa
+                          </button>
+                          <button
+                            onClick={() => handleDelete(r._id)}
+                            className="text-red-600"
+                          >
+                            Xóa
+                          </button>
+                        </div>
                       </td>
                     </>
                   )}
@@ -797,6 +1056,15 @@ export default function FuelCostPage() {
 
   const Toolbar = () => (
     <div className="flex gap-3 mb-3 items-center">
+      <div className="flex items-center gap-2">
+        <label className="text-sm">Tháng:</label>
+        <input
+          type="month"
+          value={monthFilter}
+          onChange={(e) => setMonthFilter(e.target.value)}
+          className="border py-1 text-xs"
+        />
+      </div>
       <input
         type="file"
         ref={fileInputRef}

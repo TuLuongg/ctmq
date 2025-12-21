@@ -52,6 +52,12 @@ export default function CustomerDebt26Page() {
     { key: "trongLuong", label: "Trọng lượng", width: 100, visible: true },
     { key: "bienSoXe", label: "Biển số", width: 100, visible: true },
     { key: "maKH", label: "Mã KH", width: 100, visible: true },
+    { key: "cuocPhi", label: "Cước phí", width: 80, visible: true },
+    { key: "bocXep", label: "Bốc xếp", width: 80, visible: true },
+    { key: "ve", label: "Vé", width: 60, visible: true },
+    { key: "hangVe", label: "Hàng về", width: 80, visible: true },
+    { key: "luuCa", label: "Lưu ca", width: 80, visible: true },
+    { key: "luatChiPhiKhac", label: "Luật CP khác", width: 90, visible: true },
     { key: "tongTien", label: "Tổng tiền", width: 120, visible: true },
     { key: "daThanhToan", label: "Đã thanh toán", width: 120, visible: true },
     { key: "conLai", label: "Còn lại", width: 120, visible: true },
@@ -60,6 +66,15 @@ export default function CustomerDebt26Page() {
     { key: "taiKhoanCK", label: "Tài khoản", width: 120, visible: true },
     { key: "noiDungCK", label: "Nội dung CK", width: 200, visible: true },
     { key: "noteOdd", label: "Ghi chú thêm", width: 120, visible: true },
+  ];
+
+  const MONEY_FIELDS = [
+    "cuocPhi",
+    "bocXep",
+    "ve",
+    "hangVe",
+    "luuCa",
+    "luatChiPhiKhac",
   ];
 
   const [columns, setColumns] = useState(() => {
@@ -144,6 +159,9 @@ export default function CustomerDebt26Page() {
     setLoading(false);
   };
 
+  const [editingTrip, setEditingTrip] = useState(null); // _id chuyến đang edit
+  const [editValues, setEditValues] = useState({}); // lưu 6 ô tiền
+
   useEffect(() => {
     if (!hasCongNo26Permission) return;
     loadData();
@@ -153,6 +171,16 @@ export default function CustomerDebt26Page() {
     const newCols = columns.map((c) =>
       c.key === key ? { ...c, visible: !c.visible } : c
     );
+    saveColumns(newCols);
+  };
+  const allChecked = columns.every((c) => c.visible);
+  const someChecked = columns.some((c) => c.visible);
+  const toggleAllColumns = () => {
+    const allChecked = columns.every((c) => c.visible); // đang tất cả chọn
+    const newCols = columns.map((c) => ({
+      ...c,
+      visible: !allChecked, // nếu all → bỏ hết, chưa all → chọn hết
+    }));
     saveColumns(newCols);
   };
 
@@ -487,7 +515,7 @@ export default function CustomerDebt26Page() {
             </div>
           </div>
 
-          <div className="relative mb-2 inline-block">
+          <div className="relative mb-2 inline-block z-[100]">
             <button
               onClick={() => setShowColumnSetting(!showColumnSetting)}
               className="px-3 py-1 border rounded bg-gray-100 hover:bg-gray-200"
@@ -496,7 +524,21 @@ export default function CustomerDebt26Page() {
             </button>
 
             {showColumnSetting && (
-              <div className="absolute z-20 mt-1 bg-white border shadow rounded p-2 max-h-60 overflow-auto">
+              <div className="absolute z-90 mt-1 bg-white border shadow rounded p-2 max-h-60 overflow-auto space-y-1">
+                {/* 🔥 CHỌN TẤT CẢ / BỎ TẤT CẢ */}
+                <label className="flex items-center gap-2 text-xs font-semibold border-b pb-1 mb-1">
+                  <input
+                    type="checkbox"
+                    checked={allChecked}
+                    ref={(el) => {
+                      if (el) el.indeterminate = !allChecked && someChecked;
+                    }}
+                    onChange={toggleAllColumns}
+                  />
+                  Chọn tất cả
+                </label>
+
+                {/* DANH SÁCH CỘT */}
                 {columns.map((c) => (
                   <label
                     key={c.key}
@@ -671,13 +713,111 @@ export default function CustomerDebt26Page() {
                             ? format(new Date(value), "dd/MM/yyyy")
                             : "";
                         }
+                        if (MONEY_FIELDS.includes(col.key)) {
+                          const num = Number(t[col.key] ?? 0);
+                          const displayValue = isNaN(num)
+                            ? ""
+                            : num.toLocaleString();
 
+                          return (
+                            <td
+                              key={col.key}
+                              className={`border table-cell relative ${
+                                col.key === "maChuyen"
+                                  ? "sticky left-[30px] bg-white z-20"
+                                  : ""
+                              }`}
+                              style={{
+                                width: col.width,
+                                minWidth: col.width,
+                                maxWidth: col.width,
+                              }}
+                              onClick={() => {
+                                setEditingTrip(t._id);
+                                setEditValues({
+                                  _id: t._id,
+                                  ...MONEY_FIELDS.reduce((acc, f) => {
+                                    acc[f] = t[f] ?? 0; // lấy giá trị cũ từ row
+                                    return acc;
+                                  }, {}),
+                                });
+                              }}
+                            >
+                              {editingTrip === t._id ? (
+                                <div className="relative">
+                                  <input
+                                    type="number"
+                                    className="border p-1 text-right w-full"
+                                    value={editValues[col.key]}
+                                    onChange={(e) =>
+                                      setEditValues((prev) => ({
+                                        ...prev,
+                                        [col.key]: Number(e.target.value),
+                                      }))
+                                    }
+                                  />
+
+                                  {col.key === "luatChiPhiKhac" && (
+                                    <div
+                                      className="absolute top-0 left-full ml-1 flex gap-1 items-center"
+                                      style={{ height: "100%" }}
+                                    >
+                                      <button
+                                        className="px-2 py-1 bg-green-600 text-white rounded text-xs"
+                                        onClick={async (e) => {
+                                          e.stopPropagation();
+                                          try {
+                                            await axios.put(
+                                              `${API}/schedule-admin/${editValues._id}`,
+                                              editValues,
+                                              {
+                                                headers: {
+                                                  Authorization: `Bearer ${localStorage.getItem(
+                                                    "token"
+                                                  )}`,
+                                                },
+                                              }
+                                            );
+                                            setEditingTrip(null);
+                                            loadData();
+                                          } catch (err) {
+                                            console.error(err);
+                                          }
+                                        }}
+                                      >
+                                        Lưu
+                                      </button>
+                                      <button
+                                        className="px-2 py-1 bg-gray-400 text-white rounded text-xs"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setEditingTrip(null);
+                                        }}
+                                      >
+                                        Hủy
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="text-right">{displayValue}</div>
+                              )}
+                            </td>
+                          );
+                        }
                         if (
                           col.key === "tongTien" ||
                           col.key === "daThanhToan" ||
-                          col.key === "conLai"
+                          col.key === "conLai" ||
+                          col.key === "cuocPhi" ||
+                          col.key === "bocXep" ||
+                          col.key === "ve" ||
+                          col.key === "hangVe" ||
+                          col.key === "luuCa" ||
+                          col.key === "luatChiPhiKhac"
                         ) {
-                          value = value?.toLocaleString();
+                          const num = Number(value ?? 0); // ép sang number
+                          value = isNaN(num) ? "" : num.toLocaleString(); // nếu NaN thì hiển thị rỗng
                         }
 
                         if (col.key === "trangThai") {
