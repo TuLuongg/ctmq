@@ -1,5 +1,5 @@
 const ExcelJS = require("exceljs");
-const FuelVinhKhuc = require("../models/FuelVinhKhuc");
+const VehicleLegal = require("../models/VehicleLegal");
 
 /* =======================
    LẤY DỮ LIỆU CÓ THÊM FILTER
@@ -10,12 +10,12 @@ exports.getAll = async (req, res) => {
 
     const filter = {};
 
-    // Lọc theo tháng
+    // Lọc theo tháng dựa vào ngàyGhiTang
     if (month) {
       const [year, mon] = month.split("-");
       const startDate = new Date(Number(year), Number(mon) - 1, 1);
       const endDate = new Date(Number(year), Number(mon), 0, 23, 59, 59, 999);
-      filter.dateFull = { $gte: startDate, $lte: endDate };
+      filter.ngayGhiTang = { $gte: startDate, $lte: endDate };
     }
 
     // Lọc theo mảng vehicleNo
@@ -29,11 +29,11 @@ exports.getAll = async (req, res) => {
       }
 
       if (arr.length > 0) {
-        filter.vehicleNo = { $in: arr };
+        filter.bienSoXe = { $in: arr };
       }
     }
 
-    const data = await FuelVinhKhuc.find(filter).sort({ dateFull: -1 });
+    const data = await VehicleLegal.find(filter).sort({ ngayGhiTang: -1 });
     res.json(data);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -41,11 +41,11 @@ exports.getAll = async (req, res) => {
 };
 
 /* =======================
-   LẤY DANH SÁCH VEHICLENO DUY NHẤT 
+   LẤY DANH SÁCH BIỂN SỐ XE DUY NHẤT
 ======================= */
 exports.getUniqueVehicleNos = async (req, res) => {
   try {
-    const vehicleNos = await FuelVinhKhuc.distinct("vehicleNo");
+    const vehicleNos = await VehicleLegal.distinct("bienSoXe");
     vehicleNos.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
     res.json(vehicleNos);
   } catch (err) {
@@ -53,14 +53,12 @@ exports.getUniqueVehicleNos = async (req, res) => {
   }
 };
 
-
-
 /* =======================
    THÊM
 ======================= */
 exports.create = async (req, res) => {
   try {
-    const data = await FuelVinhKhuc.create(req.body);
+    const data = await VehicleLegal.create(req.body);
     res.json(data);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -73,9 +71,7 @@ exports.create = async (req, res) => {
 exports.update = async (req, res) => {
   try {
     const { id } = req.params;
-    const data = await FuelVinhKhuc.findByIdAndUpdate(id, req.body, {
-      new: true,
-    });
+    const data = await VehicleLegal.findByIdAndUpdate(id, req.body, { new: true });
     res.json(data);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -87,7 +83,7 @@ exports.update = async (req, res) => {
 ======================= */
 exports.remove = async (req, res) => {
   try {
-    await FuelVinhKhuc.findByIdAndDelete(req.params.id);
+    await VehicleLegal.findByIdAndDelete(req.params.id);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -99,7 +95,7 @@ exports.remove = async (req, res) => {
 ======================= */
 exports.removeAll = async (req, res) => {
   try {
-    await FuelVinhKhuc.deleteMany({});
+    await VehicleLegal.deleteMany({});
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -107,7 +103,7 @@ exports.removeAll = async (req, res) => {
 };
 
 /* =======================
-   IMPORT EXCEL (GHI ĐÈ THEO SỐ XE)
+   IMPORT EXCEL (GHI ĐÈ THEO BIỂN SỐ XE)
 ======================= */
 exports.importExcel = async (req, res) => {
   try {
@@ -121,47 +117,43 @@ exports.importExcel = async (req, res) => {
 
     let totalValid = 0;
     let inserted = 0;
-
     const bulk = [];
 
     for (let i = 2; i <= sheet.rowCount; i++) {
       const row = sheet.getRow(i);
 
-      const vehicleNo = row.getCell(3).value;
-      if (!vehicleNo || String(vehicleNo).trim() === "") {
-        continue; // ❗ BỎ DÒNG KHÔNG CÓ SỐ XE
-      }
+      const bienSoXe = row.getCell(3).value;
+      if (!bienSoXe || String(bienSoXe).trim() === "") continue; // ❗ BỎ DÒNG KHÔNG CÓ BIỂN SỐ XE
 
       totalValid++;
 
       bulk.push({
-        dateFull: row.getCell(1).value || null,
-        day: row.getCell(2).value || null,
-        vehicleNo: String(vehicleNo).trim(),
-        vehicleCode: row.getCell(4)?.value || "",
-        amount: row.getCell(5)?.value || 0,
-        liter: row.getCell(6)?.value || 0,
-        outsideAmount: row.getCell(7)?.value || 0,
-        outsideLiter: row.getCell(8)?.value || 0,
-        totalAmount: row.getCell(9)?.value || 0,
-        fuelPriceChanged: row.getCell(10)?.value || 0,
-        note: row.getCell(11)?.value || "",
+        maCCDC: row.getCell(1)?.value || "",
+        tenCCDE: row.getCell(2)?.value || "",
+        bienSoXe: String(bienSoXe).trim(),
+        typeCCDC: row.getCell(4)?.value || "",
+        reason: row.getCell(5)?.value || "",
+        ngayGhiTang: row.getCell(6)?.value || null,
+        soCT: row.getCell(7)?.value || "",
+        soKyPB: row.getCell(8)?.value || 0,
+        soKyPBconlai: row.getCell(9)?.value || 0,
+        valueCCDC: row.getCell(10)?.value || 0,
+        valuePB: row.getCell(11)?.value || 0,
+        pbk: row.getCell(12)?.value || 0,
+        lkPB: row.getCell(13)?.value || 0,
+        valueOld: row.getCell(14)?.value || 0,
+        tkPB: row.getCell(15)?.value || "",
       });
     }
 
     if (bulk.length > 0) {
-      await FuelVinhKhuc.insertMany(bulk);
+      await VehicleLegal.insertMany(bulk);
       inserted = bulk.length;
     }
 
-    res.json({
-      success: true,
-      totalValid, // số dòng có số xe
-      inserted,   // số dòng đã import
-    });
+    res.json({ success: true, totalValid, inserted });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: err.message });
   }
 };
-

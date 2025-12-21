@@ -11,5 +11,6 @@ router.put("/:id", controller.update);
 router.delete("/:id", controller.remove);
 router.delete("/", controller.removeAll);
 router.post("/import", upload.single("file"), controller.importExcel);
+router.get("/fuel-vehicle", controller.getUniqueVehiclePlates)
 
 module.exports = router;

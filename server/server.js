@@ -43,6 +43,14 @@ app.use("/api/expense", expenseRoutes);
 app.use("/api/fuel-vinh-khuc", require("./routes/fuelVinhKhuc.routes"));
 app.use("/api/fuel-ngoc-long", require("./routes/fuelNgocLong.routes"));
 
+app.use("/api/repair", require("./routes/repair.routes"));
+app.use("/api/tire", require("./routes/tire.routes"));
+app.use("/api/depreciation", require("./routes/depreciation.routes"));
+app.use("/api/epass-month", require("./routes/epassMonth.routes"));
+app.use("/api/epass-turn", require("./routes/epassTurn.routes"));
+app.use("/api/etc", require("./routes/etc.routes"));
+app.use("/api/vehicle-legal", require("./routes/vehicleLegal.routes"));
+
 
 app.get('/', (req, res) => {
   res.send('Server hoạt động!');

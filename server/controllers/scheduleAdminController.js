@@ -1,4 +1,5 @@
 const ScheduleAdmin = require("../models/ScheduleAdmin");
+const RideHistory = require("../models/RideHistory");
 const Customer = require("../models/Customer");
 const CustomerDebtPeriod = require("../models/CustomerDebtPeriod");
 const mongoose = require("mongoose");
@@ -51,41 +52,104 @@ const createScheduleAdmin = async (req, res) => {
   }
 };
 
-// ✏️ Sửa chuyến
+// ✏️ Sửa chuyến với lưu lịch sử có điều kiện nâng cao
 const updateScheduleAdmin = async (req, res) => {
   try {
     const { id } = req.params;
     const schedule = await ScheduleAdmin.findById(id);
     const user = req.user;
 
-    if (!schedule) {
+    if (!schedule)
       return res.status(404).json({ error: "Không tìm thấy chuyến" });
-    }
-
-    if (!["admin", "dieuVan", "keToan"].includes(user.role)) {
+    if (!["admin", "dieuVan", "keToan"].includes(user.role))
       return res.status(403).json({ error: "Không có quyền sửa chuyến này" });
-    }
 
     const oldDate = schedule.ngayGiaoHang;
     const newDate = req.body.ngayGiaoHang || oldDate;
 
-    // 🔒 CHECK NGÀY CŨ
+    // 🔒 Kiểm tra khóa công nợ
     const lockedOld = await checkLockedDebtPeriod(schedule.maKH, oldDate);
-    if (lockedOld) {
+    if (lockedOld)
       return res.status(400).json({
         error: `Kỳ công nợ ${lockedOld.debtCode} đã khoá, không thể sửa chuyến`,
       });
-    }
 
-    // 🔒 CHECK NGÀY MỚI (nếu đổi ngày)
     const lockedNew = await checkLockedDebtPeriod(schedule.maKH, newDate);
-    if (lockedNew) {
+    if (lockedNew)
       return res.status(400).json({
         error: `Kỳ công nợ ${lockedNew.debtCode} đã khoá, không thể đổi ngày chuyến`,
       });
+
+    const previousData = schedule.toObject();
+    const newData = { ...previousData, ...req.body };
+
+    const importantFields = [
+      "cuocPhi",
+      "bocXep",
+      "ve",
+      "hangVe",
+      "luuCa",
+      "luatChiPhiKhac",
+    ];
+    const ignoredFields = ["ltState", "onlState", "offState"];
+    const ignoreCompareFields = ["createdAt", "updatedAt"];
+
+    // Lấy các trường thực sự thay đổi
+    const changedFields = Object.keys(req.body).filter((field) => {
+      if (ignoreCompareFields.includes(field)) return false;
+
+      const oldVal = previousData[field];
+      const newVal = req.body[field];
+
+      // Nếu là Date object, chuyển sang ISO string
+      const oldStr =
+        oldVal instanceof Date ? oldVal.toISOString() : String(oldVal);
+      const newStr =
+        newVal instanceof Date
+          ? new Date(newVal).toISOString()
+          : String(newVal);
+
+      return oldStr !== newStr;
+    });
+
+    // 🔹 Debug: in ra các trường thay đổi
+    console.log("=== DEBUG: Trường thay đổi ===");
+    changedFields.forEach((field) => {
+      console.log(`${field}:`, previousData[field], "→", req.body[field]);
+    });
+    console.log("==============================");
+
+    // 1️⃣ Nếu chỉ sửa các trường lt/onl/off → không lưu lịch sử
+    const onlyIgnoredFieldsChanged =
+      changedFields.length > 0 &&
+      changedFields.every((field) => ignoredFields.includes(field));
+
+    // 2️⃣ Nếu chỉ sửa các trường tiền mà cũ = 0/null/"" → không lưu lịch sử
+    const onlyZeroImportantChanged =
+      changedFields.length > 0 &&
+      changedFields.every(
+        (field) =>
+          importantFields.includes(field) &&
+          [0, null, ""].includes(Number(previousData[field]) || 0)
+      );
+
+    // 3️⃣ Chỉ tạo lịch sử nếu không thuộc 2 trường hợp trên
+    const shouldSaveHistory = !(
+      onlyIgnoredFieldsChanged || onlyZeroImportantChanged
+    );
+
+    if (shouldSaveHistory) {
+      await RideHistory.create({
+        rideID: schedule._id,
+        editedByID: user._id || user.username || "unknown",
+        editedBy: user.name || user.username || "unknown",
+        reason: req.body.reason || "",
+        previousData,
+        newData,
+      });
     }
 
-    // ⬇️ UPDATE BÌNH THƯỜNG
+    // Cập nhật dữ liệu bình thường
     Object.assign(schedule, req.body);
     await schedule.save();
 
@@ -537,7 +601,7 @@ const getSchedulesByAccountant = async (req, res) => {
       tenLaiXe: "tenLaiXe",
       bienSoXe: "bienSoXe",
       dienGiai: "dienGiai",
-      cuocPhi: "cuocPhi"
+      cuocPhi: "cuocPhi",
     };
 
     for (const [queryKey, field] of Object.entries(arrayFilterMap)) {
@@ -658,28 +722,27 @@ const getAllScheduleFilterOptions = async (req, res) => {
     // Không cần kiểm tra quyền hay username
     const baseFilter = { isDeleted: { $ne: true } }; // chỉ loại bỏ các bản ghi đã xóa
 
-    const [khachHang, tenLaiXe, bienSoXe, dienGiai, cuocPhi] = await Promise.all([
-      ScheduleAdmin.distinct("khachHang", baseFilter),
-      ScheduleAdmin.distinct("tenLaiXe", baseFilter),
-      ScheduleAdmin.distinct("bienSoXe", baseFilter),
-      ScheduleAdmin.distinct("dienGiai", baseFilter),
-      ScheduleAdmin.distinct("cuocPhi", baseFilter),
-    ]);
+    const [khachHang, tenLaiXe, bienSoXe, dienGiai, cuocPhi] =
+      await Promise.all([
+        ScheduleAdmin.distinct("khachHang", baseFilter),
+        ScheduleAdmin.distinct("tenLaiXe", baseFilter),
+        ScheduleAdmin.distinct("bienSoXe", baseFilter),
+        ScheduleAdmin.distinct("dienGiai", baseFilter),
+        ScheduleAdmin.distinct("cuocPhi", baseFilter),
+      ]);
 
     res.json({
       khachHang: khachHang.filter(Boolean).sort(),
       tenLaiXe: tenLaiXe.filter(Boolean).sort(),
       bienSoXe: bienSoXe.filter(Boolean).sort(),
       dienGiai: dienGiai.filter(Boolean).sort(),
-      cuocPhi: cuocPhi.filter(Boolean).sort()
+      cuocPhi: cuocPhi.filter(Boolean).sort(),
     });
   } catch (err) {
     console.error("❌ Filter options error:", err);
     res.status(500).json({ error: err.message });
   }
 };
-
-
 
 //Lấy danh sách KH, bsx, tên lái xe theo kế toán
 const getScheduleFilterOptions = async (req, res) => {
@@ -695,20 +758,21 @@ const getScheduleFilterOptions = async (req, res) => {
       isDeleted: { $ne: true },
     };
 
-    const [khachHang, tenLaiXe, bienSoXe, dienGiai, cuocPhi] = await Promise.all([
-      ScheduleAdmin.distinct("khachHang", baseFilter),
-      ScheduleAdmin.distinct("tenLaiXe", baseFilter),
-      ScheduleAdmin.distinct("bienSoXe", baseFilter),
-      ScheduleAdmin.distinct("dienGiai", baseFilter),
-      ScheduleAdmin.distinct("cuocPhi", baseFilter),
-    ]);
+    const [khachHang, tenLaiXe, bienSoXe, dienGiai, cuocPhi] =
+      await Promise.all([
+        ScheduleAdmin.distinct("khachHang", baseFilter),
+        ScheduleAdmin.distinct("tenLaiXe", baseFilter),
+        ScheduleAdmin.distinct("bienSoXe", baseFilter),
+        ScheduleAdmin.distinct("dienGiai", baseFilter),
+        ScheduleAdmin.distinct("cuocPhi", baseFilter),
+      ]);
 
     res.json({
       khachHang: khachHang.filter(Boolean).sort(),
       tenLaiXe: tenLaiXe.filter(Boolean).sort(),
       bienSoXe: bienSoXe.filter(Boolean).sort(),
       dienGiai: dienGiai.filter(Boolean).sort(),
-      cuocPhi: cuocPhi.filter(Boolean).sort()
+      cuocPhi: cuocPhi.filter(Boolean).sort(),
     });
   } catch (err) {
     console.error("❌ Filter options error:", err);
@@ -953,5 +1017,5 @@ module.exports = {
   forceDeleteSchedule,
   emptyTrash,
   getScheduleFilterOptions,
-  getAllScheduleFilterOptions
+  getAllScheduleFilterOptions,
 };

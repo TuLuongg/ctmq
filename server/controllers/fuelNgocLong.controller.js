@@ -1,14 +1,62 @@
 const ExcelJS = require("exceljs");
 const FuelNgocLong = require("../models/FuelNgocLong");
 
+/* =======================
+   LẤY DỮ LIỆU CÓ THÊM FILTER
+======================= */
 exports.getAll = async (req, res) => {
   try {
-    const data = await FuelNgocLong.find().sort({ dateFull: -1 });
+    const { month, vehiclePlates } = req.query; // vehiclePlates là mảng string dạng JSON: ["31A-123", "29C-456"]
+
+    const filter = {};
+
+    // Lọc theo tháng
+    if (month) {
+      const [year, mon] = month.split("-");
+      const startDate = new Date(Number(year), Number(mon) - 1, 1);
+      const endDate = new Date(Number(year), Number(mon), 0, 23, 59, 59, 999);
+      filter.dateFull = { $gte: startDate, $lte: endDate };
+    }
+
+    // Lọc theo mảng vehiclePlates
+    if (vehiclePlates) {
+      let arr = [];
+      try {
+        arr = JSON.parse(vehiclePlates);
+        if (!Array.isArray(arr)) arr = [];
+      } catch {
+        arr = [];
+      }
+
+      if (arr.length > 0) {
+        filter.vehiclePlate = { $in: arr };
+      }
+    }
+
+    const data = await FuelNgocLong.find(filter).sort({ dateFull: -1 });
     res.json(data);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
+
+/* =======================
+   LẤY DANH SÁCH VEHICLEPLATE DUY NHẤT
+======================= */
+exports.getUniqueVehiclePlates = async (req, res) => {
+  try {
+    // Lấy tất cả vehiclePlate duy nhất, không lọc tháng
+    const vehiclePlates = await FuelNgocLong.distinct("vehiclePlate");
+
+    // Sắp xếp alphabet
+    vehiclePlates.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+
+    res.json(vehiclePlates);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 
 
 /* =======================
