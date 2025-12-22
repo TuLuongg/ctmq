@@ -11,6 +11,8 @@ const {
   unlockDebtPeriod,
   toggleTripPaymentType,
   deleteDebtPeriod,
+  removeTripFromDebtPeriod,
+  addTripToDebtPeriod,
 
   // ===== PHIẾU THU CÔNG NỢ =====
   addPaymentReceipt,
@@ -51,6 +53,10 @@ router.patch("/trip/:maChuyenCode/toggle-payment-type", toggleTripPaymentType);
 
 //Xoá kỳ công nợ
 router.delete("/delete/debt-period/:debtCode", deleteDebtPeriod)
+
+//thêm-xoá chuyến của kỳ
+router.delete("/debt-period/:debtCode/remove-trip/:maChuyen", removeTripFromDebtPeriod)
+router.post("/debt-period/:debtCode/add-trip", addTripToDebtPeriod);
 
 // =====================================================
 // 💰 PHIẾU THU CÔNG NỢ

@@ -59,11 +59,16 @@ const scheduleAdminSchema = new mongoose.Schema(
     isDeleted: { type: Boolean, default: false },
     deletedAt: { type: Date, default: null },
 
+    debtCode: {
+      type: String,
+      default: null, // kỳ được chuyển sang
+    },
+
     // 💰 HÌNH THỨC THANH TOÁN (MẶC ĐỊNH)
     paymentType: {
       type: String,
       enum: ["INVOICE", "CASH"],
-      default: "INVOICE", // mặc định là hoá đơn như mày nói
+      default: "INVOICE", // mặc định là hoá đơn
     },
     nameCustomer: { type: String, default: "" },
     noteOdd: { type: String, default: "" },

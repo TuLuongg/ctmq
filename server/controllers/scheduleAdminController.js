@@ -493,33 +493,32 @@ const getAllSchedulesAdmin = async (req, res) => {
 // 🔍 Lấy lịch trình theo tên điều vận
 const getSchedulesByDieuVan = async (req, res) => {
   try {
-    const { dieuVanID } = req.params;
-
-    if (!dieuVanID) {
-      return res.status(400).json({ error: "Thiếu ID điều vận" });
-    }
-
-    // Base filter
-    const filter = { dieuVanID, isDeleted: { $ne: true } };
+    // Base filter: chỉ loại bản ghi đã xóa
+    const filter = { isDeleted: { $ne: true } };
     const andConditions = [];
 
-    // Tự động lấy toàn bộ field từ FE để lọc
+    // 🔍 Lọc động theo query từ FE
     for (const [key, value] of Object.entries(req.query)) {
       if (!value) continue;
 
       // ⚠️ Bỏ page, limit
       if (["page", "limit"].includes(key)) continue;
 
-      // ⏳ Nếu là trường ngày → tạo range trong ngày
+      // ⏳ Nếu là trường ngày → lọc trong ngày
       if (key.toLowerCase().includes("ngay")) {
         const start = new Date(value);
         const end = new Date(value);
         end.setHours(23, 59, 59, 999);
-        andConditions.push({ [key]: { $gte: start, $lte: end } });
+
+        andConditions.push({
+          [key]: { $gte: start, $lte: end },
+        });
       }
-      // 🔍 Các trường chuỗi, regex
+      // 🔎 Các trường còn lại → regex
       else {
-        andConditions.push({ [key]: new RegExp(value, "i") });
+        andConditions.push({
+          [key]: new RegExp(value, "i"),
+        });
       }
     }
 
@@ -529,7 +528,7 @@ const getSchedulesByDieuVan = async (req, res) => {
 
     // 📌 Phân trang
     const page = parseInt(req.query.page || 1);
-    const limit = parseInt(req.query.limit || 50);
+    const limit = parseInt(req.query.limit || 150);
     const skip = (page - 1) * limit;
 
     const total = await ScheduleAdmin.countDocuments(filter);
@@ -546,10 +545,11 @@ const getSchedulesByDieuVan = async (req, res) => {
       page,
     });
   } catch (err) {
-    console.error("❌ Lỗi lấy chuyến theo điều vận:", err);
-    res.status(500).json({ error: "Lỗi server khi lấy chuyến theo điều vận" });
+    console.error("❌ Lỗi lấy danh sách chuyến:", err);
+    res.status(500).json({ error: "Lỗi server khi lấy danh sách chuyến" });
   }
 };
+
 
 // 📌 Lấy danh sách chuyến theo kế toán phụ trách
 const getSchedulesByAccountant = async (req, res) => {

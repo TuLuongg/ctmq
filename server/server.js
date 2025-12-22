@@ -50,6 +50,7 @@ app.use("/api/epass-month", require("./routes/epassMonth.routes"));
 app.use("/api/epass-turn", require("./routes/epassTurn.routes"));
 app.use("/api/etc", require("./routes/etc.routes"));
 app.use("/api/vehicle-legal", require("./routes/vehicleLegal.routes"));
+app.use("/api/salary", require("./routes/salary.routes"));
 
 
 app.get('/', (req, res) => {

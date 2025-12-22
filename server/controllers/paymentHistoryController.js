@@ -14,7 +14,6 @@ const fieldMap = {
   luuCa: { base: "luuCa", bs: "luuCaBS" },
 };
 
-
 const pickBaseOnly = (obj, field) => {
   const map = fieldMap[field];
   if (!map) return 0;
@@ -128,7 +127,7 @@ exports.getCustomerDebt = async (req, res) => {
         paidAmount: p.paidAmount,
         remainAmount: p.remainAmount,
         status: p.status,
-        isLocked: p.isLocked
+        isLocked: p.isLocked,
       }))
     );
 
@@ -138,10 +137,7 @@ exports.getCustomerDebt = async (req, res) => {
         if (p.isLocked) continue;
 
         // lấy lại trips của kỳ
-        const trips = await ScheduleAdmin.find({
-          maKH: p.customerCode,
-          ngayGiaoHang: { $gte: p.fromDate, $lte: p.toDate },
-        });
+        const trips = await ScheduleAdmin.find({ debtCode: p.debtCode });
 
         const money = calcPeriodMoneyFromTrips(trips, p.vatPercent || 0);
 
@@ -241,27 +237,30 @@ exports.createDebtPeriod = async (req, res) => {
       });
     }
 
-    // tính tổng cước từ ScheduleAdmin
-    // lấy chuyến trong kỳ
-    const trips = await ScheduleAdmin.find({
-      maKH: customerCode,
-      ngayGiaoHang: { $gte: from, $lte: to },
-    });
+    // ✅ TẠO debtCode TRƯỚC
+    const debtCode = buildDebtCode(customerCode, month, year);
 
-    // set mặc định INVOICE
+    // ✅ GÁN debtCode + paymentType cho chuyến
     await ScheduleAdmin.updateMany(
       {
         maKH: customerCode,
         ngayGiaoHang: { $gte: from, $lte: to },
-        $or: [{ paymentType: { $exists: false } }, { paymentType: null }],
       },
-      { $set: { paymentType: "INVOICE" } }
+      {
+        $set: {
+          debtCode,
+          paymentType: "INVOICE",
+        },
+      }
     );
 
+    // ✅ LẤY LẠI CHUYẾN SAU KHI ĐÃ GÁN debtCode
+    const trips = await ScheduleAdmin.find({ debtCode });
+
+    // ✅ TÍNH TIỀN
     const money = calcPeriodMoneyFromTrips(trips, vatPercent);
 
-    const debtCode = buildDebtCode(customerCode, month, year);
-
+    // ✅ TẠO KỲ CÔNG NỢ
     const period = new CustomerDebtPeriod({
       debtCode,
       customerCode,
@@ -283,6 +282,7 @@ exports.createDebtPeriod = async (req, res) => {
     });
 
     await period.save();
+
     res.json({
       message: "Đã tạo kỳ công nợ",
       period,
@@ -336,8 +336,7 @@ exports.updateDebtPeriod = async (req, res) => {
 
     // 🔄 TÍNH LẠI TIỀN THEO KHOẢNG NGÀY MỚI
     const trips = await ScheduleAdmin.find({
-      maKH: period.customerCode,
-      ngayGiaoHang: { $gte: from, $lte: to },
+      debtCode: period.debtCode,
     });
 
     const money = calcPeriodMoneyFromTrips(
@@ -375,6 +374,129 @@ exports.updateDebtPeriod = async (req, res) => {
 };
 
 // =====================================================
+// ✂️ XOÁ CHUYẾN KHỎI KỲ CÔNG NỢ
+// =====================================================
+exports.removeTripFromDebtPeriod = async (req, res) => {
+  try {
+    const { debtCode, maChuyen } = req.params;
+
+    const period = await CustomerDebtPeriod.findOne({ debtCode });
+    if (!period) {
+      return res.status(404).json({ error: "Không tìm thấy kỳ công nợ" });
+    }
+
+    if (period.isLocked) {
+      return res.status(400).json({ error: "Kỳ công nợ đã bị khoá" });
+    }
+
+    const trip = await ScheduleAdmin.findOne({ maChuyen, debtCode });
+    if (!trip) {
+      return res.status(404).json({ error: "Chuyến không thuộc kỳ này" });
+    }
+
+    // ❌ GỠ debtCode
+    trip.debtCode = null;
+    await trip.save();
+
+    // 🔄 TÍNH LẠI TIỀN KỲ
+    const trips = await ScheduleAdmin.find({
+      debtCode,
+    });
+
+    const money = calcPeriodMoneyFromTrips(trips, period.vatPercent || 0);
+
+    period.totalAmountInvoice = money.totalAmountInvoice;
+    period.totalAmountCash = money.totalAmountCash;
+    period.totalAmount = money.totalAmount;
+    period.paidAmount = money.paidAmount;
+    period.remainAmount = money.remainAmount;
+    period.status = calcStatus(
+      money.totalAmount,
+      money.paidAmount,
+      money.remainAmount
+    );
+
+    await period.save();
+
+    res.json({
+      message: "Đã xoá chuyến khỏi kỳ công nợ",
+      maChuyen,
+      debtCode,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Không xoá được chuyến khỏi kỳ" });
+  }
+};
+
+// =====================================================
+// ➕ ADD CHUYẾN VÀO KỲ CÔNG NỢ (THEO MÃ CHUYẾN)
+// =====================================================
+exports.addTripToDebtPeriod = async (req, res) => {
+  try {
+    const { debtCode } = req.params;
+    const { maChuyen } = req.body;
+
+    const period = await CustomerDebtPeriod.findOne({ debtCode });
+    if (!period) {
+      return res.status(404).json({ error: "Không tìm thấy kỳ công nợ" });
+    }
+
+    if (period.isLocked) {
+      return res.status(400).json({ error: "Kỳ công nợ đã bị khoá" });
+    }
+
+    const trip = await ScheduleAdmin.findOne({ maChuyen });
+    if (!trip) {
+      return res.status(404).json({ error: "Không tìm thấy chuyến" });
+    }
+
+    if (trip.maKH !== period.customerCode) {
+      return res.status(400).json({
+        error: "Chuyến không thuộc khách hàng của kỳ công nợ",
+      });
+    }
+
+    // ✅ GÁN debtCode
+    trip.debtCode = debtCode;
+
+    // nếu chưa có paymentType thì set mặc định
+    if (!trip.paymentType) {
+      trip.paymentType = "INVOICE";
+    }
+
+    await trip.save();
+
+    // 🔄 TÍNH LẠI TIỀN KỲ
+    const trips = await ScheduleAdmin.find({ debtCode });
+
+    const money = calcPeriodMoneyFromTrips(trips, period.vatPercent || 0);
+
+    period.totalAmountInvoice = money.totalAmountInvoice;
+    period.totalAmountCash = money.totalAmountCash;
+    period.totalAmount = money.totalAmount;
+    period.paidAmount = money.paidAmount;
+    period.remainAmount = money.remainAmount;
+    period.status = calcStatus(
+      money.totalAmount,
+      money.paidAmount,
+      money.remainAmount
+    );
+
+    await period.save();
+
+    res.json({
+      message: "Đã thêm chuyến vào kỳ công nợ",
+      maChuyen,
+      debtCode,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Không thêm được chuyến vào kỳ" });
+  }
+};
+
+// =====================================================
 // SET CASH / INVOICE CHO CHUYẾN (THEO BODY)
 // =====================================================
 exports.toggleTripPaymentType = async (req, res) => {
@@ -407,19 +529,13 @@ exports.toggleTripPaymentType = async (req, res) => {
 
     // 🔄 tính lại kỳ công nợ (nếu có & chưa khóa)
     const period = await CustomerDebtPeriod.findOne({
-      customerCode: trip.maKH,
-      fromDate: { $lte: trip.ngayGiaoHang },
-      toDate: { $gte: trip.ngayGiaoHang },
+      debtCode: trip.debtCode,
       isLocked: false,
     });
 
     if (period) {
       const trips = await ScheduleAdmin.find({
-        maKH: period.customerCode,
-        ngayGiaoHang: {
-          $gte: period.fromDate,
-          $lte: period.toDate,
-        },
+        debtCode: period.debtCode,
       });
 
       const money = calcPeriodMoneyFromTrips(trips, period.vatPercent || 0);
@@ -531,10 +647,7 @@ exports.rollbackPaymentReceipt = async (req, res) => {
       if (!period) continue;
 
       // 1️⃣ rollback paidAmount
-      period.paidAmount = Math.max(
-        (period.paidAmount || 0) - alloc.amount,
-        0
-      );
+      period.paidAmount = Math.max((period.paidAmount || 0) - alloc.amount, 0);
 
       // 2️⃣ TÍNH LẠI remainAmount (❗ QUAN TRỌNG)
       period.remainAmount = Math.max(
@@ -562,7 +675,6 @@ exports.rollbackPaymentReceipt = async (req, res) => {
     res.status(500).json({ error: "Không thể huỷ phiếu thu" });
   }
 };
-
 
 // =====================================================
 // 📌 LẤY LỊCH SỬ PHIẾU THU THEO KHÁCH HÀNG
@@ -629,11 +741,7 @@ exports.getDebtPeriodDetail = async (req, res) => {
     }
 
     const trips = await ScheduleAdmin.find({
-      maKH: period.customerCode,
-      ngayGiaoHang: {
-        $gte: period.fromDate,
-        $lte: period.toDate,
-      },
+      debtCode: period.debtCode,
     });
 
     const receipts = await PaymentReceipt.find({
@@ -739,7 +847,7 @@ exports.deleteDebtPeriod = async (req, res) => {
       });
     }
 
-    // 3️⃣ Check có phiếu thu liên quan không
+    // 3️⃣ Không cho xoá nếu đã có phiếu thu
     const existedReceipt = await PaymentReceipt.findOne({
       "allocations.debtPeriodId": period._id,
     });
@@ -750,11 +858,14 @@ exports.deleteDebtPeriod = async (req, res) => {
       });
     }
 
-    // 4️⃣ Xoá kỳ công nợ
+    // ✅ 4️⃣ RESET debtCode của các chuyến
+    await ScheduleAdmin.updateMany({ debtCode }, { $set: { debtCode: null } });
+
+    // 5️⃣ Xoá kỳ công nợ
     await period.deleteOne();
 
     res.json({
-      message: "Đã xoá kỳ công nợ thành công",
+      message: "Đã xoá kỳ công nợ và reset debtCode các chuyến",
       debtCode,
       customerCode: period.customerCode,
       manageMonth: period.manageMonth,
@@ -764,7 +875,6 @@ exports.deleteDebtPeriod = async (req, res) => {
     res.status(500).json({ error: "Không thể xoá kỳ công nợ" });
   }
 };
-
 
 // =====================================================
 // 📌 TÍNH CÔNG NỢ KHÁCH 26 THEO TỪNG CHUYẾN (CÓ RULE MÀU GIỐNG TẤT CẢ)
@@ -903,8 +1013,7 @@ exports.addTripPayment = async (req, res) => {
     }
 
     // Tăng đã thanh toán
-    trip.daThanhToan =
-      (parseFloat(trip.daThanhToan) || 0) + parseFloat(amount);
+    trip.daThanhToan = (parseFloat(trip.daThanhToan) || 0) + parseFloat(amount);
 
     // Tính tổng tiền chuyến
     const tongTien = calcTripCostOddCustomer(trip);
@@ -925,7 +1034,6 @@ exports.addTripPayment = async (req, res) => {
     res.status(500).json({ error: "Không thể thêm thanh toán cho chuyến" });
   }
 };
-
 
 // =====================================================
 // 📌 XOÁ THANH TOÁN THEO CHUYẾN (CẬP NHẬT LẠI ScheduleAdmin)
@@ -1040,4 +1148,3 @@ exports.updateTripNoteOdd = async (req, res) => {
     res.status(500).json({ error: "Không thể cập nhật noteOdd" });
   }
 };
-

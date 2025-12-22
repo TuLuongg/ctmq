@@ -44,7 +44,7 @@ router.delete("/trash/force", authMiddleware(["admin", "dieuVan"]), forceDeleteS
 // Dọn sạch toàn bộ thùng rác
 router.delete("/trash/empty", authMiddleware(["admin", "dieuVan"]), emptyTrash);
 
-router.get("/dieuvan/:dieuVanID", authMiddleware(["admin", "dieuVan"]), getSchedulesByDieuVan);
+router.get("/dieuvan", authMiddleware(["admin", "dieuVan"]), getSchedulesByDieuVan);
 
 //chỉnh sửa + lưu lại lịch sử chuyến
 router.post("/edit-request", authMiddleware(["dieuVan"]), rideEditRequestController.editRide);
