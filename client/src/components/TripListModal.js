@@ -2,7 +2,11 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import API from "../api";
 
-export default function TripListModal({ customer, onClose, onPaymentTypeChanged }) {
+export default function TripListModal({
+  customer,
+  onClose,
+  onPaymentTypeChanged,
+}) {
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(false);
   const token = localStorage.getItem("token");
@@ -37,57 +41,94 @@ export default function TripListModal({ customer, onClose, onPaymentTypeChanged 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debtCode]);
 
+  const [addTripCode, setAddTripCode] = useState("");
+  const [adding, setAdding] = useState(false);
+
+  const handleAddTrip = async () => {
+    if (!addTripCode || !debtCode) return;
+
+    setAdding(true);
+    try {
+      await axios.post(
+        `${API}/payment-history/debt-period/${debtCode}/add-trip`,
+        { maChuyen: addTripCode },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setAddTripCode("");
+      await loadTrips();
+    } catch (err) {
+      console.error(err);
+      alert(err?.response?.data?.error || "Không thêm được chuyến");
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const handleRemoveTrip = async (maChuyen) => {
+    if (!window.confirm("Xoá chuyến này khỏi kỳ công nợ?")) return;
+
+    try {
+      await axios.delete(
+        `${API}/payment-history/debt-period/${debtCode}/remove-trip/${maChuyen}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setTrips((prev) => prev.filter((t) => t.maChuyen !== maChuyen));
+    } catch (err) {
+      console.error(err);
+      alert(err?.response?.data?.error || "Không xoá được chuyến");
+    }
+  };
+
   const pick = (bs, base) => {
     const bsVal = parseFloat(bs);
     if (!isNaN(bsVal) && bsVal !== 0) return bsVal;
     return parseFloat(base) || 0;
   };
 
-const updatePaymentType = async (maChuyen, checked) => {
-  // 🔥 optimistic update (cập nhật UI trước)
-  setTrips((prev) =>
-    prev.map((t) =>
-      t.maChuyen === maChuyen
-        ? { ...t, paymentType: checked ? "INVOICE" : "CASH" }
-        : t
-    )
-  );
-
-  try {
-    await axios.patch(
-      `${API}/payment-history/trip/${maChuyen}/toggle-payment-type`,
-      {
-        paymentType: checked ? "INVOICE" : "CASH",
-      },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-  } catch (err) {
-    console.error("Lỗi đổi paymentType", err);
-
-    // ❌ rollback nếu lỗi
+  const updatePaymentType = async (maChuyen, checked) => {
+    // 🔥 optimistic update (cập nhật UI trước)
     setTrips((prev) =>
       prev.map((t) =>
         t.maChuyen === maChuyen
-          ? { ...t, paymentType: checked ? "CASH" : "INVOICE" }
+          ? { ...t, paymentType: checked ? "INVOICE" : "CASH" }
           : t
       )
     );
 
-    alert("Không đổi được hình thức thanh toán");
-  }
-};
+    try {
+      await axios.patch(
+        `${API}/payment-history/trip/${maChuyen}/toggle-payment-type`,
+        {
+          paymentType: checked ? "INVOICE" : "CASH",
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+    } catch (err) {
+      console.error("Lỗi đổi paymentType", err);
 
+      // ❌ rollback nếu lỗi
+      setTrips((prev) =>
+        prev.map((t) =>
+          t.maChuyen === maChuyen
+            ? { ...t, paymentType: checked ? "CASH" : "INVOICE" }
+            : t
+        )
+      );
 
-const handleClose = async () => {
-  try {
-    // 🔥 reload lại bảng công nợ / chuyến ở page cha
-    await onPaymentTypeChanged?.();
-  } finally {
-    onClose();
-  }
-};
+      alert("Không đổi được hình thức thanh toán");
+    }
+  };
 
-
+  const handleClose = async () => {
+    try {
+      // 🔥 reload lại bảng công nợ / chuyến ở page cha
+      await onPaymentTypeChanged?.();
+    } finally {
+      onClose();
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 text-[10px]">
@@ -99,6 +140,22 @@ const handleClose = async () => {
 
           <button onClick={handleClose} className="text-red-500 font-semibold">
             ✕
+          </button>
+        </div>
+
+        <div className="flex gap-2 mb-3">
+          <input
+            value={addTripCode}
+            onChange={(e) => setAddTripCode(e.target.value)}
+            placeholder="Nhập mã chuyến cần thêm"
+            className="border px-2 py-1 rounded w-[200px]"
+          />
+          <button
+            onClick={handleAddTrip}
+            disabled={adding}
+            className="bg-blue-600 text-white px-3 py-1 rounded"
+          >
+            {adding ? "Đang thêm..." : "Thêm chuyến"}
           </button>
         </div>
 
@@ -131,10 +188,12 @@ const handleClose = async () => {
                   <th className="p-2 border">Biển số xe</th>
                   <th className="p-2 border">Mã chuyến</th>
                   <th className="p-2 border">Tổng tiền</th>
-                  <th className="p-2 border text-center">TT bằng hoá đơn</th>
+                  <th className="p-2 border text-center">Hoá đơn</th>
+                  <th className="p-2 border text-center">Tiền mặt</th>
                   <th className="p-2 border">Đã thanh toán</th>
                   <th className="p-2 border">Còn lại</th>
                   <th className="p-2 border">Trạng thái</th>
+                  <th className="p-2 border text-center">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -175,13 +234,21 @@ const handleClose = async () => {
                       <td className="p-2 border font-semibold text-blue-600">
                         {tongTien.toLocaleString()}
                       </td>
+                      {/* Hoá đơn */}
                       <td className="p-2 border text-center">
                         <input
                           type="checkbox"
                           checked={t.paymentType === "INVOICE"}
-                          onChange={(e) =>
-                            updatePaymentType(t.maChuyen, e.target.checked)
-                          }
+                          onChange={() => updatePaymentType(t.maChuyen, true)}
+                        />
+                      </td>
+
+                      {/* Tiền mặt */}
+                      <td className="p-2 border text-center">
+                        <input
+                          type="checkbox"
+                          checked={t.paymentType === "CASH"}
+                          onChange={() => updatePaymentType(t.maChuyen, false)}
                         />
                       </td>
 
@@ -193,6 +260,14 @@ const handleClose = async () => {
 
                       <td className="p-2 border">
                         {paid >= tongTien ? "Đủ" : "Thiếu"}
+                      </td>
+                      <td className="p-2 border text-center">
+                        <button
+                          onClick={() => handleRemoveTrip(t.maChuyen)}
+                          className="text-red-600 font-semibold"
+                        >
+                          Xoá
+                        </button>
                       </td>
                     </tr>
                   );

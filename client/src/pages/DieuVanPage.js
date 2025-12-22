@@ -21,7 +21,6 @@ const removeVietnamese = (str = "") =>
 
 const mainColumns = [
   { key: "dieuVan", label: "ĐIỀU VẬN PHỤ TRÁCH" },
-  { key: "ngayBoc", label: "NGÀY NHẬP" },
   { key: "khachHang", label: "KHÁCH HÀNG" },
   { key: "dienGiai", label: "DIỄN GIẢI" },
   { key: "diemXepHang", label: "ĐIỂM ĐÓNG HÀNG" },
@@ -47,6 +46,8 @@ const extraColumns = [
   { key: "ghiChu", label: "GHI CHÚ" },
 ];
 
+const COLUMN_CONFIG_KEY = "dieuVan_table_columns_v1";
+
 export default function DieuVanPage({ user, onLogout }) {
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
@@ -64,11 +65,13 @@ export default function DieuVanPage({ user, onLogout }) {
   const [showModal, setShowModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [editRide, setEditRide] = useState(null);
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+
   const [filters, setFilters] = useState({
     tenLaiXe: "",
     maChuyen: "",
     khachHang: "",
-    ngayBoc: "",
+    ngayBoc: todayStr, // ✅ MẶC ĐỊNH HÔM NAY
   });
 
   // 🔹 3 danh sách gợi ý
@@ -111,15 +114,14 @@ export default function DieuVanPage({ user, onLogout }) {
   }, []);
 
   const [page, setPage] = useState(1);
-  const [limit] = useState(30);
+  const [limit] = useState(150);
   const [totalPages, setTotalPages] = useState(1);
 
   const [warnings, setWarnings] = useState({});
 
   // 🔹 Lấy tất cả chuyến (có filter)
-  const fetchRides = async (manager) => {
+  const fetchRides = async () => {
     try {
-      const dieuVanID = manager._id || manager;
       const q = new URLSearchParams();
       q.append("page", page);
       q.append("limit", limit);
@@ -131,12 +133,9 @@ export default function DieuVanPage({ user, onLogout }) {
         }
       });
 
-      const res = await axios.get(
-        `${API_URL}/dieuvan/${dieuVanID}?${q.toString()}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const res = await axios.get(`${API_URL}/dieuvan?${q.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       setRides(res.data.data || []);
       setTotalPages(res.data.totalPages || 1);
@@ -155,45 +154,36 @@ export default function DieuVanPage({ user, onLogout }) {
     }
   };
 
-  // useEffect: khi thay selectedManager / filters / date thay đổi tự động fetch
   useEffect(() => {
-    if (!selectedManager) return;
     setPage(1);
-    // truyền filters & date rõ ràng để tránh race condition
-    fetchRides(selectedManager, filters, date, 1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedManager, filters, date]);
+    fetchRides();
+  }, [filters, date]);
 
   useEffect(() => {
-    if (!selectedManager) return;
-    // khi page thay đổi, fetch với filters/date hiện tại
-    fetchRides(selectedManager, filters, date, page);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchRides();
   }, [page]);
 
   // 🧹 Xoá lọc
-const clearFilters = () => {
-  // Xóa các filter to
-  setFilters({
-    tenLaiXe: "",
-    maChuyen: "",
-    khachHang: "",
-    ngayBoc: "",
-  });
+  const clearFilters = () => {
+    // Xóa các filter to
+    setFilters({
+      tenLaiXe: "",
+      maChuyen: "",
+      khachHang: "",
+    });
 
-  // Reset ngày
-  setDate(new Date());
+    // Reset ngày
+    setDate(new Date());
 
-  // Xóa toàn bộ filter theo từng cột
-  setColumnFilters({});
+    // Xóa toàn bộ filter theo từng cột
+    setColumnFilters({});
 
-  // Đóng filter cột đang mở
-  setActiveFilterCol(null);
+    // Đóng filter cột đang mở
+    setActiveFilterCol(null);
 
-  // Fetch lại danh sách sạch hoàn toàn
-  fetchRides(selectedManager, {}, new Date());
-};
-
+    // Fetch lại danh sách sạch hoàn toàn
+    fetchRides();
+  };
 
   const emptyForm = {
     dieuVanID: currentUser._id,
@@ -321,56 +311,93 @@ const clearFilters = () => {
     }
   };
 
-  const [visibleColumns, setVisibleColumns] = useState({});
   const [showColumnSelector, setShowColumnSelector] = useState(false);
 
   // Thêm state quản lý chiều rộng cột
   const allColumns = [...mainColumns, ...extraColumns];
-  const [columnWidths, setColumnWidths] = useState(
-    allColumns.reduce((acc, col) => ({ ...acc, [col.key]: 150 }), {})
+
+  const defaultVisibleColumns = allColumns.reduce(
+    (acc, col) => ({ ...acc, [col.key]: true }),
+    {}
   );
 
+  const [columnConfigLoaded, setColumnConfigLoaded] = useState(false);
+
+  const [visibleColumns, setVisibleColumns] = useState(() => {
+    const saved = localStorage.getItem(COLUMN_CONFIG_KEY);
+    if (!saved) return defaultVisibleColumns;
+    try {
+      return JSON.parse(saved).visibleColumns || defaultVisibleColumns;
+    } catch {
+      return defaultVisibleColumns;
+    }
+  });
+
+  const [columnWidths, setColumnWidths] = useState(() => {
+    const saved = localStorage.getItem(COLUMN_CONFIG_KEY);
+    if (!saved)
+      return allColumns.reduce((acc, col) => ({ ...acc, [col.key]: 150 }), {});
+    try {
+      return JSON.parse(saved).columnWidths;
+    } catch {
+      return {};
+    }
+  });
+
+  const [columnOrder, setColumnOrder] = useState(() => {
+    const saved = localStorage.getItem(COLUMN_CONFIG_KEY);
+    if (!saved) return allColumns.map((col) => col.key);
+    try {
+      return JSON.parse(saved).columnOrder;
+    } catch {
+      return allColumns.map((col) => col.key);
+    }
+  });
+
+  // Load config
+  useEffect(() => {
+    localStorage.setItem(
+      COLUMN_CONFIG_KEY,
+      JSON.stringify({
+        columnOrder,
+        columnWidths,
+        visibleColumns,
+      })
+    );
+  }, [columnOrder, columnWidths, visibleColumns]);
+
   // Hàm kéo cột
-const handleResizeStart = (e, key) => {
-  // prevent text selection
-  e.preventDefault();
-  const startX = e.clientX;
-  const startWidth = columnWidths[key] || 90;
-  document.body.style.cursor = 'col-resize';
+  const handleResizeStart = (e, key) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = columnWidths[key];
 
-  const onMouseMove = (ev) => {
-    const newWidth = startWidth + (ev.clientX - startX);
-    setColumnWidths((prev) => ({
-      ...prev,
-      [key]: Math.max(newWidth, 10), // min 10px
-    }));
+    const onMouseMove = (ev) => {
+      setColumnWidths((prev) => ({
+        ...prev,
+        [key]: Math.max(10, startWidth + (ev.clientX - startX)),
+      }));
+    };
+
+    const onMouseUp = () => {
+      document.body.style.cursor = "";
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+    document.body.style.cursor = "col-resize";
   };
 
-  const onMouseUp = () => {
-    document.body.style.cursor = '';
-    document.removeEventListener("mousemove", onMouseMove);
-    document.removeEventListener("mouseup", onMouseUp);
+  const handleColumnDrag = (startIndex, endIndex) => {
+    const newOrder = [...columnOrder];
+    const [moved] = newOrder.splice(startIndex, 1);
+    newOrder.splice(endIndex, 0, moved);
+    setColumnOrder(newOrder);
   };
 
-  document.addEventListener("mousemove", onMouseMove);
-  document.addEventListener("mouseup", onMouseUp);
-};
-
-
-  const [columnOrder, setColumnOrder] = useState([
-    ...mainColumns.map((c) => c.key),
-    ...extraColumns.map((c) => c.key),
-  ]);
-
-const handleColumnDrag = (startIndex, endIndex) => {
-  const newOrder = [...columnOrder];
-  const [moved] = newOrder.splice(startIndex, 1);
-  newOrder.splice(endIndex, 0, moved);
-  setColumnOrder(newOrder);
-};
-
-const [openColumnMenu, setOpenColumnMenu] = useState(false);
-
+  const [openColumnMenu, setOpenColumnMenu] = useState(false);
 
   const formatMoney = (value) => {
     if (value === undefined || value === null || value === "") return "";
@@ -383,31 +410,30 @@ const [openColumnMenu, setOpenColumnMenu] = useState(false);
   const [activeFilterCol, setActiveFilterCol] = useState(null);
 
   const dateColumns = ["ngayBoc", "ngayBocHang", "ngayGiaoHang"];
-const moneyColumns = [
-  "cuocPhi",
-  "laiXeThuCuoc",
-  "bocXep",
-  "ve",
-  "hangVe",
-  "luuCa",
-  "luatChiPhiKhac",
-];
+  const moneyColumns = [
+    "cuocPhi",
+    "laiXeThuCuoc",
+    "bocXep",
+    "ve",
+    "hangVe",
+    "luuCa",
+    "luatChiPhiKhac",
+  ];
 
-const filterRef = useRef(null);
-useEffect(() => {
-  const handleClickOutside = (e) => {
-    if (filterRef.current && !filterRef.current.contains(e.target)) {
-      setActiveFilterCol(null);
-    }
-  };
+  const filterRef = useRef(null);
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (filterRef.current && !filterRef.current.contains(e.target)) {
+        setActiveFilterCol(null);
+      }
+    };
 
-  document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
 
-  return () => {
-    document.removeEventListener("mousedown", handleClickOutside);
-  };
-}, []);
-
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   return (
     <div className="p-4 bg-gray-50 min-h-screen text-xs">
@@ -455,19 +481,6 @@ useEffect(() => {
 
       {/* Chọn điều vận */}
       <div className="flex gap-2 mb-4 flex-wrap">
-        {managers.map((m) => (
-          <button
-            key={m._id}
-            onClick={() => setSelectedManager(m)}
-            className={`px-3 py-2 rounded transition ${
-              selectedManager?._id === m._id
-                ? "bg-blue-600 text-white"
-                : "bg-green-500 text-white hover:bg-green-600"
-            }`}
-          >
-            {m.fullname || m.username}
-          </button>
-        ))}
         <button
           onClick={() => navigate("/tonghop")}
           className="ml-auto bg-gray-300 px-3 py-1 rounded"
@@ -476,52 +489,23 @@ useEffect(() => {
         </button>
       </div>
 
-      {/* Bộ lọc */}
-      <div className="w-2/3 grid grid-cols-5 gap-1 mb-3">
-        <input
-          type="text"
-          placeholder="Mã chuyến..."
-          value={filters.maChuyen}
-          onChange={(e) =>
-            setFilters((f) => ({ ...f, maChuyen: e.target.value }))
-          }
-          className="border p-2 rounded"
-        />
-        <input
-          type="text"
-          placeholder="Khách hàng..."
-          value={filters.khachHang}
-          onChange={(e) =>
-            setFilters((f) => ({ ...f, khachHang: e.target.value }))
-          }
-          className="border p-2 rounded"
-        />
-        <input
-          type="date"
-          value={filters.ngayBoc || ""}
-          onChange={(e) =>
-            setFilters((f) => ({ ...f, ngayBoc: e.target.value }))
-          }
-          className="border p-2 rounded"
-        />
-        <div className="flex gap-2">
-          <button
-            onClick={() => fetchRides(selectedManager, filters, date)}
-            className="bg-green-600 text-white rounded px-4 py-2 w-1/2"
-          >
-            Lọc
-          </button>
-          <button
-            onClick={clearFilters}
-            className="bg-gray-400 text-white rounded px-4 py-2 w-1/2"
-          >
-            Xoá lọc
-          </button>
-        </div>
-      </div>
-
       {/* Thêm / Hiển thị thêm */}
       <div className="flex gap-3 mb-4">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold">Ngày nhập:</span>
+          <input
+            type="date"
+            value={filters.ngayBoc}
+            onChange={(e) =>
+              setFilters((f) => ({
+                ...f,
+                ngayBoc: e.target.value,
+              }))
+            }
+            className="border px-2 py-1 rounded text-xs"
+          />
+        </div>
+
         <button
           onClick={handleAdd}
           className="bg-blue-500 text-white px-4 py-2 rounded"
@@ -530,236 +514,239 @@ useEffect(() => {
         </button>
       </div>
 
-      <div className="relative inline-block">
-  <button
-    onClick={() => setOpenColumnMenu(!openColumnMenu)}
-    className="bg-gray-600 text-white px-3 py-2 rounded"
-  >
-    Tuỳ chọn cột
-  </button>
+      <div className="relative inline-block flex justify-between mb-2">
+        <button
+          onClick={() => setOpenColumnMenu(!openColumnMenu)}
+          className="bg-green-600 text-white px-3 py-2 rounded"
+        >
+          Tuỳ chọn cột
+        </button>
 
-  {openColumnMenu && (
-    <div className="absolute left-0 mt-2 w-64 bg-white shadow-lg border rounded p-2 z-50">
-      <div className="max-h-72 overflow-y-auto grid grid-cols-1 gap-1">
-        {allColumns.map(col => (
-          <label
-            key={col.key}
-            className="flex items-center gap-2 px-2 py-1 hover:bg-gray-100 rounded cursor-pointer"
-          >
-            <input
-              type="checkbox"
-              checked={visibleColumns[col.key] ?? true}
-              onChange={() =>
-  setVisibleColumns(prev => ({
-    ...prev,
-    [col.key]: !(prev[col.key] ?? true),
-  }))
-}
+        {openColumnMenu && (
+          <div className="absolute left-0 mt-8 w-64 bg-white shadow-lg border rounded p-2 z-50">
+            <div className="max-h-72 overflow-y-auto grid grid-cols-1 gap-1">
+              {allColumns.map((col) => (
+                <label
+                  key={col.key}
+                  className="flex items-center gap-2 px-2 py-1 hover:bg-gray-100 rounded cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={!!visibleColumns[col.key]}
+                    onChange={() =>
+                      setVisibleColumns((prev) => ({
+                        ...prev,
+                        [col.key]: !prev[col.key], // toggle boolean
+                      }))
+                    }
+                  />
 
-            />
-            <span className="text-sx">{col.label}</span>
-          </label>
-        ))}
+                  <span className="text-sx">{col.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+        <button
+          onClick={clearFilters}
+          className="bg-gray-400 text-white rounded px-3 py-1"
+        >
+          Xoá lọc
+        </button>
       </div>
-    </div>
-  )}
-</div>
-
 
       {/* Container scroll cả ngang và dọc */}
       <div className="border rounded shadow-lg h-[600px] overflow-auto">
-        <table className="border-collapse border w-max text-xs" style={{ tableLayout: "auto" }}>
+        <table
+          className="border-separate border-spacing-0 border w-max text-xs"
+          style={{ tableLayout: "auto" }}
+        >
           <thead className="bg-blue-600 text-white sticky top-0 z-20">
             <tr>
-{columnOrder.map((key, index) => {
-  const col = allColumns.find(c => c.key === key);
-  if (!col) return null;
-  if (visibleColumns[key] === false) return null;
+              <th
+                className="border p-2 bg-blue-600 text-white select-none"
+                style={{ width: 90 }}
+              >
+                Hành động
+              </th>
+              {columnOrder.map((key, index) => {
+                const col = allColumns.find((c) => c.key === key);
+                if (!col) return null;
+                if (visibleColumns[key] === false) return null;
 
-  return (
-<th
-  key={col.key}
-  draggable
-  onDragStart={(e) => {
-    if (e.target.closest && e.target.closest("[data-resize='true']")) return;
-    e.dataTransfer.setData("colIndex", index);
-  }}
-  onDragOver={(e) => e.preventDefault()}
-  onDrop={(e) => {
-    const start = Number(e.dataTransfer.getData("colIndex"));
-    handleColumnDrag(start, index);
-  }}
-  onClick={() =>
-  setActiveFilterCol((prev) => (prev === col.key ? null : col.key))
-}
-  style={{
-    width: columnWidths[col.key],
-    minWidth: 30,
-    maxWidth: columnWidths[col.key],   // ⭐ QUAN TRỌNG
-    textAlign: "center",
-  }}
-  className="border p-2 relative select-none overflow-hidden"
->
-  {/* Tiêu đề 2 DÒNG + ELLIPSIS */}
-  <div
-    className="w-full"
-    style={{
-      display: "-webkit-box",
-      WebkitBoxOrient: "vertical",
-      WebkitLineClamp: 2,  // ⭐ 2 dòng
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      lineHeight: "1.2",
-      fontSize: "12px",
-      whiteSpace: "normal", // ⭐ Cho phép xuống dòng
-    }}
-  >
-    {col.label}
-  </div>
+                return (
+                  <th
+                    key={col.key}
+                    draggable
+                    onDragStart={(e) => {
+                      if (
+                        e.target.closest &&
+                        e.target.closest("[data-resize='true']")
+                      )
+                        return;
+                      e.dataTransfer.setData("colIndex", index);
+                    }}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      const start = Number(e.dataTransfer.getData("colIndex"));
+                      handleColumnDrag(start, index);
+                    }}
+                    onClick={() =>
+                      setActiveFilterCol((prev) =>
+                        prev === col.key ? null : col.key
+                      )
+                    }
+                    style={{
+                      width: columnWidths[col.key],
+                      minWidth: 30,
+                      maxWidth: columnWidths[col.key], // ⭐ QUAN TRỌNG
+                      textAlign: "center",
+                    }}
+                    className="border p-2 relative select-none overflow-hidden"
+                  >
+                    {/* Tiêu đề 2 DÒNG + ELLIPSIS */}
+                    <div
+                      className="w-full"
+                      style={{
+                        display: "-webkit-box",
+                        WebkitBoxOrient: "vertical",
+                        WebkitLineClamp: 2, // ⭐ 2 dòng
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        lineHeight: "1.2",
+                        fontSize: "12px",
+                        whiteSpace: "normal", // ⭐ Cho phép xuống dòng
+                      }}
+                    >
+                      {col.label}
+                    </div>
 
-{activeFilterCol === col.key && (
-  <div
-    ref={filterRef}
-    className="absolute left-0 right-0 top-full mt-1 z-30"
-    onClick={(e) => e.stopPropagation()} // Không đóng khi click vào input
-  >
-    {dateColumns.includes(col.key) ? (
-      <input
-        type="date"
-        autoFocus
-        value={columnFilters[col.key] || ""}
-        onChange={(e) =>
-          setColumnFilters({
-            ...columnFilters,
-            [col.key]: e.target.value,
-          })
-        }
-        className="bg-white text-black border rounded p-1 text-xs w-full"
-      />
-    ) : (
-      <input
-        autoFocus
-        type="text"
-        placeholder="Lọc..."
-        value={columnFilters[col.key] || ""}
-        onChange={(e) =>
-          setColumnFilters({
-            ...columnFilters,
-            [col.key]: e.target.value,
-          })
-        }
-        className="bg-white text-black border rounded p-1 text-xs w-full"
-      />
-    )}
-  </div>
-)}
+                    {activeFilterCol === col.key && (
+                      <div
+                        ref={filterRef}
+                        className="absolute left-0 right-0 top-full mt-1 z-30"
+                        onClick={(e) => e.stopPropagation()} // Không đóng khi click vào input
+                      >
+                        {dateColumns.includes(col.key) ? (
+                          <input
+                            type="date"
+                            autoFocus
+                            value={columnFilters[col.key] || ""}
+                            onChange={(e) =>
+                              setColumnFilters({
+                                ...columnFilters,
+                                [col.key]: e.target.value,
+                              })
+                            }
+                            className="bg-white text-black border rounded p-1 text-xs w-full"
+                          />
+                        ) : (
+                          <input
+                            autoFocus
+                            type="text"
+                            placeholder="Lọc..."
+                            value={columnFilters[col.key] || ""}
+                            onChange={(e) =>
+                              setColumnFilters({
+                                ...columnFilters,
+                                [col.key]: e.target.value,
+                              })
+                            }
+                            className="bg-white text-black border rounded p-1 text-xs w-full"
+                          />
+                        )}
+                      </div>
+                    )}
 
-
-
-  {/* Thanh kéo resize */}
-  <div
-    data-resize="true"
-    onMouseDown={(e) => {
-      e.stopPropagation();
-      handleResizeStart(e, col.key);
-    }}
-    className="absolute top-0 right-0 h-full cursor-col-resize z-20"
-    style={{ width: "8px", background: "transparent" }}
-    onMouseEnter={(e) => (e.currentTarget.style.background = "#d1d5db")}
-    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-  />
-</th>
-
-  );
-})}
-
-<th className="border p-2 bg-blue-600 text-white select-none" style={{ width: 120 }}>
-  Hành động
-</th>
-
+                    {/* Thanh kéo resize */}
+                    <div
+                      data-resize="true"
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        handleResizeStart(e, col.key);
+                      }}
+                      className="absolute top-0 right-0 h-full cursor-col-resize z-20"
+                      style={{ width: "8px", background: "transparent" }}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.background = "#d1d5db")
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.background = "transparent")
+                      }
+                    />
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody className="bg-white">
             {rides
-  .filter((r) => {
-     // Lọc khách hàng không dấu giữ nguyên
-  if (filters.khachHang?.trim()) {
-    const kw = removeVietnamese(filters.khachHang.toLowerCase());
-    const name = removeVietnamese((r.khachHang || "").toLowerCase());
-    if (!name.includes(kw)) return false;
-  }
+              .filter((r) => {
+                if (filters.ngayBoc) {
+                  const rowDate = r.ngayBoc
+                    ? format(new Date(r.ngayBoc), "yyyy-MM-dd")
+                    : "";
+                  if (rowDate !== filters.ngayBoc) return false;
+                }
+                // Lọc khách hàng không dấu giữ nguyên
+                if (filters.khachHang?.trim()) {
+                  const kw = removeVietnamese(filters.khachHang.toLowerCase());
+                  const name = removeVietnamese(
+                    (r.khachHang || "").toLowerCase()
+                  );
+                  if (!name.includes(kw)) return false;
+                }
 
-  // Lọc từng cột
-  for (const key in columnFilters) {
-    const f = columnFilters[key]?.trim();
-    if (!f) continue;
+                // Lọc từng cột
+                for (const key in columnFilters) {
+                  const f = columnFilters[key]?.trim();
+                  if (!f) continue;
 
-    const raw = r[key];
+                  const raw = r[key];
 
-    // 🔹 Lọc NGÀY
-    if (dateColumns.includes(key)) {
-      const formatted = raw ? format(new Date(raw), "yyyy-MM-dd") : "";
-      if (formatted !== f) return false;
-      continue;
-    }
+                  // 🔹 Lọc NGÀY
+                  if (dateColumns.includes(key)) {
+                    const formatted = raw
+                      ? format(new Date(raw), "yyyy-MM-dd")
+                      : "";
+                    if (formatted !== f) return false;
+                    continue;
+                  }
 
-    // 🔹 Lọc SỐ TIỀN
-    if (moneyColumns.includes(key)) {
-      const rawNum = (raw || "").toString().replace(/\./g, "");
-      const fNum = f.replace(/\./g, "");
-      if (!rawNum.includes(fNum)) return false;
-      continue;
-    }
+                  // 🔹 Lọc SỐ TIỀN
+                  if (moneyColumns.includes(key)) {
+                    const rawNum = (raw || "").toString().replace(/\./g, "");
+                    const fNum = f.replace(/\./g, "");
+                    if (!rawNum.includes(fNum)) return false;
+                    continue;
+                  }
 
-    // 🔹 Lọc TEXT có bỏ dấu
-    const field = removeVietnamese((raw || "").toString().toLowerCase());
-    const filterText = removeVietnamese(f.toLowerCase());
-    
-    if (!field.includes(filterText)) return false;
-  }
+                  // 🔹 Lọc TEXT có bỏ dấu
+                  const field = removeVietnamese(
+                    (raw || "").toString().toLowerCase()
+                  );
+                  const filterText = removeVietnamese(f.toLowerCase());
 
-  return true;
-  })
+                  if (!field.includes(filterText)) return false;
+                }
+
+                return true;
+              })
 
               .map((r) => (
                 <tr key={r._id} className="text-center" style={{ height: 30 }}>
-    {columnOrder.map(key => {
-      if (visibleColumns[key] === false) return null;
-      const col = allColumns.find(c => c.key === key);
-      if (!col) return null;
-
-      const raw = ["ngayBocHang", "ngayGiaoHang", "ngayBoc"].includes(col.key)
-        ? formatDate(r[col.key])
-        : ["cuocPhi","laiXeThuCuoc","bocXep","ve","hangVe","luuCa","luatChiPhiKhac","cuocPhiBoSung"].includes(col.key)
-          ? formatMoney(r[col.key])
-          : r[col.key];
-
-      return (
-<td
-  className="border px-2 py-1 whitespace-nowrap overflow-hidden text-ellipsis"
-  style={{
-    width: columnWidths[col.key],
-    maxWidth: columnWidths[col.key],
-  }}
->
-  {raw ?? ""}
-</td>
-
-      );
-    })}
-
-                  <td className="border p-2" style={{ height: 30, width: 120 }}>
+                  <td className="border p-2" style={{ height: 30, width: 90 }}>
                     {/* Hành động */}
                     <div className="flex justify-center items-center gap-2">
                       <button
                         onClick={() => handleEdit(r)}
-                        className="text-blue-500 flex items-center justify-center w-8 h-8 rounded hover:bg-blue-100"
+                        className="text-blue-500 flex items-center justify-center w-4 h-4 rounded hover:bg-blue-100"
                       >
                         <FaEdit />
                       </button>
                       <button
                         onClick={() => handleDelete(r._id)}
-                        className="text-red-500 flex items-center justify-center w-8 h-8 rounded hover:bg-red-100"
+                        className="text-red-500 flex items-center justify-center w-4 h-4 rounded hover:bg-red-100"
                       >
                         <FaTrash />
                       </button>
@@ -767,12 +754,12 @@ useEffect(() => {
                         onClick={() =>
                           editCounts[r._id] > 0 && handleViewHistory(r)
                         }
-                        className="relative cursor-pointer w-8 h-8 flex items-center justify-center rounded hover:bg-green-100"
+                        className="relative cursor-pointer w-4 h-4 flex items-center justify-center rounded hover:bg-green-100"
                       >
                         {editCounts[r._id] > 0 ? (
                           <>
                             <FaHistory className="text-green-600 w-5 h-5" />
-                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">
+                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-3 h-3 flex items-center justify-center rounded-full">
                               {editCounts[r._id]}
                             </span>
                           </>
@@ -782,6 +769,42 @@ useEffect(() => {
                       </div>
                     </div>
                   </td>
+                  {columnOrder.map((key) => {
+                    if (visibleColumns[key] === false) return null;
+                    const col = allColumns.find((c) => c.key === key);
+                    if (!col) return null;
+
+                    const raw = [
+                      "ngayBocHang",
+                      "ngayGiaoHang",
+                      "ngayBoc",
+                    ].includes(col.key)
+                      ? formatDate(r[col.key])
+                      : [
+                          "cuocPhi",
+                          "laiXeThuCuoc",
+                          "bocXep",
+                          "ve",
+                          "hangVe",
+                          "luuCa",
+                          "luatChiPhiKhac",
+                          "cuocPhiBoSung",
+                        ].includes(col.key)
+                      ? formatMoney(r[col.key])
+                      : r[col.key];
+
+                    return (
+                      <td
+                        className="border px-2 py-1 whitespace-nowrap overflow-hidden text-ellipsis"
+                        style={{
+                          width: columnWidths[col.key],
+                          maxWidth: columnWidths[col.key],
+                        }}
+                      >
+                        {raw ?? ""}
+                      </td>
+                    );
+                  })}
                 </tr>
               ))}
           </tbody>
@@ -853,7 +876,6 @@ useEffect(() => {
         />
       )}
 
-      {/* Modal yêu cầu chỉnh sửa */}
       {/* Modal yêu cầu chỉnh sửa */}
       {showEditRequestModal && editRequestRide && (
         <RideEditRequestModal

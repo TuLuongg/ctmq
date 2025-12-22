@@ -357,6 +357,7 @@ export default function RideModal({
                   ["ve", "Vé"],
                   ["luuCa", "Lưu ca"],
                   ["luatChiPhiKhac", "Chi phí khác"],
+                  ["laiXeThuCuoc", "Lái xe thu cước"],
                 ].map(([key, label]) => (
                   <label key={key} className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -386,7 +387,7 @@ export default function RideModal({
                   key === "hangVe" ? "Hàng về" :
                   key === "ve" ? "Vé" :
                   key === "luuCa" ? "Lưu ca" :
-                  "Chi phí khác"}</label>
+                  key === "luatChiPhiKhac" ? "Chi phí khác" : "Lái xe thu cước"}</label>
                 <input
                   type="text"
                   name={key}

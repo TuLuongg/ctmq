@@ -239,7 +239,7 @@ export default function VehicleLegalPage() {
   /* ================= TABLE ================= */
   const renderTable = () => (
     <div className="border rounded-lg overflow-auto max-h-[70vh] shadow-sm">
-      <table className="min-w-[1400px] w-full table-auto border-collapse text-xs">
+      <table className="min-w-[1400px] w-full table-auto border-separate border-spacing-0 text-xs">
         <thead className="sticky top-0 bg-blue-600 z-10 text-white text-center">
           <tr>
             {fieldMap.map((f) => (

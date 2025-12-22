@@ -285,6 +285,7 @@ const handleSaveClick = (e) => {
                     ["ve","Vé"],
                     ["luuCa","Lưu ca"],
                     ["luatChiPhiKhac","Chi phí khác"],
+                    ["laiXeThuCuoc", "Lái xe thu cước"],
                   ].map(([key,label])=>(
                     <label key={key} className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={checkedFees[key]} onChange={()=>toggleFee(key)}/>
@@ -302,6 +303,7 @@ const handleSaveClick = (e) => {
               {checkedFees.ve && <div className="flex flex-col w-32"><label className="text-xs mb-1">Vé</label><input type="text" name="ve" value={formatMoney(form.ve)} onChange={handleChange} className="border p-2 rounded" placeholder="0"/></div>}
               {checkedFees.luuCa && <div className="flex flex-col w-32"><label className="text-xs mb-1">Lưu ca</label><input type="text" name="luuCa" value={formatMoney(form.luuCa)} onChange={handleChange} className="border p-2 rounded" placeholder="0"/></div>}
               {checkedFees.luatChiPhiKhac && <div className="flex flex-col w-40"><label className="text-xs mb-1">Chi phí khác</label><input type="text" name="luatChiPhiKhac" value={formatMoney(form.luatChiPhiKhac)} onChange={handleChange} className="border p-2 rounded" placeholder="0"/></div>}
+              {checkedFees.laiXeThuCuoc && <div className="flex flex-col w-40"><label className="text-xs mb-1">Lái xe thu cước</label><input type="text" name="laiXeThuCuoc" value={formatMoney(form.laiXeThuCuoc)} onChange={handleChange} className="border p-2 rounded" placeholder="0"/></div>}
             </div>
 
             {/* Lý do chỉnh sửa */}

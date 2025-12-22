@@ -9,21 +9,18 @@ const API_URL = `${API}/schedule-admin`;
    FIELD MAP
 ===================== */
 const FIELD_MAP = [
-  { key: "ltState", label: "LT" },
-  { key: "onlState", label: "ONL" },
-  { key: "offState", label: "OFF" },
-  { key: "dieuVan", label: "Điều vận" },
-  { key: "createdBy", label: "Người nhập" },
-  { key: "ngayBoc", label: "Ngày nhập", isDate: true },
   { key: "tenLaiXe", label: "Tên lái xe" },
   { key: "maKH", label: "Mã KH" },
+  { key: "khachHang", label: "Tên KH" },
   { key: "dienGiai", label: "Diễn giải" },
   { key: "ngayBocHang", label: "Ngày đóng", isDate: true },
   { key: "ngayGiaoHang", label: "Ngày giao", isDate: true },
   { key: "diemXepHang", label: "Điểm đóng" },
   { key: "diemDoHang", label: "Điểm giao" },
   { key: "soDiem", label: "Số điểm" },
-
+  { key: "themDiem", label: "Thêm điểm" },
+  { key: "trongLuong", label: "Trọng lượng" },
+  { key: "bienSoXe", label: "Biển số xe" },
   { key: "cuocPhi", label: "Cước phí BĐ", isMoney: true },
   { key: "bocXep", label: "Bốc xếp BĐ", isMoney: true },
   { key: "ve", label: "Vé BĐ", isMoney: true },

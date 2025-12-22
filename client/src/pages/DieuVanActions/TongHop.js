@@ -27,7 +27,6 @@ export default function TongHop({ user, onLogout }) {
     khachHang: "",
     bienSoXe: "",
   });
-  const [showExtra, setShowExtra] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -88,34 +87,7 @@ export default function TongHop({ user, onLogout }) {
     { key: "createdBy", label: "NGƯỜI NHẬP" },
   ];
 
-  const [allCols, setAllCols] = useState([...mainColumns]);
-
-  useEffect(() => {
-    const cols = [...mainColumns, ...(showExtra ? extraColumns : [])];
-    setAllCols(cols);
-
-    // Cập nhật thứ tự cột nếu thiếu
-    setColOrder((prev) => {
-      const keys = cols.map((c) => c.key);
-      const newOrder = prev.filter((k) => keys.includes(k));
-
-      // Thêm các cột mới vào cuối
-      keys.forEach((k) => {
-        if (!newOrder.includes(k)) newOrder.push(k);
-      });
-
-      return newOrder;
-    });
-
-    // Cập nhật width cho cột mới
-    setColWidths((prev) => {
-      const next = { ...prev };
-      cols.forEach((c) => {
-        if (!next[c.key]) next[c.key] = 80; // width mặc định
-      });
-      return next;
-    });
-  }, [showExtra]);
+  const [allCols, setAllCols] = useState([...mainColumns, ...extraColumns]);
 
   // Format số tiền có dấu chấm hàng nghìn
   const formatMoney = (value) => {
@@ -214,7 +186,7 @@ export default function TongHop({ user, onLogout }) {
     if (!rides.length) return alert("Không có dữ liệu để xuất Excel!");
 
     // 1️⃣ Tạo danh sách tất cả cột dựa trên showExtra
-    const allColumns = [...mainColumns, ...(showExtra ? extraColumns : [])];
+    const allColumns = [...mainColumns, ...extraColumns];
 
     // 2️⃣ Tạo header hiển thị (label)
     const headers = allColumns.map((c) => c.label);
@@ -594,9 +566,33 @@ export default function TongHop({ user, onLogout }) {
     return true;
   });
 
+  const [showColumnPicker, setShowColumnPicker] = useState(false);
+  const colPickerRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (
+        showColumnPicker &&
+        colPickerRef.current &&
+        !colPickerRef.current.contains(e.target)
+      ) {
+        setShowColumnPicker(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showColumnPicker]);
+
   return (
     <div className="p-4 bg-gray-50 min-h-screen text-xs">
       <div className="flex gap-2 items-center mb-4">
+        <button
+          onClick={() => navigate("/dieu-van")}
+          className={"px-3 py-1 rounded text-white bg-blue-500"}
+        >
+          Trang chính
+        </button>
         <button
           onClick={handleGoToDrivers}
           className={`px-3 py-1 rounded text-white 
@@ -651,91 +647,8 @@ export default function TongHop({ user, onLogout }) {
         </div>
       </div>
 
-      {/* Bộ lọc */}
-      <div className="flex flex-wrap gap-2 mb-3 items-center w-full justify-start">
-        <select
-          value={filters.dieuVanID}
-          onChange={(e) =>
-            setFilters({ ...filters, dieuVanID: e.target.value })
-          }
-          className="border rounded px-3 py-2"
-        >
-          <option value="">-- Lọc theo điều vận --</option>
-          {managers.map((m) => (
-            <option key={m._id} value={m._id}>
-              {m.fullname}
-            </option>
-          ))}
-        </select>
-
-        <input
-          type="text"
-          placeholder="Mã chuyến"
-          value={filters.maChuyen}
-          onChange={(e) => setFilters({ ...filters, maChuyen: e.target.value })}
-          className="border rounded px-3 py-2"
-        />
-
-        <input
-          type="text"
-          placeholder="Khách hàng"
-          value={filters.khachHang}
-          onChange={(e) =>
-            setFilters({ ...filters, khachHang: e.target.value })
-          }
-          className="border rounded px-3 py-2"
-        />
-
-        <input
-          type="text"
-          placeholder="Biển số xe"
-          value={filters.bienSoXe}
-          onChange={(e) => setFilters({ ...filters, bienSoXe: e.target.value })}
-          className="border rounded px-3 py-2"
-        />
-
-        {/* 🔹 Nút Xóa lọc */}
-        <button
-          onClick={() => {
-            // Xóa các filter lớn
-            setFilters({
-              dieuVanID: "",
-              tenLaiXe: "",
-              maChuyen: "",
-              khachHang: "",
-              bienSoXe: "",
-            });
-            setDate("");
-
-            // Xóa toàn bộ filter theo cột
-            setColumnFilters({});
-
-            // Tắt ô filter cột đang mở
-            setActiveFilterCol(null);
-            setRangeEnd();
-            setRangeStart();
-          }}
-          className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg shadow-sm"
-        >
-          Xóa lọc
-        </button>
-
-        <button
-          onClick={() => navigate("/dieu-van")}
-          className="ml-auto bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg"
-        >
-          ← Quay lại điều vận
-        </button>
-      </div>
       {/* Các nút hành động */}
       <div className="flex flex-wrap gap-2 mb-3 items-center">
-        <button
-          onClick={() => setShowExtra((s) => !s)}
-          className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg"
-        >
-          {showExtra ? "Ẩn bớt" : "Hiển thị đầy đủ"}
-        </button>
-
         <button
           onClick={exportToExcel}
           className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm"
@@ -825,28 +738,72 @@ export default function TongHop({ user, onLogout }) {
 
       {/* Bảng */}
       {/* ====== CHỌN CỘT ====== */}
-      <div className="flex flex-wrap gap-3 p-2 bg-white shadow rounded mb-3">
-        {allCols.map((c) => (
-          <label key={c.key} className="flex gap-2 items-center text-xs">
-            <input
-              type="checkbox"
-              checked={!hiddenCols?.includes(c.key)}
-              onChange={() => {
-                if (hiddenCols.includes(c.key)) {
-                  setHiddenCols(hiddenCols.filter((k) => k !== c.key));
-                } else {
-                  setHiddenCols([...hiddenCols, c.key]);
-                }
-              }}
-            />
-            {c.label}
-          </label>
-        ))}
+      <div className="flex justify-between p-2 bg-white shadow rounded mb-3">
+        <button
+          onClick={() => setShowColumnPicker((v) => !v)}
+          className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-lg relative"
+        >
+          ⚙️
+        </button>
+        {showColumnPicker && (
+          <div
+            ref={colPickerRef}
+            className="absolute z-50 mt-8 w-64 max-h-96 overflow-auto
+               bg-white shadow-lg rounded border"
+          >
+            <ul className="divide-y text-xs">
+              {allCols.map((c) => (
+                <li
+                  key={c.key}
+                  className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100"
+                >
+                  <input
+                    type="checkbox"
+                    checked={!hiddenCols.includes(c.key)}
+                    onChange={() => {
+                      setHiddenCols((prev) =>
+                        prev.includes(c.key)
+                          ? prev.filter((k) => k !== c.key)
+                          : [...prev, c.key]
+                      );
+                    }}
+                  />
+                  <span className="whitespace-nowrap">{c.label}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {/* 🔹 Nút Xóa lọc */}
+        <button
+          onClick={() => {
+            // Xóa các filter lớn
+            setFilters({
+              dieuVanID: "",
+              tenLaiXe: "",
+              maChuyen: "",
+              khachHang: "",
+              bienSoXe: "",
+            });
+            setDate("");
+
+            // Xóa toàn bộ filter theo cột
+            setColumnFilters({});
+
+            // Tắt ô filter cột đang mở
+            setActiveFilterCol(null);
+            setRangeEnd();
+            setRangeStart();
+          }}
+          className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg shadow-sm"
+        >
+          Xóa lọc
+        </button>
       </div>
 
       {/* ====== BẢNG NÂNG CAO ====== */}
       <div className="overflow-auto max-h-[75vh] border bg-white">
-        <table className="border-collapse text-sm w-max">
+        <table className="border-separate border-spacing-0 text-sm w-max">
           <thead className="sticky top-0 bg-blue-600 text-white z-10">
             <tr>
               {colOrder.map((key) => {

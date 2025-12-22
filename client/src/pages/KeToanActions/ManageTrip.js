@@ -618,56 +618,63 @@ export default function ManageTrip({ user, onLogout }) {
   const [loadedCount, setLoadedCount] = useState(0);
   const [remainingCount, setRemainingCount] = useState(0);
 
-  const handleSelectExcel = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+const handleSelectExcel = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
 
-    setLoadingFile(true);
-    setShowFileStatus(false);
-    setLoadedCount(0);
-    setRemainingCount(0);
+  setLoadingFile(true);
+  setShowFileStatus(false);
+  setLoadedCount(0);
+  setRemainingCount(0);
 
-    const data = await file.arrayBuffer();
-    const workbook = XLSX.read(data);
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const raw = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+  const data = await file.arrayBuffer();
+  const workbook = XLSX.read(data);
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const raw = XLSX.utils.sheet_to_json(sheet, { defval: "" });
 
-    const updates = [];
-    setRemainingCount(raw.length);
+  const updates = [];
 
-    for (let i = 0; i < raw.length; i++) {
-      const row = raw[i];
-      const obj = {};
-      for (let k in row) {
-        const cleanKey = k.trim().toUpperCase().replace(/\s+/g, " ");
-        obj[cleanKey] = row[k];
-      }
+  for (let i = 0; i < raw.length; i++) {
+    const row = raw[i];
+    // Kiểm tra row có dữ liệu thật sự không
+    const hasData = Object.values(row).some(
+      (val) => val !== null && val !== undefined && val.toString().trim() !== ""
+    );
+    if (!hasData) continue; // bỏ qua dòng trống
 
-      const r = {
-        maChuyen: obj["MÃ CHUYẾN"] || obj["MA CHUYEN"] || "",
-        ltState: (obj["LT"] ?? "").toString(),
-        onlState: (obj["ONL"] ?? "").toString(),
-        offState: (obj["OFF"] ?? "").toString(),
-        cuocPhiBS: (obj["CƯỚC PHÍ"] ?? obj["CUOC PHI"] ?? "0").toString(),
-        daThanhToan: (obj["ĐÃ THANH TOÁN"] ?? "0").toString(),
-        bocXepBS: (obj["BỐC XẾP"] ?? "0").toString(),
-        veBS: (obj["VÉ"] ?? "0").toString(),
-        hangVeBS: (obj["HÀNG VỀ"] ?? "0").toString(),
-        luuCaBS: (obj["LƯU CA"] ?? "0").toString(),
-        cpKhacBS: (obj["CP KHÁC"] ?? "0").toString(),
-        themDiem: (obj["THÊM ĐIỂM"] ?? "").toString(),
-      };
-
-      if (r.maChuyen) updates.push(r);
-
-      setExcelData([...updates]);
-      setLoadedCount(updates.length);
-      setRemainingCount(raw.length - updates.length);
+    const obj = {};
+    for (let k in row) {
+      const cleanKey = k.trim().toUpperCase().replace(/\s+/g, " ");
+      obj[cleanKey] = row[k];
     }
 
-    setLoadingFile(false);
-    setShowFileStatus(true); // vẫn hiển thị text sau khi load file xong
-  };
+    const r = {
+      maChuyen: obj["MÃ CHUYẾN"] || obj["MA CHUYEN"] || "",
+      ltState: (obj["LT"] ?? "").toString(),
+      onlState: (obj["ONL"] ?? "").toString(),
+      offState: (obj["OFF"] ?? "").toString(),
+      cuocPhiBS: (obj["CƯỚC PHÍ"] ?? obj["CUOC PHI"] ?? "0").toString(),
+      daThanhToan: (obj["ĐÃ THANH TOÁN"] ?? "0").toString(),
+      bocXepBS: (obj["BỐC XẾP"] ?? "0").toString(),
+      veBS: (obj["VÉ"] ?? "0").toString(),
+      hangVeBS: (obj["HÀNG VỀ"] ?? "0").toString(),
+      luuCaBS: (obj["LƯU CA"] ?? "0").toString(),
+      cpKhacBS: (obj["CP KHÁC"] ?? "0").toString(),
+      themDiem: (obj["THÊM ĐIỂM"] ?? "").toString(),
+    };
+
+    // Chỉ push nếu có mã chuyến
+    if (r.maChuyen) updates.push(r);
+  }
+
+  // Cập nhật state 1 lần duy nhất sau khi duyệt hết
+  setExcelData(updates);
+  setLoadedCount(updates.length);
+  setRemainingCount(0);
+  setLoadingFile(false);
+  setShowFileStatus(true);
+};
+
 
   const handleAddCuocPhiBoSung = async () => {
     if (!excelData.length) return alert("Vui lòng chọn file Excel trước!");
@@ -2441,7 +2448,7 @@ export default function ManageTrip({ user, onLogout }) {
           open={showMyRequestModal}
           onClose={() => setShowMyRequestModal(false)}
           requests={myRequests}
-          title="📌 Yêu cầu chỉnh sửa của tôi"
+          title="Yêu cầu chỉnh sửa của tôi"
         />
       </div>
 
