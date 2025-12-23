@@ -181,46 +181,39 @@ export default function TongHop({ user, onLogout }) {
     return found ? found.fullname : id;
   };
 
-  // 🔹 Xuất Excel
-  const exportToExcel = () => {
-    if (!rides.length) return alert("Không có dữ liệu để xuất Excel!");
+  // 🔹 Xuất Excel (gọi BE)
+  const exportToExcel = async () => {
+    try {
+      if (!rangeStart || !rangeEnd) {
+        alert("Vui lòng chọn khoảng ngày");
+        return;
+      }
 
-    // 1️⃣ Tạo danh sách tất cả cột dựa trên showExtra
-    const allColumns = [...mainColumns, ...extraColumns];
+      const payload = {
+        from: rangeStart,
+        to: rangeEnd,
+      };
 
-    // 2️⃣ Tạo header hiển thị (label)
-    const headers = allColumns.map((c) => c.label);
+      const res = await axios.post(
+        `${API_URL}/export-excel-by-range`,
+        payload,
+        {
+          responseType: "blob",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
-    // 3️⃣ Tạo dữ liệu
-    const data = rides.map((r) => {
-      const row = {};
-      allColumns.forEach((col) => {
-        // Xử lý các trường đặc biệt
-        if (col.key === "dieuVan") row[col.key] = getFullName(r.dieuVanID);
-        else if (["ngayBoc", "ngayBocHang", "ngayGiaoHang"].includes(col.key))
-          row[col.key] = formatDate(r[col.key]);
-        else row[col.key] = r[col.key] || "";
-      });
-      return row;
-    });
-
-    // 4️⃣ Chuyển JSON → Sheet
-    const worksheet = XLSX.utils.json_to_sheet(data, {
-      header: allColumns.map((c) => c.key),
-    });
-
-    // 5️⃣ Gắn header (label) lên đầu sheet
-    XLSX.utils.sheet_add_aoa(worksheet, [headers], { origin: "A1" });
-
-    // 6️⃣ Tạo workbook và append sheet
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Tổng hợp chuyến");
-
-    // 7️⃣ Lưu file
-    saveAs(
-      new Blob([XLSX.write(workbook, { bookType: "xlsx", type: "array" })]),
-      `TongHop_${format(today, "ddMMyyyy_HHmm")}.xlsx`
-    );
+      // ⬇️ tải file
+      saveAs(
+        new Blob([res.data]),
+        `DANH_SACH_CHUYEN_${rangeStart}_den_${rangeEnd}.xlsx`
+      );
+    } catch (err) {
+      console.error(err);
+      alert("Xuất Excel thất bại");
+    }
   };
 
   const [excelData, setExcelData] = useState([]);
@@ -696,7 +689,7 @@ export default function TongHop({ user, onLogout }) {
           </span>
         )}
         <a
-          href="/form_mau_chuyen.xlsm"
+          href="/DANH_SACH_CHUYEN.xlsx"
           download
           style={{
             color: "#0d6efd", // xanh bootstrap

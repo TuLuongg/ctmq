@@ -4,6 +4,7 @@ import axios from "axios";
 import API from "../../api";
 import PaymentHistoryModal from "../../components/PaymentHistoryModal";
 import TripListModal from "../../components/TripListModal";
+import CustomerDebtYearModal from "../../components/CustomerDebtYearModal";
 
 // Chuyển string sang dạng không dấu, thường
 const normalizeString = (str) => {
@@ -262,9 +263,12 @@ export default function CustomerDebtPage() {
     if (!ok) return;
 
     try {
-      await axios.delete(`${API}/payment-history/delete/debt-period/${debtCode}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await axios.delete(
+        `${API}/payment-history/delete/debt-period/${debtCode}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
 
       alert("Đã xoá kỳ công nợ");
       loadData();
@@ -283,6 +287,7 @@ export default function CustomerDebtPage() {
   });
 
   const visibleCustomerCodes = filteredDebtList.map((c) => c.maKH);
+  const [showDebtYearModal, setShowDebtYearModal] = useState(false);
 
   // ====================== RENDER ======================
   return (
@@ -506,7 +511,16 @@ export default function CustomerDebtPage() {
                   />
                 </td>
 
-                <td className="border p-2">{c.maKH}</td>
+                <td
+                  className="border p-2 text-blue-600 underline cursor-pointer font-bold"
+                  onClick={() => {
+                    setSelectedCustomer(c);
+                    setShowDebtYearModal(true);
+                  }}
+                >
+                  {c.maKH}
+                </td>
+
                 <td className="border p-2">{c.tenKH}</td>
                 <td className="border p-2">{c.debtCode || "-"}</td>
                 <td className="border p-2">
@@ -901,6 +915,15 @@ export default function CustomerDebtPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {showDebtYearModal && selectedCustomer && (
+        <CustomerDebtYearModal
+          customer={selectedCustomer}
+          year={year}
+          token={token}
+          onClose={() => setShowDebtYearModal(false)}
+        />
       )}
     </div>
   );

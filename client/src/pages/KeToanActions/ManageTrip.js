@@ -4,7 +4,6 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { FaEdit, FaHistory, FaExclamationTriangle } from "react-icons/fa";
 import axios from "axios";
 import * as XLSX from "xlsx";
-import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import RideEditModal from "../../components/RideEditModal";
 import RideRequestListModal from "../../components/RideRequestListModal";
@@ -19,64 +18,6 @@ const normalize = (s = "") =>
 
 // helper để dựng key trong localStorage (theo user)
 const prefKey = (userId) => `trips_table_prefs_${userId || "guest"}`;
-
-const FORM_COLUMN_MAP = [
-  { col: "A", field: "ltState" },
-  { col: "B", field: "onlState" },
-  { col: "C", field: "offState" },
-  { col: "D", field: "tenLaiXe" },
-  { col: "E", field: "maKH" },
-  { col: "F", field: "khachHang" },
-  { col: "G", field: "dienGiai" },
-  { col: "H", field: "ngayBocHang", type: "date" },
-  { col: "I", field: "ngayGiaoHang", type: "date" },
-  { col: "J", field: "diemXepHang" },
-  { col: "K", field: "diemDoHang" },
-  { col: "L", field: "soDiem" },
-  { col: "M", field: "trongLuong" },
-  { col: "N", field: "bienSoXe" },
-
-  // ===== TIỀN =====
-  {
-    col: "O",
-    field: { base: "cuocPhi", bs: "cuocPhiBS" },
-    type: "number",
-  },
-  {
-    col: "P",
-    field: { base: "daThanhToan", bs: "daThanhToan" },
-    type: "number",
-  },
-  {
-    col: "Q",
-    field: { base: "bocXep", bs: "bocXepBS" },
-    type: "number",
-  },
-  {
-    col: "R",
-    field: { base: "ve", bs: "veBS" },
-    type: "number",
-  },
-  {
-    col: "S",
-    field: { base: "hangVe", bs: "hangVeBS" },
-    type: "number",
-  },
-  {
-    col: "T",
-    field: { base: "luuCa", bs: "luuCaBS" },
-    type: "number",
-  },
-  {
-    col: "U",
-    field: { base: "luatChiPhiKhac", bs: "cpKhacBS" },
-    type: "number",
-  },
-
-  { col: "V", field: "ghiChu" },
-  { col: "W", field: "maChuyen" },
-  { col: "X", field: "accountUsername" },
-];
 
 const columnGroups = [
   {
@@ -533,81 +474,81 @@ export default function ManageTrip({ user, onLogout }) {
   };
 
   // 🔹 Xuất Excel
-  const exportToExcel = async (mode = "base") => {
-    if (!rides.length) {
-      alert("Không có dữ liệu để xuất");
-      return;
+  const exportToExcel = async () => {
+    try {
+      if (!giaoFrom || !giaoTo) {
+        alert("Vui lòng chọn khoảng ngày");
+        return;
+      }
+
+      const payload = {
+        from: giaoFrom,
+        to: giaoTo,
+        maKHs:
+        Array.isArray(excelOptions?.khachHang) &&
+        excelOptions.khachHang.length > 0
+          ? excelOptions.khachHang
+          : undefined,
+      };
+
+      const res = await axios.post(
+        `${API_URL}/export-excel-by-range`,
+        payload,
+        {
+          responseType: "blob",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      // ⬇️ tải file
+      saveAs(
+        new Blob([res.data]),
+        `DANH_SACH_CHUYEN_${giaoFrom}_den_${giaoTo}.xlsx`
+      );
+    } catch (err) {
+      console.error(err);
+      alert("Xuất Excel thất bại");
     }
+  };
+  const exportToExcelBS = async () => {
+    try {
+      if (!giaoFrom || !giaoTo) {
+        alert("Vui lòng chọn khoảng ngày");
+        return;
+      }
 
-    const res = await fetch("/form_mau.xlsx");
-    const buffer = await res.arrayBuffer();
+      const payload = {
+        from: giaoFrom,
+        to: giaoTo,
+        maKHs:
+        Array.isArray(excelOptions?.khachHang) &&
+        excelOptions.khachHang.length > 0
+          ? excelOptions.khachHang
+          : undefined,
+      };
 
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(buffer);
-
-    // ✅ KHÔNG HARDCODE TÊN SHEET
-    const sheet = workbook.worksheets[0];
-
-    const START_ROW = 2;
-
-    rides.forEach((ride, i) => {
-      const rowNumber = START_ROW + i;
-      const row = sheet.getRow(rowNumber);
-
-      FORM_COLUMN_MAP.forEach(({ col, field, type }) => {
-        let realField = field;
-
-        // 🔥 chọn field gốc / BS
-        if (typeof field === "object") {
-          realField = field[mode];
+      const res = await axios.post(
+        `${API_URL}/export-excel-by-range-bs`,
+        payload,
+        {
+          responseType: "blob",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         }
+      );
 
-        let value = ride[realField] ?? "";
-
-        if (type === "dieuVan") {
-          value = getFullName(ride.dieuVanID);
-        }
-
-        if (type === "date") {
-          value = value ? new Date(value) : null;
-        }
-
-        if (type === "number") {
-          const num = Number(
-            value.toString().replace(/\./g, "").replace(/,/g, "")
-          );
-          value = isNaN(num) ? 0 : num;
-        }
-
-        row.getCell(col).value = value;
-      });
-
-      row.commit();
-    });
-
-    workbook.calcProperties.fullCalcOnLoad = true;
-
-    // =========================
-    // 📛 TÊN FILE
-    // =========================
-    const count = rides.length;
-
-    // lấy tháng từ filter ngày (ưu tiên)
-    const now = new Date();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const year = now.getFullYear();
-
-    const monthLabel = `${month}_${year}`;
-
-    const fileName = `DANH_SACH_CHUYEN_${monthLabel}_${count}_data.xlsx`;
-
-    const out = await workbook.xlsx.writeBuffer();
-    saveAs(
-      new Blob([out], {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      }),
-      fileName
-    );
+      // ⬇️ tải file
+      saveAs(
+        new Blob([res.data]),
+        `DANH_SACH_CHUYEN_BS_${giaoFrom}_den_${giaoTo}.xlsx`
+      );
+    } catch (err) {
+      console.error(err);
+      alert("Xuất Excel thất bại");
+    }
   };
 
   // ---- Excel bổ sung
@@ -1149,13 +1090,13 @@ const handleSelectExcel = async (e) => {
         </button>
 
         <button
-          onClick={() => exportToExcel("base")}
+          onClick={exportToExcel}
           className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm"
         >
           Xuất File gốc
         </button>
         <button
-          onClick={() => exportToExcel("bs")}
+          onClick={exportToExcelBS}
           className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm"
         >
           Xuất File BS
