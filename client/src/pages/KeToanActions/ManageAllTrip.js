@@ -105,6 +105,14 @@ export default function ManageTrip({ user, onLogout }) {
   const handleGoToVouchers = () =>
     navigate("/voucher-list", { state: { user } });
 
+  const handleGoToContract = () => {
+    navigate("/contract", { state: { user } });
+  };
+
+  const handleGoToTCB = () => {
+    navigate("/tcb-person", { state: { user } });
+  };
+
   // -------------------------------------
   // CÁC CỘT CHÍNH + MỞ RỘNG → GỘP 1 LIST
   // -------------------------------------
@@ -1019,6 +1027,22 @@ export default function ManageTrip({ user, onLogout }) {
           }`}
         >
           Sổ phiếu chi
+        </button>
+                <button
+          onClick={handleGoToContract}
+          className={`px-3 py-1 rounded text-white ${
+            isActive("/contract") ? "bg-green-600" : "bg-blue-500"
+          }`}
+        >
+          Hợp đồng vận chuyển
+        </button>
+        <button
+          onClick={handleGoToTCB}
+          className={`px-3 py-1 rounded text-white ${
+            isActive("/tcb-person") ? "bg-green-600" : "bg-blue-500"
+          }`}
+        >
+          TCB cá nhân
         </button>
       </div>
 

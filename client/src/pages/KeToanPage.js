@@ -71,6 +71,13 @@ const KeToanPage = () => {
     navigate("/cost-management", { state: { user } });
   };
 
+  const handleGoToContract = () => {
+    navigate("/contract", { state: { user } });
+  };
+  const handleGoToTCB = () => {
+    navigate("/tcb-person", { state: { user } });
+  };
+
   const handleExport = async () => {
     if (!selectedDate) return alert("Vui lòng chọn ngày.");
     try {
@@ -295,6 +302,18 @@ const KeToanPage = () => {
           className="bg-blue-500 text-white px-3 py-1 rounded"
         >
           Các mục chi phí
+        </button>
+        <button
+          onClick={handleGoToContract}
+          className="bg-blue-500 text-white px-3 py-1 rounded"
+        >
+          Hợp đồng vận chuyển
+        </button>
+        <button
+          onClick={handleGoToTCB}
+          className="bg-blue-500 text-white px-3 py-1 rounded"
+        >
+          TCB cá nhân
         </button>
       </div>
 

@@ -19,6 +19,9 @@ const removeVietnamese = (str = "") =>
     .replace(/đ/g, "d")
     .replace(/Đ/g, "D");
 
+const normalize = (s = "") =>
+  s.toString().normalize("NFC").replace(/\s+/g, " ").trim().toLowerCase();
+
 const mainColumns = [
   { key: "dieuVan", label: "ĐIỀU VẬN PHỤ TRÁCH" },
   { key: "khachHang", label: "KHÁCH HÀNG" },
@@ -126,8 +129,27 @@ export default function DieuVanPage({ user, onLogout }) {
       q.append("page", page);
       q.append("limit", limit);
 
+      // 🔥 EXCEL FILTER – DÙNG excelSelected
+      if (excelSelected.khachHang.length > 0) {
+        excelSelected.khachHang.forEach((v) => q.append("khachHang", v));
+      }
+
+      if (excelSelected.tenLaiXe.length > 0) {
+        excelSelected.tenLaiXe.forEach((v) => q.append("tenLaiXe", v));
+      }
+
+      if (excelSelected.bienSoXe.length > 0) {
+        excelSelected.bienSoXe.forEach((v) => q.append("bienSoXe", v));
+      }
+
+      if (excelSelected.dienGiai.length > 0) {
+        excelSelected.dienGiai.forEach((v) => q.append("dienGiai", v));
+      }
+
+      if (excelSelected.cuocPhi.length > 0) {
+        excelSelected.cuocPhi.forEach((v) => q.append("cuocPhi", v));
+      }
       Object.entries(filters).forEach(([key, value]) => {
-        if (key === "khachHang") return; // ❗ KHÔNG GỬI KHÁCH HÀNG LÊN API
         if (value !== "" && value !== null && value !== undefined) {
           q.append(key, value);
         }
@@ -154,22 +176,79 @@ export default function DieuVanPage({ user, onLogout }) {
     }
   };
 
+  const [openFilter, setOpenFilter] = useState(null);
+
+  const [searchKH, setSearchKH] = useState("");
+  const [searchDriver, setSearchDriver] = useState("");
+  const [searchPlate, setSearchPlate] = useState("");
+  const [searchDGiai, setSearchDGiai] = useState("");
+  const [searchCuocPhiBD, setSearchCuocPhiBD] = useState("");
+
+  const [moneyFilter, setMoneyFilter] = useState({});
+
+  // 🔒 DANH SÁCH GỐC – LƯU CỨNG
+  const [excelOptions, setExcelOptions] = useState({
+    khachHang: [],
+    tenLaiXe: [],
+    bienSoXe: [],
+    dienGiai: [],
+    cuocPhi: [],
+  });
+
+  // ✅ DANH SÁCH ĐƯỢC CHỌN
+  const [excelSelected, setExcelSelected] = useState({
+    khachHang: [],
+    tenLaiXe: [],
+    bienSoXe: [],
+    dienGiai: [],
+    cuocPhi: [],
+  });
   useEffect(() => {
-    setPage(1);
     fetchRides();
-  }, [filters, date]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    filters,
+    excelSelected.khachHang.join("|"),
+    excelSelected.tenLaiXe.join("|"),
+    excelSelected.bienSoXe.join("|"),
+    excelSelected.dienGiai.join("|"),
+    excelSelected.cuocPhi.join("|"),
+    JSON.stringify(moneyFilter),
+    date,
+    page,
+  ]);
+  useEffect(() => {
+    axios
+      .get(`${API_URL}/accountant/filter-all`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((res) => setExcelOptions(res.data))
+      .catch(console.error);
+  }, []);
 
   useEffect(() => {
-    fetchRides();
-  }, [page]);
+    const close = (e) => {
+      const th = e.target.closest("th[data-col]");
+      if (!th) setOpenFilter(null);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, []);
+
+  const [filterPos, setFilterPos] = useState({ x: 0, y: 0 });
+  const getColumnLabel = (key) => {
+    return allColumns.find((c) => c.key === key)?.label || key;
+  };
 
   // 🧹 Xoá lọc
   const clearFilters = () => {
     // Xóa các filter to
-    setFilters({
-      tenLaiXe: "",
-      maChuyen: "",
-      khachHang: "",
+    setExcelSelected({
+      khachHang: [],
+      tenLaiXe: [],
+      bienSoXe: [],
+      dienGiai: [],
+      cuocPhi: [],
     });
 
     // Reset ngày
@@ -311,8 +390,6 @@ export default function DieuVanPage({ user, onLogout }) {
     }
   };
 
-  const [showColumnSelector, setShowColumnSelector] = useState(false);
-
   // Thêm state quản lý chiều rộng cột
   const allColumns = [...mainColumns, ...extraColumns];
 
@@ -320,8 +397,6 @@ export default function DieuVanPage({ user, onLogout }) {
     (acc, col) => ({ ...acc, [col.key]: true }),
     {}
   );
-
-  const [columnConfigLoaded, setColumnConfigLoaded] = useState(false);
 
   const [visibleColumns, setVisibleColumns] = useState(() => {
     const saved = localStorage.getItem(COLUMN_CONFIG_KEY);
@@ -591,11 +666,15 @@ export default function DieuVanPage({ user, onLogout }) {
                       const start = Number(e.dataTransfer.getData("colIndex"));
                       handleColumnDrag(start, index);
                     }}
-                    onClick={() =>
-                      setActiveFilterCol((prev) =>
-                        prev === col.key ? null : col.key
-                      )
-                    }
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setFilterPos({
+                        x: rect.left,
+                        y: rect.bottom,
+                      });
+                      setOpenFilter(col.key);
+                    }}
                     style={{
                       width: columnWidths[col.key],
                       minWidth: 30,
@@ -631,47 +710,654 @@ export default function DieuVanPage({ user, onLogout }) {
                         }`}
                         title="Tìm kiếm theo cột"
                         onClick={(e) => {
-                          e.stopPropagation(); // không trigger sort / drag
-                          setActiveFilterCol((prev) =>
-                            prev === col.key ? null : col.key
-                          );
+                          e.stopPropagation();
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setFilterPos({
+                            x: rect.left,
+                            y: rect.bottom,
+                          });
+                          setOpenFilter(col.key);
                         }}
                       />
                     </div>
 
-                    {activeFilterCol === col.key && (
+                    {/* Ô FILTER */}
+                    {openFilter && (
                       <div
-                        ref={filterRef}
-                        className="absolute left-0 right-0 top-full mt-1 z-30"
-                        onClick={(e) => e.stopPropagation()} // Không đóng khi click vào input
+                        className="fixed bg-white border rounded shadow p-2 z-[9999] text-black text-xs"
+                        style={{
+                          top: filterPos.y,
+                          left: filterPos.x,
+                          width: 240,
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
                       >
-                        {dateColumns.includes(col.key) ? (
-                          <input
-                            type="date"
-                            autoFocus
-                            value={columnFilters[col.key] || ""}
-                            onChange={(e) =>
-                              setColumnFilters({
-                                ...columnFilters,
-                                [col.key]: e.target.value,
-                              })
-                            }
-                            className="bg-white text-black border rounded p-1 text-xs w-full"
-                          />
-                        ) : (
-                          <input
-                            autoFocus
-                            type="text"
-                            placeholder={`Nhập ${col.label}...`}
-                            value={columnFilters[col.key] || ""}
-                            onChange={(e) =>
-                              setColumnFilters({
-                                ...columnFilters,
-                                [col.key]: e.target.value,
-                              })
-                            }
-                            className="bg-white text-black border rounded p-1 text-xs w-full"
-                          />
+                        {/* ===== FILTER KHÁCH HÀNG ===== */}
+                        {openFilter === "khachHang" && (
+                          <>
+                            <input
+                              className="border w-full px-2 py-1 mb-1"
+                              placeholder="Tìm nhanh..."
+                              value={searchKH}
+                              onChange={(e) => setSearchKH(e.target.value)}
+                            />
+
+                            <label className="flex gap-1 items-center mb-1">
+                              <input
+                                type="checkbox"
+                                checked={
+                                  excelSelected.khachHang.length ===
+                                    excelOptions.khachHang.length &&
+                                  excelOptions.khachHang.length > 0
+                                }
+                                onChange={() => {
+                                  setExcelSelected((p) => ({
+                                    ...p,
+                                    khachHang:
+                                      p.khachHang.length ===
+                                      excelOptions.khachHang.length
+                                        ? []
+                                        : excelOptions.khachHang,
+                                  }));
+                                  setPage(1);
+                                }}
+                              />
+                              Chọn tất cả
+                            </label>
+
+                            <div className="max-h-40 overflow-y-auto border p-1">
+                              {excelOptions.khachHang
+                                .filter((c) => {
+                                  if (!searchKH) return true;
+                                  return normalize(c).includes(
+                                    normalize(searchKH)
+                                  );
+                                })
+
+                                .map((c) => (
+                                  <label
+                                    key={c}
+                                    className="flex gap-1 items-center"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={excelSelected.khachHang.includes(
+                                        c
+                                      )}
+                                      onChange={() =>
+                                        setExcelSelected((p) => ({
+                                          ...p,
+                                          khachHang: p.khachHang.includes(c)
+                                            ? p.khachHang.filter((x) => x !== c)
+                                            : [...p.khachHang, c],
+                                        }))
+                                      }
+                                    />
+                                    <span className="truncate">{c}</span>
+                                  </label>
+                                ))}
+                            </div>
+
+                            <div className="flex gap-1 mt-2">
+                              <button
+                                className="flex-1 bg-blue-600 text-white px-2 py-1 rounded"
+                                onClick={() => {
+                                  setPage(1);
+                                  setOpenFilter(null);
+                                }}
+                              >
+                                Áp dụng
+                              </button>
+
+                              <button
+                                className="flex-1 bg-gray-200 px-2 py-1 rounded"
+                                onClick={() => {
+                                  setExcelSelected((p) => ({
+                                    ...p,
+                                    khachHang: [],
+                                  }));
+                                  setPage(1);
+                                  setOpenFilter(null);
+                                }}
+                              >
+                                Xóa
+                              </button>
+                            </div>
+                          </>
+                        )}
+
+                        {/* ===== FILTER LÁI XE ===== */}
+                        {openFilter === "tenLaiXe" && (
+                          <>
+                            <input
+                              className="border w-full px-2 py-1 mb-1"
+                              placeholder="Tìm nhanh..."
+                              value={searchDriver}
+                              onChange={(e) => setSearchDriver(e.target.value)}
+                            />
+
+                            <label className="flex gap-1 items-center mb-1">
+                              <input
+                                type="checkbox"
+                                checked={
+                                  excelSelected.tenLaiXe.length ===
+                                    excelOptions.tenLaiXe.length &&
+                                  excelOptions.tenLaiXe.length > 0
+                                }
+                                onChange={() => {
+                                  setExcelSelected((p) => ({
+                                    ...p,
+                                    tenLaiXe:
+                                      p.tenLaiXe.length ===
+                                      excelOptions.tenLaiXe.length
+                                        ? []
+                                        : excelOptions.tenLaiXe,
+                                  }));
+                                  setPage(1);
+                                }}
+                              />
+                              Chọn tất cả
+                            </label>
+
+                            <div className="max-h-40 overflow-y-auto border p-1">
+                              {excelOptions.tenLaiXe
+                                .filter((d) => {
+                                  if (!searchDriver) return true;
+                                  return normalize(d).includes(
+                                    normalize(searchDriver)
+                                  );
+                                })
+
+                                .map((d) => (
+                                  <label
+                                    key={d}
+                                    className="flex gap-1 items-center"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={excelSelected.tenLaiXe.includes(
+                                        d
+                                      )}
+                                      onChange={() =>
+                                        setExcelSelected((p) => ({
+                                          ...p,
+                                          tenLaiXe: p.tenLaiXe.includes(d)
+                                            ? p.tenLaiXe.filter((x) => x !== d)
+                                            : [...p.tenLaiXe, d],
+                                        }))
+                                      }
+                                    />
+                                    <span className="truncate">{d}</span>
+                                  </label>
+                                ))}
+                            </div>
+
+                            <div className="flex gap-1 mt-2">
+                              <button
+                                className="flex-1 bg-blue-600 text-white px-2 py-1 rounded"
+                                onClick={() => {
+                                  setPage(1);
+                                  setOpenFilter(null);
+                                }}
+                              >
+                                Áp dụng
+                              </button>
+
+                              <button
+                                className="flex-1 bg-gray-200 px-2 py-1 rounded"
+                                onClick={() => {
+                                  setExcelSelected((p) => ({
+                                    ...p,
+                                    tenLaiXe: [],
+                                  }));
+                                  setPage(1);
+                                  setOpenFilter(null);
+                                }}
+                              >
+                                Xóa
+                              </button>
+                            </div>
+                          </>
+                        )}
+
+                        {/* ===== FILTER BIỂN SỐ XE ===== */}
+                        {openFilter === "bienSoXe" && (
+                          <>
+                            <input
+                              className="border w-full px-2 py-1 mb-1"
+                              placeholder="Tìm nhanh..."
+                              value={searchPlate}
+                              onChange={(e) => setSearchPlate(e.target.value)}
+                            />
+
+                            <label className="flex gap-1 items-center mb-1">
+                              <input
+                                type="checkbox"
+                                checked={
+                                  excelSelected.bienSoXe.length ===
+                                    excelOptions.bienSoXe.length &&
+                                  excelOptions.bienSoXe.length > 0
+                                }
+                                onChange={() => {
+                                  setExcelSelected((p) => ({
+                                    ...p,
+                                    bienSoXe:
+                                      p.bienSoXe.length ===
+                                      excelOptions.bienSoXe.length
+                                        ? []
+                                        : excelOptions.bienSoXe,
+                                  }));
+                                  setPage(1);
+                                }}
+                              />
+                              Chọn tất cả
+                            </label>
+
+                            <div className="max-h-40 overflow-y-auto border p-1">
+                              {excelOptions.bienSoXe
+                                .filter((p) => {
+                                  if (!searchPlate) return true;
+                                  return normalize(p).includes(
+                                    normalize(searchPlate)
+                                  );
+                                })
+
+                                .map((p) => (
+                                  <label
+                                    key={p}
+                                    className="flex gap-1 items-center"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={excelSelected.bienSoXe.includes(
+                                        p
+                                      )}
+                                      onChange={() =>
+                                        setExcelSelected((s) => ({
+                                          ...s,
+                                          bienSoXe: s.bienSoXe.includes(p)
+                                            ? s.bienSoXe.filter((x) => x !== p)
+                                            : [...s.bienSoXe, p],
+                                        }))
+                                      }
+                                    />
+                                    <span className="truncate">{p}</span>
+                                  </label>
+                                ))}
+                            </div>
+
+                            <div className="flex gap-1 mt-2">
+                              <button
+                                className="flex-1 bg-blue-600 text-white px-2 py-1 rounded"
+                                onClick={() => {
+                                  setPage(1);
+                                  setOpenFilter(null);
+                                }}
+                              >
+                                Áp dụng
+                              </button>
+
+                              <button
+                                className="flex-1 bg-gray-200 px-2 py-1 rounded"
+                                onClick={() => {
+                                  setExcelSelected((p) => ({
+                                    ...p,
+                                    bienSoXe: [],
+                                  }));
+                                  setPage(1);
+                                  setOpenFilter(null);
+                                }}
+                              >
+                                Xóa
+                              </button>
+                            </div>
+                          </>
+                        )}
+
+                        {/* ===== FILTER DIỄN GIẢI ===== */}
+                        {openFilter === "dienGiai" && (
+                          <>
+                            <input
+                              className="border w-full px-2 py-1 mb-1"
+                              placeholder="Tìm nhanh..."
+                              value={searchDGiai}
+                              onChange={(e) => setSearchDGiai(e.target.value)}
+                            />
+
+                            <label className="flex gap-1 items-center mb-1">
+                              <input
+                                type="checkbox"
+                                checked={
+                                  excelSelected.dienGiai.length ===
+                                    excelOptions.dienGiai.length &&
+                                  excelOptions.dienGiai.length > 0
+                                }
+                                onChange={() => {
+                                  setExcelSelected((prev) => ({
+                                    ...prev,
+                                    dienGiai:
+                                      prev.dienGiai.length ===
+                                      excelOptions.dienGiai.length
+                                        ? []
+                                        : excelOptions.dienGiai,
+                                  }));
+                                  setPage(1);
+                                }}
+                              />
+                              Chọn tất cả
+                            </label>
+
+                            <div className="max-h-40 overflow-y-auto border p-1">
+                              {excelOptions.dienGiai
+                                .filter((dg) => {
+                                  if (!searchDGiai) return true;
+                                  return normalize(dg).includes(
+                                    normalize(searchDGiai)
+                                  );
+                                })
+                                .map((dg) => (
+                                  <label
+                                    key={dg}
+                                    className="flex gap-1 items-center"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={excelSelected.dienGiai.includes(
+                                        dg
+                                      )}
+                                      onChange={() =>
+                                        setExcelSelected((prev) => ({
+                                          ...prev,
+                                          dienGiai: prev.dienGiai.includes(dg)
+                                            ? prev.dienGiai.filter(
+                                                (x) => x !== dg
+                                              )
+                                            : [...prev.dienGiai, dg],
+                                        }))
+                                      }
+                                    />
+                                    <span className="truncate">{dg}</span>
+                                  </label>
+                                ))}
+                            </div>
+
+                            <div className="flex gap-1 mt-2">
+                              <button
+                                className="flex-1 bg-blue-600 text-white px-2 py-1 rounded"
+                                onClick={() => {
+                                  setPage(1);
+                                  setOpenFilter(null);
+                                }}
+                              >
+                                Áp dụng
+                              </button>
+
+                              <button
+                                className="flex-1 bg-gray-200 px-2 py-1 rounded"
+                                onClick={() => {
+                                  setExcelSelected((prev) => ({
+                                    ...prev,
+                                    dienGiai: [],
+                                  }));
+                                  setPage(1);
+                                  setOpenFilter(null);
+                                }}
+                              >
+                                Xóa
+                              </button>
+                            </div>
+                          </>
+                        )}
+
+                        {/* ===== FILTER CƯỚC PHÍ (STRING) ===== */}
+                        {openFilter === "cuocPhi" && (
+                          <>
+                            <input
+                              className="border w-full px-2 py-1 mb-1"
+                              placeholder="Tìm nhanh..."
+                              value={searchCuocPhiBD}
+                              onChange={(e) =>
+                                setSearchCuocPhiBD(e.target.value)
+                              }
+                            />
+
+                            <label className="flex gap-1 items-center mb-1">
+                              <input
+                                type="checkbox"
+                                checked={
+                                  excelSelected.cuocPhi.length ===
+                                    excelOptions.cuocPhi.length &&
+                                  excelOptions.cuocPhi.length > 0
+                                }
+                                onChange={() => {
+                                  setExcelSelected((prev) => ({
+                                    ...prev,
+                                    cuocPhi:
+                                      prev.cuocPhi.length ===
+                                      excelOptions.cuocPhi.length
+                                        ? []
+                                        : excelOptions.cuocPhi,
+                                  }));
+                                  setPage(1);
+                                }}
+                              />
+                              Chọn tất cả
+                            </label>
+
+                            <div className="max-h-40 overflow-y-auto border p-1">
+                              {excelOptions.cuocPhi
+                                .filter((cp) => {
+                                  if (!searchCuocPhiBD) return true;
+                                  return normalize(cp).includes(
+                                    normalize(searchCuocPhiBD)
+                                  );
+                                })
+                                .map((cp) => (
+                                  <label
+                                    key={cp}
+                                    className="flex gap-1 items-center"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={excelSelected.cuocPhi.includes(
+                                        cp
+                                      )}
+                                      onChange={() =>
+                                        setExcelSelected((prev) => ({
+                                          ...prev,
+                                          cuocPhi: prev.cuocPhi.includes(cp)
+                                            ? prev.cuocPhi.filter(
+                                                (x) => x !== cp
+                                              )
+                                            : [...prev.cuocPhi, cp],
+                                        }))
+                                      }
+                                    />
+                                    <span className="truncate">
+                                      {formatMoney(cp)}
+                                    </span>
+                                  </label>
+                                ))}
+                            </div>
+
+                            <div className="flex gap-1 mt-2">
+                              <button
+                                className="flex-1 bg-blue-600 text-white px-2 py-1 rounded"
+                                onClick={() => {
+                                  setPage(1);
+                                  setOpenFilter(null);
+                                }}
+                              >
+                                Áp dụng
+                              </button>
+
+                              <button
+                                className="flex-1 bg-gray-200 px-2 py-1 rounded"
+                                onClick={() => {
+                                  setExcelSelected((prev) => ({
+                                    ...prev,
+                                    cuocPhi: [],
+                                  }));
+                                  setPage(1);
+                                  setOpenFilter(null);
+                                }}
+                              >
+                                Xóa
+                              </button>
+                            </div>
+                          </>
+                        )}
+
+                        {/* ===== FILTER CÁC CỘT CÒN LẠI (TEXT / DATE) ===== */}
+                        {![
+                          "khachHang",
+                          "tenLaiXe",
+                          "bienSoXe",
+                          "dienGiai",
+                          "cuocPhi",
+                        ].includes(openFilter) &&
+                          !moneyColumns.includes(openFilter) && (
+                            <>
+                              {[
+                                "ngayBoc",
+                                "ngayBocHang",
+                                "ngayGiaoHang",
+                              ].includes(openFilter) ? (
+                                <input
+                                  type="date"
+                                  className="w-full border px-2 py-1 rounded text-black"
+                                  value={filters[openFilter] || ""}
+                                  onChange={(e) =>
+                                    setFilters((p) => ({
+                                      ...p,
+                                      [openFilter]: e.target.value,
+                                    }))
+                                  }
+                                />
+                              ) : (
+                                <input
+                                  type="text"
+                                  className="w-full border px-2 py-1 rounded text-black"
+                                  placeholder={`Lọc theo ${getColumnLabel(
+                                    openFilter
+                                  )}`}
+                                  value={filters[openFilter] || ""}
+                                  onChange={(e) =>
+                                    setFilters((p) => ({
+                                      ...p,
+                                      [openFilter]: e.target.value,
+                                    }))
+                                  }
+                                />
+                              )}
+
+                              <div className="flex gap-1 mt-2">
+                                <button
+                                  className="flex-1 bg-blue-600 text-white px-2 py-1 rounded"
+                                  onClick={() => {
+                                    setPage(1);
+                                    setOpenFilter(null);
+                                  }}
+                                >
+                                  Áp dụng
+                                </button>
+
+                                <button
+                                  className="flex-1 bg-gray-200 px-2 py-1 rounded"
+                                  onClick={() =>
+                                    setFilters((p) => ({
+                                      ...p,
+                                      [openFilter]: "",
+                                    }))
+                                  }
+                                >
+                                  Xóa
+                                </button>
+                              </div>
+                            </>
+                          )}
+
+                        {/* ===== FILTER TIỀN ===== */}
+                        {moneyColumns.includes(openFilter) && (
+                          <>
+                            <div className="font-semibold mb-1">
+                              {getColumnLabel(openFilter)}
+                            </div>
+
+                            <label className="flex items-center gap-1 mb-1">
+                              <input
+                                type="checkbox"
+                                checked={
+                                  moneyFilter[openFilter]?.empty || false
+                                }
+                                onChange={() =>
+                                  setMoneyFilter((p) => {
+                                    const isChecked = p[openFilter]?.empty;
+
+                                    return {
+                                      ...p,
+                                      [openFilter]: isChecked
+                                        ? {} // bỏ chọn
+                                        : { empty: true, filled: false }, // chọn empty => tắt filled
+                                    };
+                                  })
+                                }
+                              />
+                              Chưa nhập
+                            </label>
+
+                            <label className="flex items-center gap-1">
+                              <input
+                                type="checkbox"
+                                checked={
+                                  moneyFilter[openFilter]?.filled || false
+                                }
+                                onChange={() =>
+                                  setMoneyFilter((p) => {
+                                    const isChecked = p[openFilter]?.filled;
+
+                                    return {
+                                      ...p,
+                                      [openFilter]: isChecked
+                                        ? {} // bỏ chọn
+                                        : { filled: true, empty: false }, // chọn filled => tắt empty
+                                    };
+                                  })
+                                }
+                              />
+                              Đã nhập
+                            </label>
+
+                            <div className="flex gap-1 mt-2">
+                              <button
+                                className="flex-1 bg-blue-600 text-white px-2 py-1 rounded"
+                                onClick={() => {
+                                  setPage(1);
+                                  setOpenFilter(null);
+                                }}
+                              >
+                                Áp dụng
+                              </button>
+
+                              <button
+                                className="flex-1 bg-gray-200 px-2 py-1 rounded"
+                                onClick={() => {
+                                  setMoneyFilter((p) => {
+                                    const c = { ...p };
+                                    delete c[openFilter];
+                                    return c;
+                                  });
+                                  setPage(1);
+                                  setOpenFilter(null);
+                                }}
+                              >
+                                Xóa
+                              </button>
+                            </div>
+
+                            <hr className="my-2" />
+                          </>
                         )}
                       </div>
                     )}

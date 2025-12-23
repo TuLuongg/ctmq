@@ -138,7 +138,7 @@ export default function CustomerDebtYearModal({
                       </div>
                     </td>
                     <td className="border p-2 text-center">
-                      {p.isLocked ? "🔒" : "🔓"}
+                      {p.isLocked ? "Đóng" : "Mở"}
                     </td>
                   </tr>
                 );

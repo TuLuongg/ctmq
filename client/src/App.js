@@ -34,6 +34,8 @@ import TireCostPage from "./pages/CostManagementTables/TireCostPage";
 import SalaryCostPage from "./pages/CostManagementTables/SalaryCostPage";
 import VehicleLegalCostPage from "./pages/CostManagementTables/VehicleLegalCostPage";
 import TripPaymentPage from "./pages/CostManagementTables/TripPaymentPage";
+import ManageContract from "./pages/KeToanActions/ManageContract";
+import ManageTCBperson from "./pages/KeToanActions/ManageTCBperson";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -122,6 +124,24 @@ function App() {
           <Route path="vehicle-legal" element={<VehicleLegalCostPage />} />
           <Route path="trip-payment" element={<TripPaymentPage />} />
         </Route>
+
+        <Route
+          path="/contract"
+          element={
+            <PrivateRoute roles={["keToan"]}>
+              <ManageContract user={user} onLogout={handleLogout} />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/tcb-person"
+          element={
+            <PrivateRoute roles={["keToan"]}>
+              <ManageTCBperson user={user} onLogout={handleLogout} />
+            </PrivateRoute>
+          }
+        />
 
         {/* Điều vận */}
         <Route

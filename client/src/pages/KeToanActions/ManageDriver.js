@@ -111,6 +111,10 @@ export default function ManageDriver() {
     navigate("/voucher-list", { state: { user } });
   };
 
+  const handleGoToContract = () => {
+    navigate("/contract", { state: { user } });
+  };
+
   // visibleColumns khởi tạo mặc định từ allColumns
   const [visibleColumns, setVisibleColumns] = useState(
     allColumns.map((c) => c.key)
@@ -577,6 +581,14 @@ export default function ManageDriver() {
           }`}
         >
           Sổ phiếu chi
+        </button>
+        <button
+          onClick={handleGoToContract}
+          className={`px-3 py-1 rounded text-white ${
+            isActive("/contract") ? "bg-green-600" : "bg-blue-500"
+          }`}
+        >
+          Hợp đồng vận chuyển
         </button>
       </div>
 
