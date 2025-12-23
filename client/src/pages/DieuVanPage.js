@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { FaEdit, FaTrash, FaHistory } from "react-icons/fa";
+import { FaEdit, FaTrash, FaHistory, FaSearch } from "react-icons/fa";
 import RideModal from "../components/RideModal";
 import ProfileModal from "../components/ProfileModal";
 import RideEditRequestModal from "../components/RideEditRequestModal";
@@ -604,21 +604,39 @@ export default function DieuVanPage({ user, onLogout }) {
                     }}
                     className="border p-2 relative select-none overflow-hidden"
                   >
-                    {/* Tiêu đề 2 DÒNG + ELLIPSIS */}
-                    <div
-                      className="w-full"
-                      style={{
-                        display: "-webkit-box",
-                        WebkitBoxOrient: "vertical",
-                        WebkitLineClamp: 2, // ⭐ 2 dòng
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        lineHeight: "1.2",
-                        fontSize: "12px",
-                        whiteSpace: "normal", // ⭐ Cho phép xuống dòng
-                      }}
-                    >
-                      {col.label}
+                    {/* TIÊU ĐỀ + ICON KÍNH LÚP */}
+                    <div className="flex items-start justify-center gap-1 relative">
+                      <div
+                        className="w-full"
+                        style={{
+                          display: "-webkit-box",
+                          WebkitBoxOrient: "vertical",
+                          WebkitLineClamp: 2,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          lineHeight: "1.2",
+                          fontSize: "12px",
+                          whiteSpace: "normal",
+                        }}
+                      >
+                        {col.label}
+                      </div>
+
+                      {/* ICON KÍNH LÚP */}
+                      <FaSearch
+                        className={`text-[10px] mt-[2px] cursor-pointer ${
+                          columnFilters[col.key]
+                            ? "text-yellow-300"
+                            : "text-white/70"
+                        }`}
+                        title="Tìm kiếm theo cột"
+                        onClick={(e) => {
+                          e.stopPropagation(); // không trigger sort / drag
+                          setActiveFilterCol((prev) =>
+                            prev === col.key ? null : col.key
+                          );
+                        }}
+                      />
                     </div>
 
                     {activeFilterCol === col.key && (
@@ -644,7 +662,7 @@ export default function DieuVanPage({ user, onLogout }) {
                           <input
                             autoFocus
                             type="text"
-                            placeholder="Lọc..."
+                            placeholder={`Nhập ${col.label}...`}
                             value={columnFilters[col.key] || ""}
                             onChange={(e) =>
                               setColumnFilters({
