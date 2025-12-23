@@ -17,7 +17,9 @@ const {
   forceDeleteSchedule,
   emptyTrash,
   getScheduleFilterOptions,
-  getAllScheduleFilterOptions
+  getAllScheduleFilterOptions,
+  exportTripsByDateRange,
+  exportTripsByDateRangeBS
 } = require("../controllers/scheduleAdminController");
 const authMiddleware = require("../middleware/authMiddleware");
 
@@ -91,5 +93,10 @@ router.post("/add-hoa-don", authMiddleware(["keToan"]), addHoaDonToSchedules);
 router.post("/add-bo-sung", authMiddleware(["keToan"]), addBoSung);
 
 router.put("/warning/:id", authMiddleware(["admin","dieuVan","keToan"]), toggleWarning);
+
+//xuất file excel
+router.post("/export-excel-by-range",  authMiddleware(["admin","dieuVan","keToan"]) ,exportTripsByDateRange);
+router.post("/export-excel-by-range-bs",  authMiddleware(["admin","dieuVan","keToan"]) ,exportTripsByDateRangeBS);
+
 
 module.exports = router;

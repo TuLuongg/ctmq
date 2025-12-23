@@ -2,6 +2,8 @@ const ScheduleAdmin = require("../models/ScheduleAdmin");
 const RideHistory = require("../models/RideHistory");
 const Customer = require("../models/Customer");
 const CustomerDebtPeriod = require("../models/CustomerDebtPeriod");
+const ExcelJS = require("exceljs");
+const path = require("path");
 const mongoose = require("mongoose");
 
 // 🆕 Tạo chuyến mới
@@ -550,7 +552,6 @@ const getSchedulesByDieuVan = async (req, res) => {
   }
 };
 
-
 // 📌 Lấy danh sách chuyến theo kế toán phụ trách
 const getSchedulesByAccountant = async (req, res) => {
   try {
@@ -1000,6 +1001,244 @@ const checkLockedDebtPeriod = async (maKH, ngayGiaoHang) => {
   });
 };
 
+const cleanNumber = (v) => Number(String(v || 0).replace(/[.,]/g, "")) || 0;
+
+const parseVNDate = (dateStr, isEnd = false) => {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  if (isEnd) {
+    return new Date(y, m - 1, d, 23, 59, 59, 999);
+  }
+  return new Date(y, m - 1, d, 0, 0, 0, 0);
+};
+
+const exportTripsByDateRange = async (req, res) => {
+  try {
+    const { from, to, maKHs } = req.body;
+    console.log("EXPORT BODY >>>", req.body);
+
+
+    if (!from || !to) {
+      return res.status(400).json({ message: "Thiếu from hoặc to" });
+    }
+
+    const fromDate = parseVNDate(from);
+    const toDate = parseVNDate(to, true);
+
+    toDate.setHours(23, 59, 59, 999);
+
+    // ======================
+    // QUERY CONDITION
+    // ======================
+    const condition = {
+      ngayGiaoHang: { $gte: fromDate, $lte: toDate },
+    };
+
+    if (Array.isArray(maKHs) && maKHs.length > 0) {
+      condition.khachHang = { $in: maKHs };
+    }
+
+    const trips = await ScheduleAdmin.find(condition)
+      .sort({ ngayGiaoHang: 1 })
+      .lean();
+
+    if (!trips.length) {
+      return res.status(400).json({ message: "Không có dữ liệu" });
+    }
+
+    // ======================
+    // LOAD FORM MẪU
+    // ======================
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(
+      path.join(__dirname, "../templates/DANH_SACH_CHUYEN.xlsx")
+    );
+
+    const sheet = workbook.getWorksheet("Thang 11"); // ⚠️ đúng tên sheet mẫu
+
+    // ======================
+    // SCHEMA
+    // ======================
+    const startRow = 2; // ⚠️ chỉnh theo form
+
+    // ======================
+    // GHI DỮ LIỆU
+    // ======================
+    trips.forEach((trip, index) => {
+      const rowIndex = startRow + index;
+      const row = sheet.getRow(rowIndex);
+
+      row.getCell("A").value = trip.ltState || "";
+      row.getCell("B").value = trip.onlState || "";
+      row.getCell("C").value = trip.offState || "";
+      row.getCell("D").value = trip.tenLaiXe || "";
+      row.getCell("E").value = trip.maKH || "";
+      row.getCell("F").value = trip.khachHang || "";
+      row.getCell("G").value = trip.dienGiai || "";
+
+      // DATE
+      row.getCell("H").value = new Date(trip.ngayBocHang.toISOString().slice(0, 10));
+      row.getCell("I").value = new Date(trip.ngayGiaoHang.toISOString().slice(0, 10));
+
+      row.getCell("J").value = trip.diemDoHang || "";
+      row.getCell("K").value = trip.diemXepHang || "";
+      row.getCell("L").value = trip.soDiem || "";
+      row.getCell("M").value = trip.trongLuong || "";
+      row.getCell("N").value = trip.bienSoXe || "";
+
+      const cuocPhi = cleanNumber(trip.cuocPhi);
+      const bocXep = cleanNumber(trip.bocXep);
+      const ve = cleanNumber(trip.ve);
+      const hangVe = cleanNumber(trip.hangVe);
+      const luuCa = cleanNumber(trip.luuCa);
+      const cpKhac = cleanNumber(trip.luatChiPhiKhac);
+
+      row.getCell("O").value = cuocPhi;
+      row.getCell("Q").value = bocXep;
+      row.getCell("R").value = ve;
+      row.getCell("S").value = hangVe;
+      row.getCell("T").value = luuCa;
+      row.getCell("U").value = cpKhac;
+      row.getCell("V").value = trip.ghiChu || "";
+      row.getCell("W").value = trip.maChuyen || "";
+      row.getCell("X").value = trip.accountUsername || "";
+
+      row.commit();
+    });
+
+    // ======================
+    // RESPONSE
+    // ======================
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=DANH_SACH_CHUYEN_${from}_den_${to}.xlsx`
+    );
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Lỗi xuất Excel" });
+  }
+};
+
+const exportTripsByDateRangeBS = async (req, res) => {
+  try {
+    const { from, to, maKHs } = req.body;
+
+    if (!from || !to) {
+      return res.status(400).json({ message: "Thiếu from hoặc to" });
+    }
+
+    const fromDate = parseVNDate(from);
+    const toDate = parseVNDate(to, true);
+
+    toDate.setHours(23, 59, 59, 999);
+
+    // ======================
+    // QUERY CONDITION
+    // ======================
+    const condition = {
+      ngayGiaoHang: { $gte: fromDate, $lte: toDate },
+    };
+
+    if (Array.isArray(maKHs) && maKHs.length > 0) {
+      condition.khachHang = { $in: maKHs };
+    }
+
+    const trips = await ScheduleAdmin.find(condition)
+      .sort({ ngayGiaoHang: 1 })
+      .lean();
+
+    if (!trips.length) {
+      return res.status(400).json({ message: "Không có dữ liệu" });
+    }
+
+    // ======================
+    // LOAD FORM MẪU
+    // ======================
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(
+      path.join(__dirname, "../templates/DANH_SACH_CHUYEN.xlsx")
+    );
+
+    const sheet = workbook.getWorksheet("Thang 11"); // ⚠️ đúng tên sheet mẫu
+
+    // ======================
+    // SCHEMA
+    // ======================
+    const startRow = 2; // ⚠️ chỉnh theo form
+
+    // ======================
+    // GHI DỮ LIỆU
+    // ======================
+    trips.forEach((trip, index) => {
+      const rowIndex = startRow + index;
+      const row = sheet.getRow(rowIndex);
+
+      row.getCell("A").value = trip.ltState || "";
+      row.getCell("B").value = trip.onlState || "";
+      row.getCell("C").value = trip.offState || "";
+      row.getCell("D").value = trip.tenLaiXe || "";
+      row.getCell("E").value = trip.maKH || "";
+      row.getCell("F").value = trip.khachHang || "";
+      row.getCell("G").value = trip.dienGiai || "";
+
+      // DATE
+      row.getCell("H").value = new Date(trip.ngayBocHang.toISOString().slice(0, 10));
+      row.getCell("I").value = new Date(trip.ngayGiaoHang.toISOString().slice(0, 10));
+
+      row.getCell("J").value = trip.diemDoHang || "";
+      row.getCell("K").value = trip.diemXepHang || "";
+      row.getCell("L").value = trip.soDiem || "";
+      row.getCell("M").value = trip.trongLuong || "";
+      row.getCell("N").value = trip.bienSoXe || "";
+
+      const cuocPhi = cleanNumber(trip.cuocPhiBS);
+      const daThanhToan = cleanNumber(trip.daThanhToan)
+      const bocXep = cleanNumber(trip.bocXepBS);
+      const ve = cleanNumber(trip.veBS);
+      const hangVe = cleanNumber(trip.hangVeBS);
+      const luuCa = cleanNumber(trip.luuCaBS);
+      const cpKhac = cleanNumber(trip.cpKhacBS);
+
+      row.getCell("O").value = cuocPhi;
+      row.getCell("P").value = daThanhToan;
+      row.getCell("Q").value = bocXep;
+      row.getCell("R").value = ve;
+      row.getCell("S").value = hangVe;
+      row.getCell("T").value = luuCa;
+      row.getCell("U").value = cpKhac;
+      row.getCell("V").value = trip.ghiChu || "";
+      row.getCell("W").value = trip.maChuyen || "";
+      row.getCell("X").value = trip.accountUsername || "";
+
+      row.commit();
+    });
+
+    // ======================
+    // RESPONSE
+    // ======================
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=DANH_SACH_CHUYEN_${from}_den_${to}.xlsx`
+    );
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Lỗi xuất Excel" });
+  }
+};
+
 module.exports = {
   createScheduleAdmin,
   updateScheduleAdmin,
@@ -1018,4 +1257,6 @@ module.exports = {
   emptyTrash,
   getScheduleFilterOptions,
   getAllScheduleFilterOptions,
+  exportTripsByDateRange,
+  exportTripsByDateRangeBS
 };

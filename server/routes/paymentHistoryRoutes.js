@@ -13,6 +13,7 @@ const {
   deleteDebtPeriod,
   removeTripFromDebtPeriod,
   addTripToDebtPeriod,
+  getCustomerDebtPeriodsByYear,
 
   // ===== PHIẾU THU CÔNG NỢ =====
   addPaymentReceipt,
@@ -35,6 +36,8 @@ const {
 // Danh sách công nợ theo tháng / năm
 // GET /api/payment/debt?month=11&year=2025
 router.get("/debt", getCustomerDebt);
+router.get("/customer/:customerCode/debt-periods-by-year", getCustomerDebtPeriodsByYear);
+
 
 // Tạo kỳ công nợ
 // POST /api/payment/debt-period

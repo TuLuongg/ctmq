@@ -171,6 +171,106 @@ exports.getCustomerDebt = async (req, res) => {
 };
 
 // =====================================================
+// 📌 LẤY TẤT CẢ KỲ CÔNG NỢ CỦA 1 KHÁCH HÀNG THEO NĂM
+// =====================================================
+exports.getCustomerDebtPeriodsByYear = async (req, res) => {
+  try {
+    const { customerCode } = req.params;
+    const { year } = req.query;
+
+    if (!customerCode) {
+      return res.status(400).json({ error: "Thiếu customerCode" });
+    }
+
+    if (!year || isNaN(year)) {
+      return res.status(400).json({ error: "Thiếu hoặc sai year" });
+    }
+
+    // KH 26 dùng API riêng
+    if (customerCode === "26") {
+      return res.status(400).json({ error: "KH 26 không dùng API này" });
+    }
+
+    const y = Number(year);
+
+    // from 01/01/yyyy → 31/12/yyyy
+    const fromDate = new Date(y, 0, 1);
+    const toDate = new Date(y, 11, 31, 23, 59, 59, 999);
+
+    const periods = await CustomerDebtPeriod.find({
+      customerCode,
+      fromDate: { $lte: toDate },
+      toDate: { $gte: fromDate },
+    }).sort({ fromDate: 1 });
+
+    // Recalc NGẦM giống getCustomerDebt
+    setImmediate(async () => {
+      for (const p of periods) {
+        if (p.isLocked) continue;
+
+        const trips = await ScheduleAdmin.find({
+          debtCode: p.debtCode,
+        });
+
+        const money = calcPeriodMoneyFromTrips(
+          trips,
+          p.vatPercent || 0
+        );
+
+        const changed =
+          p.totalAmountInvoice !== money.totalAmountInvoice ||
+          p.totalAmountCash !== money.totalAmountCash ||
+          p.totalAmount !== money.totalAmount ||
+          p.paidAmount !== money.paidAmount ||
+          p.remainAmount !== money.remainAmount;
+
+        if (changed) {
+          p.totalAmountInvoice = money.totalAmountInvoice;
+          p.totalAmountCash = money.totalAmountCash;
+          p.totalAmount = money.totalAmount;
+          p.paidAmount = money.paidAmount;
+          p.remainAmount = money.remainAmount;
+          p.status = calcStatus(
+            money.totalAmount,
+            money.paidAmount,
+            money.remainAmount
+          );
+
+          await p.save();
+        }
+      }
+    });
+
+    // Trả data cho FE
+    res.json(
+      periods.map((p) => ({
+        debtCode: p.debtCode,
+        customerCode: p.customerCode,
+        manageMonth: p.manageMonth,
+        fromDate: p.fromDate,
+        toDate: p.toDate,
+
+        vatPercent: p.vatPercent || 0,
+        totalAmountInvoice: p.totalAmountInvoice || 0,
+        totalAmountCash: p.totalAmountCash || 0,
+
+        totalAmount: p.totalAmount,
+        paidAmount: p.paidAmount,
+        remainAmount: p.remainAmount,
+
+        status: p.status,
+        isLocked: p.isLocked,
+        note: p.note || "",
+      }))
+    );
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Lỗi lấy kỳ công nợ theo năm" });
+  }
+};
+
+
+// =====================================================
 // 📌 TẠO KỲ CÔNG NỢ (KH CHUNG)
 // =====================================================
 exports.createDebtPeriod = async (req, res) => {
