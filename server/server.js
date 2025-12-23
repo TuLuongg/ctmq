@@ -51,7 +51,9 @@ app.use("/api/epass-turn", require("./routes/epassTurn.routes"));
 app.use("/api/etc", require("./routes/etc.routes"));
 app.use("/api/vehicle-legal", require("./routes/vehicleLegal.routes"));
 app.use("/api/salary", require("./routes/salary.routes"));
-
+app.use("/api/trip-payment-kt", require("./routes/tripPaymentKT.routes"));
+app.use("/api/transportation-contract", require("./routes/transportationContract.routes"));
+app.use("/api/tcb-person", require("./routes/TCBperson.routes"));
 
 app.get('/', (req, res) => {
   res.send('Server hoạt động!');

@@ -81,7 +81,7 @@ router.post("/import-excel", authMiddleware(["admin","dieuVan"]), importSchedule
 // Lấy danh sách chuyến theo kế toán phụ trách
 router.get("/accountant", authMiddleware(["keToan"]), getSchedulesByAccountant);
 
-router.get("/accountant/filter-all", authMiddleware(["keToan"]), getAllScheduleFilterOptions);
+router.get("/accountant/filter-all", authMiddleware(["admin", "dieuVan", "keToan"]), getAllScheduleFilterOptions);
 
 router.get("/accountant/filter-options", authMiddleware(["keToan"]), getScheduleFilterOptions);
 
