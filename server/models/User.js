@@ -18,7 +18,7 @@ const userSchema = new mongoose.Schema(
     // admin có full quyền, các role khác chỉ có quyền trong mảng này
     permissions: {
       type: [String],
-      default: [], // ví dụ: ["edit_driver", "edit_customer", "edit_vehicle", "edit_trip", "edit_trip_full", "edit_voucher", "approve_voucher", "cong_no_26"]
+      default: [], // ví dụ: ["edit_driver", "edit_customer", "edit_vehicle", "edit_trip", "edit_trip_full", "edit_voucher", "approve_voucher", "cong_no_26", "edit_tcb", "edit_contract"]
     },
   },
   { timestamps: true }

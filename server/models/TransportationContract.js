@@ -14,6 +14,7 @@ const TransportationContractSchema = new mongoose.Schema({
   numberPrice: { type: String, default:'' },             //Số báo giá
   daDuyet: { type: String, default:'' },             //Đã duyệt
   ghiChu: { type: String, default:'' },                      // Ghi chú
+  isLocked: {type: Boolean, default: false}
 });
 
 

@@ -52,4 +52,6 @@ router.post(
   transportationContractController.importExcel
 );
 
+router.patch("/:id/toggle-lock", transportationContractController.toggleLockContract);
+
 module.exports = router;

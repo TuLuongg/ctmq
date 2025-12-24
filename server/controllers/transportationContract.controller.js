@@ -87,9 +87,17 @@ exports.remove = async (req, res) => {
 ======================= */
 exports.removeAll = async (req, res) => {
   try {
-    await TransportationContract.deleteMany({});
-    res.json({ success: true });
+    const result = await TransportationContract.deleteMany({
+      isLocked: { $ne: true } // ❌ bỏ qua hợp đồng đã khoá
+    });
+
+    res.json({
+      success: true,
+      deletedCount: result.deletedCount,
+      message: `Đã xoá ${result.deletedCount} hợp đồng (bỏ qua hợp đồng đã khoá)`
+    });
   } catch (err) {
+    console.error("❌ Lỗi xoá tất cả hợp đồng:", err);
     res.status(500).json({ message: err.message });
   }
 };
@@ -176,5 +184,31 @@ exports.importExcel = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: err.message });
+  }
+};
+
+
+// 🔁 Toggle khoá / mở
+exports.toggleLockContract = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const contract = await TransportationContract.findById(id);
+    if (!contract) {
+      return res.status(404).json({ error: "Không tìm thấy hợp đồng" });
+    }
+
+    contract.isLocked = !contract.isLocked;
+    await contract.save();
+
+    res.json({
+      message: contract.isLocked
+        ? "Đã khoá hợp đồng"
+        : "Đã mở khoá hợp đồng",
+      isLocked: contract.isLocked,
+    });
+  } catch (err) {
+    console.error("❌ Lỗi toggle khoá:", err);
+    res.status(500).json({ error: err.message });
   }
 };
