@@ -8,6 +8,7 @@ const TCBpersonSchema = new mongoose.Schema({
   khachHang: { type: String, required: true },              //Tên khách hàng chuyển khoản
   keToan: { type: String, default:'' },                    // Kế toán xác nhận
   ghiChu: { type: String, default:'' },                      // Ghi chú
+  maChuyen: { type: String, default:'' },                      //Mã chuyến
 });
 
 

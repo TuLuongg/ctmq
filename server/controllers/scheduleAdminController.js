@@ -12,7 +12,7 @@ const createScheduleAdmin = async (req, res) => {
     const { dieuVan, dieuVanID, ngayGiaoHang, ...data } = req.body;
     const user = req.user;
 
-    if (!user || !["admin", "dieuVan"].includes(user.role)) {
+    if (!user || !["admin", "dieuVan", "keToan"].includes(user.role)) {
       return res.status(403).json({ error: "Không có quyền tạo chuyến" });
     }
 

@@ -26,7 +26,7 @@ const authMiddleware = require("../middleware/authMiddleware");
 const rideEditRequestController = require("../controllers/rideEditRequestController");
 
 // 🧭 Route cấu hình đầy đủ quyền
-router.post("/", authMiddleware(["admin", "dieuVan"]), createScheduleAdmin);
+router.post("/", authMiddleware(["admin", "dieuVan", "keToan"]), createScheduleAdmin);
 router.get("/all", authMiddleware(["admin", "dieuVan", "keToan"]), getAllSchedulesAdmin);
 router.put("/:id", authMiddleware(["admin", "dieuVan", "keToan"]), updateScheduleAdmin);
 

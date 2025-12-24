@@ -51,19 +51,24 @@ router.get("/:id", getVehicle);
 router.post(
   "/",
   upload.fields([
-    { name: "registrationImage", maxCount: 1 },
-    { name: "inspectionImage", maxCount: 1 },
+    { name: "registrationImage", maxCount: 5 }, // nhận tối đa 10 ảnh
+    { name: "inspectionImage", maxCount: 5 },
   ]),
   async (req, res, next) => {
     try {
       const files = req.files || {};
 
-      // Upload từng file lên Cloudinary
-      if (files.registrationImage?.[0]) {
-        req.body.registrationImage = await uploadToCloudinary(files.registrationImage[0].buffer);
+      // Upload từng file lên Cloudinary và tạo mảng URL
+      if (files.registrationImage?.length) {
+        req.body.registrationImage = await Promise.all(
+          files.registrationImage.map(f => uploadToCloudinary(f.buffer))
+        );
       }
-      if (files.inspectionImage?.[0]) {
-        req.body.inspectionImage = await uploadToCloudinary(files.inspectionImage[0].buffer);
+
+      if (files.inspectionImage?.length) {
+        req.body.inspectionImage = await Promise.all(
+          files.inspectionImage.map(f => uploadToCloudinary(f.buffer))
+        );
       }
 
       next();
@@ -77,18 +82,23 @@ router.post(
 router.put(
   "/:id",
   upload.fields([
-    { name: "registrationImage", maxCount: 1 },
-    { name: "inspectionImage", maxCount: 1 },
+    { name: "registrationImage", maxCount: 5 },
+    { name: "inspectionImage", maxCount: 5 },
   ]),
   async (req, res, next) => {
     try {
       const files = req.files || {};
 
-      if (files.registrationImage?.[0]) {
-        req.body.registrationImage = await uploadToCloudinary(files.registrationImage[0].buffer);
+      if (files.registrationImage?.length) {
+        req.body.registrationImage = await Promise.all(
+          files.registrationImage.map(f => uploadToCloudinary(f.buffer))
+        );
       }
-      if (files.inspectionImage?.[0]) {
-        req.body.inspectionImage = await uploadToCloudinary(files.inspectionImage[0].buffer);
+
+      if (files.inspectionImage?.length) {
+        req.body.inspectionImage = await Promise.all(
+          files.inspectionImage.map(f => uploadToCloudinary(f.buffer))
+        );
       }
 
       next();
@@ -98,6 +108,7 @@ router.put(
   },
   updateVehicle
 );
+
 
 router.delete("/all", deleteAllVehicles);
 router.delete("/:id", deleteVehicle);

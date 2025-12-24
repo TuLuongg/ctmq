@@ -26,7 +26,7 @@ const parseNumber = (val) => {
 // ===================
 exports.create = async (req, res) => {
   try {
-    const { timePay, noiDungCK, soTien, soDu, khachHang, keToan, ghiChu } =
+    const { timePay, noiDungCK, soTien, soDu, khachHang, keToan, ghiChu, maChuyen } =
       req.body;
     const newItem = new TCBperson({
       timePay: parseExcelDate(timePay),
@@ -36,6 +36,7 @@ exports.create = async (req, res) => {
       khachHang,
       keToan,
       ghiChu,
+      maChuyen
     });
     await newItem.save();
     res.json({ success: true, data: newItem });
@@ -51,7 +52,7 @@ exports.create = async (req, res) => {
 exports.update = async (req, res) => {
   try {
     const { id } = req.params;
-    const { timePay, noiDungCK, soTien, soDu, khachHang, keToan, ghiChu } =
+    const { timePay, noiDungCK, soTien, soDu, khachHang, keToan, ghiChu, maChuyen } =
       req.body;
     const updated = await TCBperson.findByIdAndUpdate(
       id,
@@ -63,6 +64,7 @@ exports.update = async (req, res) => {
         khachHang,
         keToan,
         ghiChu,
+        maChuyen
       },
       { new: true }
     );
@@ -135,19 +137,74 @@ exports.getAccountants = async (req, res) => {
 // ===================
 exports.getAll = async (req, res) => {
   try {
-    const { khachHang = [], keToan = [], from, to, page = 1 } = req.body;
+    const {
+      // ===== ARRAY (GIỮ NGUYÊN) =====
+      khachHang = [],
+      keToan = [],
+
+      // ===== STRING (LỌC ĐƠN) =====
+      noiDungCK,
+      ghiChu,
+      maChuyen,
+
+      // ===== NUMBER (LỌC ĐƠN) =====
+      soTien,
+      soDu,
+
+      // ===== DATE RANGE =====
+      from,
+      to,
+
+      // ===== PAGINATION =====
+      page = 1,
+    } = req.body;
+
     const filter = {};
 
-    if (khachHang.length) filter.khachHang = { $in: khachHang };
-    if (keToan.length) filter.keToan = { $in: keToan };
-    if (from || to) filter.timePay = {};
-    if (from) filter.timePay.$gte = new Date(from);
-    if (to) filter.timePay.$lte = new Date(to);
+    // ---------- ARRAY ----------
+    if (khachHang.length) {
+      filter.khachHang = { $in: khachHang };
+    }
 
-    const pageSize = 100; // 100 dòng 1 trang
+    if (keToan.length) {
+      filter.keToan = { $in: keToan };
+    }
+
+    // ---------- STRING (đơn) ----------
+    if (noiDungCK) {
+      filter.noiDungCK = { $regex: noiDungCK, $options: "i" };
+    }
+
+    if (ghiChu) {
+      filter.ghiChu = { $regex: ghiChu, $options: "i" };
+    }
+
+    if (maChuyen) {
+      filter.maChuyen = { $regex: maChuyen, $options: "i" };
+    }
+
+    // ---------- NUMBER (đơn) ----------
+    if (soTien !== undefined && soTien !== "") {
+      filter.soTien = Number(soTien);
+    }
+
+    if (soDu !== undefined && soDu !== "") {
+      filter.soDu = Number(soDu);
+    }
+
+    // ---------- DATE ----------
+    if (from || to) {
+      filter.timePay = {};
+      if (from) filter.timePay.$gte = new Date(from);
+      if (to) filter.timePay.$lte = new Date(to);
+    }
+
+    // ---------- PAGINATION ----------
+    const pageSize = 100;
     const skip = (page - 1) * pageSize;
 
-    const total = await TCBperson.countDocuments(filter); // tổng số dòng
+    const total = await TCBperson.countDocuments(filter);
+
     const data = await TCBperson.find(filter)
       .sort({ timePay: 1 })
       .skip(skip)
@@ -166,6 +223,7 @@ exports.getAll = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
 
 // ===================
 // Import Excel
@@ -190,6 +248,7 @@ exports.importExcel = async (req, res) => {
       const khachHang = row.getCell(6)?.value?.toString().trim() || "";
       const keToan = row.getCell(7)?.value?.toString().trim() || "";
       const ghiChu = row.getCell(8)?.value?.toString().trim() || "";
+      const maChuyen = row.getCell(9)?.value?.toString().trim() || "";
 
       if (!khachHang || !noiDungCK) continue; // bắt buộc có khách hàng và nội dung
       bulk.push({
@@ -200,6 +259,7 @@ exports.importExcel = async (req, res) => {
         khachHang,
         keToan,
         ghiChu,
+        maChuyen
       });
     }
 
