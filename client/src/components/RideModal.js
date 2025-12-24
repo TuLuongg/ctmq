@@ -44,33 +44,45 @@ export default function RideModal({
     if (!num) return "";
     const number = parseInt(num.toString().replace(/\D/g, ""), 10);
     if (isNaN(number)) return "";
-    const ChuSo = ["không","một","hai","ba","bốn","năm","sáu","bảy","tám","chín"];
-    const DonVi = ["","nghìn","triệu","tỷ"];
-    
-    const readTriple = (n) => {
-      let tram = Math.floor(n/100);
-      let chuc = Math.floor((n%100)/10);
-      let donvi = n%10;
-      let s = "";
-      if(tram>0) s += ChuSo[tram]+" trăm ";
-      if(chuc>1) s += ChuSo[chuc]+" mươi ";
-      if(chuc===1) s += "mười ";
-      if(chuc!==0 && donvi===1) s += "mốt ";
-      else if(donvi===5 && chuc!==0) s += "lăm ";
-      else if(donvi!==0) s += ChuSo[donvi]+" ";
-      return s.trim();
-    }
+    const ChuSo = [
+      "không",
+      "một",
+      "hai",
+      "ba",
+      "bốn",
+      "năm",
+      "sáu",
+      "bảy",
+      "tám",
+      "chín",
+    ];
+    const DonVi = ["", "nghìn", "triệu", "tỷ"];
 
-    let i=0, text="";
+    const readTriple = (n) => {
+      let tram = Math.floor(n / 100);
+      let chuc = Math.floor((n % 100) / 10);
+      let donvi = n % 10;
+      let s = "";
+      if (tram > 0) s += ChuSo[tram] + " trăm ";
+      if (chuc > 1) s += ChuSo[chuc] + " mươi ";
+      if (chuc === 1) s += "mười ";
+      if (chuc !== 0 && donvi === 1) s += "mốt ";
+      else if (donvi === 5 && chuc !== 0) s += "lăm ";
+      else if (donvi !== 0) s += ChuSo[donvi] + " ";
+      return s.trim();
+    };
+
+    let i = 0,
+      text = "";
     let tempNumber = number;
-    while(tempNumber>0){
+    while (tempNumber > 0) {
       let n = tempNumber % 1000;
-      if(n!==0) text = readTriple(n)+" "+DonVi[i]+" "+text;
-      tempNumber = Math.floor(tempNumber/1000);
+      if (n !== 0) text = readTriple(n) + " " + DonVi[i] + " " + text;
+      tempNumber = Math.floor(tempNumber / 1000);
       i++;
     }
 
-    return text.trim()+" VNĐ";
+    return text.trim() + " VNĐ";
   };
 
   const removeVietnameseTones = (str) => {
@@ -116,21 +128,24 @@ export default function RideModal({
     }
 
     if (name === "khachHang") {
-      setForm(prev => ({ ...prev, khachHang: value }));
+      setForm((prev) => ({ ...prev, khachHang: value }));
 
-      const filtered = customers.filter(c =>
+      const filtered = customers.filter((c) =>
         removeVietnameseTones(c.tenKhachHang || c.name).includes(
           removeVietnameseTones(value)
         )
       );
       setCustomerSuggestions(filtered);
 
-      const matched = customers.find(c =>
-        removeVietnameseTones(c.tenKhachHang || c.name) === removeVietnameseTones(value)
+      const matched = customers.find(
+        (c) =>
+          removeVietnameseTones(c.tenKhachHang || c.name) ===
+          removeVietnameseTones(value)
       );
       if (matched) {
-        setForm(prev => ({
+        setForm((prev) => ({
           ...prev,
+          maKH: matched.code,
           keToanPhuTrach: matched.accountant || "",
           accountUsername: matched.accUsername || "",
         }));
@@ -213,11 +228,21 @@ export default function RideModal({
   };
 
   const fields = [
-    { name: "bienSoXe", label: "Biển số xe", type: "text", list: "vehicleList" },
-    { name: "khachHang", label: "Khách hàng", type: "text", list: "customerList" },
-    { name: "ngayBocHang", label: "Ngày đóng hàng", type: "text"},
+    {
+      name: "bienSoXe",
+      label: "Biển số xe",
+      type: "text",
+      list: "vehicleList",
+    },
+    {
+      name: "khachHang",
+      label: "Khách hàng",
+      type: "text",
+      list: "customerList",
+    },
+    { name: "ngayBocHang", label: "Ngày đóng hàng", type: "text" },
     { name: "dienGiai", label: "Diễn giải", type: "text" },
-    { name: "ngayGiaoHang", label: "Ngày giao hàng", type: "text"},
+    { name: "ngayGiaoHang", label: "Ngày giao hàng", type: "text" },
     { name: "diemXepHang", label: "Điểm đóng hàng", type: "text" },
     { name: "soDiem", label: "Số điểm", type: "text" },
     { name: "diemDoHang", label: "Điểm giao hàng", type: "text" },
@@ -258,10 +283,12 @@ export default function RideModal({
           </div>
 
           {fields.map((f) => (
-            <div key={f.name}>
-              <label className="block text-sm font-medium mb-1">{f.label}</label>
+            <div key={f.name} className="relative">
+              <label className="block text-sm font-medium mb-1">
+                {f.label}
+              </label>
 
-              {(f.name === "ngayBocHang" || f.name === "ngayGiaoHang") ? (
+              {f.name === "ngayBocHang" || f.name === "ngayGiaoHang" ? (
                 <DatePicker
                   locale="vi"
                   selected={form[f.name] ? parseISODate(form[f.name]) : null}
@@ -269,10 +296,12 @@ export default function RideModal({
                     setForm((prev) => ({
                       ...prev,
                       [f.name]: date
-                        ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+                        ? `${date.getFullYear()}-${String(
+                            date.getMonth() + 1
+                          ).padStart(2, "0")}-${String(date.getDate()).padStart(
                             2,
                             "0"
-                          )}-${String(date.getDate()).padStart(2, "0")}`
+                          )}`
                         : "",
                     }))
                   }
@@ -284,47 +313,59 @@ export default function RideModal({
                 <input
                   type={f.type}
                   name={f.name}
-                  value={moneyFields.includes(f.name) ? formatMoney(form[f.name]) : form[f.name] || ""}
+                  value={
+                    moneyFields.includes(f.name)
+                      ? formatMoney(form[f.name])
+                      : form[f.name] || ""
+                  }
                   onChange={handleChange}
                   list={f.list}
                   className={`border p-2 w-full rounded ${f.className || ""}`}
-                  {...(f.name === "khachHang" ? {
-                    onFocus: () => setIsCustomerFocused(true),
-                    onBlur: () => setTimeout(() => setIsCustomerFocused(false), 150)
-                  } : {})}
+                  {...(f.name === "khachHang"
+                    ? {
+                        onFocus: () => setIsCustomerFocused(true),
+                        onBlur: () =>
+                          setTimeout(() => setIsCustomerFocused(false), 150),
+                      }
+                    : {})}
                 />
               )}
 
               {f.name === "bienSoXe" && (
                 <datalist id="vehicleList">
-                  {drivers.filter(d => d.bsx).map(d => (
-                    <option key={d._id} value={d.bsx} />
-                  ))}
+                  {drivers
+                    .filter((d) => d.bsx)
+                    .map((d) => (
+                      <option key={d._id} value={d.bsx} />
+                    ))}
                 </datalist>
               )}
 
-              {f.name === "khachHang" && isCustomerFocused && customerSuggestions.length > 0 && (
-                <ul className="absolute z-10 bg-white border max-h-40 overflow-y-auto mt-1 rounded shadow">
-                  {customerSuggestions.map(c => (
-                    <li
-                      key={c._id}
-                      className="p-2 cursor-pointer hover:bg-gray-200"
-                      onMouseDown={() => {
-                        setForm(prev => ({
-                          ...prev,
-                          khachHang: c.tenKhachHang || c.name,
-                          keToanPhuTrach: c.accountant || "",
-                          accountUsername: c.accUsername || "",
-                        }));
-                        setCustomerSuggestions([]);
-                      }}
-                    >
-                      {c.tenKhachHang || c.name}
-                    </li>
-                  ))}
-                </ul>
-              )}
-
+              {f.name === "khachHang" &&
+                isCustomerFocused &&
+                customerSuggestions.length > 0 && (
+                  <ul className="absolute z-50 bg-white border w-full max-h-40 overflow-y-auto mt-1 rounded shadow">
+                    {customerSuggestions.map((c) => (
+                      <li
+                        key={c._id}
+                        className="p-2 cursor-pointer hover:bg-gray-200"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          setForm((prev) => ({
+                            ...prev,
+                            khachHang: c.tenKhachHang || c.name,
+                            maKH: c.code,
+                            keToanPhuTrach: c.accountant || "",
+                            accountUsername: c.accUsername || "",
+                          }));
+                          setCustomerSuggestions([]);
+                        }}
+                      >
+                        {c.tenKhachHang || c.name}
+                      </li>
+                    ))}
+                  </ul>
+                )}
             </div>
           ))}
 
@@ -349,7 +390,9 @@ export default function RideModal({
             </div>
 
             <div className="flex flex-col">
-              <label className="block text-sm font-medium mb-1">Chi phí phụ</label>
+              <label className="block text-sm font-medium mb-1">
+                Chi phí phụ
+              </label>
               <div className="flex flex-wrap items-center gap-6">
                 {[
                   ["bocXep", "Bốc xếp"],
@@ -359,7 +402,10 @@ export default function RideModal({
                   ["luatChiPhiKhac", "Chi phí khác"],
                   ["laiXeThuCuoc", "Lái xe thu cước"],
                 ].map(([key, label]) => (
-                  <label key={key} className="flex items-center gap-2 cursor-pointer">
+                  <label
+                    key={key}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
                     <input
                       type="checkbox"
                       checked={checkedFees[key]}
@@ -381,23 +427,39 @@ export default function RideModal({
 
           {/* Chi phí phụ hiển thị riêng */}
           <div className="col-span-2 flex items-center gap-4 mt-3">
-            {Object.entries(checkedFees).map(([key]) => checkedFees[key] && (
-              <div key={key} className={`flex flex-col ${key === "luatChiPhiKhac" ? "w-40" : "w-32"}`}>
-                <label className="text-xs mb-1">{key === "bocXep" ? "Bốc xếp" :
-                  key === "hangVe" ? "Hàng về" :
-                  key === "ve" ? "Vé" :
-                  key === "luuCa" ? "Lưu ca" :
-                  key === "luatChiPhiKhac" ? "Chi phí khác" : "Lái xe thu cước"}</label>
-                <input
-                  type="text"
-                  name={key}
-                  value={formatMoney(form[key])}
-                  onChange={handleChange}
-                  className="border p-2 rounded"
-                  placeholder="0"
-                />
-              </div>
-            ))}
+            {Object.entries(checkedFees).map(
+              ([key]) =>
+                checkedFees[key] && (
+                  <div
+                    key={key}
+                    className={`flex flex-col ${
+                      key === "luatChiPhiKhac" ? "w-40" : "w-32"
+                    }`}
+                  >
+                    <label className="text-xs mb-1">
+                      {key === "bocXep"
+                        ? "Bốc xếp"
+                        : key === "hangVe"
+                        ? "Hàng về"
+                        : key === "ve"
+                        ? "Vé"
+                        : key === "luuCa"
+                        ? "Lưu ca"
+                        : key === "luatChiPhiKhac"
+                        ? "Chi phí khác"
+                        : "Lái xe thu cước"}
+                    </label>
+                    <input
+                      type="text"
+                      name={key}
+                      value={formatMoney(form[key])}
+                      onChange={handleChange}
+                      className="border p-2 rounded"
+                      placeholder="0"
+                    />
+                  </div>
+                )
+            )}
           </div>
 
           {/* Ghi chú */}
@@ -430,7 +492,6 @@ export default function RideModal({
               Lưu
             </button>
           </div>
-
         </form>
       </div>
     </div>

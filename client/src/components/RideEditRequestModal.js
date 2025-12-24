@@ -104,6 +104,7 @@ export default function RideEditRequestModal({
         setForm(prev => ({
           ...prev,
           khachHang: value,
+          maKH: matched.code,
           keToanPhuTrach: matched.accountant || "",
           accountUsername: matched.accUsername || "",
         }));

@@ -24,6 +24,7 @@ const normalize = (s = "") =>
 
 const mainColumns = [
   { key: "dieuVan", label: "ĐIỀU VẬN PHỤ TRÁCH" },
+  { key: "maKH", label: "MÃ KH" },
   { key: "khachHang", label: "KHÁCH HÀNG" },
   { key: "dienGiai", label: "DIỄN GIẢI" },
   { key: "diemXepHang", label: "ĐIỂM ĐÓNG HÀNG" },
@@ -81,6 +82,8 @@ export default function DieuVanPage({ user, onLogout }) {
   const [drivers, setDrivers] = useState([]);
   const [customers, setCustomers] = useState([]);
   //const [vehicles, setVehicles] = useState([]);
+
+  console.log(customers)
 
   // 🔹 Lấy danh sách gợi ý
   useEffect(() => {

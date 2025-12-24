@@ -47,27 +47,44 @@ export default function TripListModal({
   const handleAddTrip = async () => {
     if (!addTripCode || !debtCode) return;
 
+    // ✅ tách danh sách mã chuyến
+    const codes = addTripCode
+      .split(/[\s,]+/) // space, xuống dòng, dấu phẩy
+      .map((c) => c.trim().toUpperCase())
+      .filter(Boolean);
+
+    if (codes.length === 0) return;
+
     setAdding(true);
+
+    const errors = [];
+
     try {
-      await axios.post(
-        `${API}/payment-history/debt-period/${debtCode}/add-trip`,
-        { maChuyen: addTripCode },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      for (const code of codes) {
+        try {
+          await axios.post(
+            `${API}/payment-history/debt-period/${debtCode}/add-trip`,
+            { maChuyen: code },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+        } catch (err) {
+          console.error("❌ Lỗi thêm chuyến:", code, err);
+          errors.push(code);
+        }
+      }
 
       setAddTripCode("");
       await loadTrips();
-    } catch (err) {
-      console.error(err);
-      alert(err?.response?.data?.error || "Không thêm được chuyến");
+
+      if (errors.length > 0) {
+        alert(`Một số chuyến không thêm được:\n${errors.join(", ")}`);
+      }
     } finally {
       setAdding(false);
     }
   };
 
   const handleRemoveTrip = async (maChuyen) => {
-    if (!window.confirm("Xoá chuyến này khỏi kỳ công nợ?")) return;
-
     try {
       await axios.delete(
         `${API}/payment-history/debt-period/${debtCode}/remove-trip/${maChuyen}`,
@@ -121,6 +138,35 @@ export default function TripListModal({
     }
   };
 
+  const bulkUpdatePaymentType = async (type) => {
+    // 🔥 optimistic update UI
+    setTrips((prev) =>
+      prev.map((t) => ({
+        ...t,
+        paymentType: type,
+      }))
+    );
+
+    try {
+      // gọi từng chuyến (an toàn, dễ debug)
+      await Promise.all(
+        trips.map((t) =>
+          axios.patch(
+            `${API}/payment-history/trip/${t.maChuyen}/toggle-payment-type`,
+            { paymentType: type },
+            { headers: { Authorization: `Bearer ${token}` } }
+          )
+        )
+      );
+    } catch (err) {
+      console.error("Bulk update paymentType lỗi", err);
+      alert("Có lỗi khi cập nhật hàng loạt");
+
+      // ❌ reload lại cho chắc
+      await loadTrips();
+    }
+  };
+
   const handleClose = async () => {
     try {
       // 🔥 reload lại bảng công nợ / chuyến ở page cha
@@ -147,9 +193,10 @@ export default function TripListModal({
           <input
             value={addTripCode}
             onChange={(e) => setAddTripCode(e.target.value)}
-            placeholder="Nhập mã chuyến cần thêm"
-            className="border px-2 py-1 rounded w-[200px]"
+            placeholder="Nhập nhiều mã chuyến, cách nhau bằng dấu phẩy"
+            className="border px-2 py-1 rounded w-[350px]"
           />
+
           <button
             onClick={handleAddTrip}
             disabled={adding}
@@ -188,8 +235,30 @@ export default function TripListModal({
                   <th className="p-2 border">Biển số xe</th>
                   <th className="p-2 border">Mã chuyến</th>
                   <th className="p-2 border">Tổng tiền</th>
-                  <th className="p-2 border text-center">Hoá đơn</th>
-                  <th className="p-2 border text-center">Tiền mặt</th>
+                  <th className="p-2 border text-center">
+                    <input
+                      type="checkbox"
+                      checked={
+                        trips.length > 0 &&
+                        trips.every((t) => t.paymentType === "INVOICE")
+                      }
+                      onChange={() => bulkUpdatePaymentType("INVOICE")}
+                    />
+                    <div>Hoá đơn</div>
+                  </th>
+
+                  <th className="p-2 border text-center">
+                    <input
+                      type="checkbox"
+                      checked={
+                        trips.length > 0 &&
+                        trips.every((t) => t.paymentType === "CASH")
+                      }
+                      onChange={() => bulkUpdatePaymentType("CASH")}
+                    />
+                    <div>Tiền mặt</div>
+                  </th>
+
                   <th className="p-2 border">Đã thanh toán</th>
                   <th className="p-2 border">Còn lại</th>
                   <th className="p-2 border">Trạng thái</th>

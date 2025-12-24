@@ -128,6 +128,7 @@ export default function CustomerDebtPage() {
           trangThai,
           soChuyen: Number(debt?.soChuyen || 0),
           isLocked: debt?.isLocked,
+          note: debt?.note
         };
       });
 
@@ -513,6 +514,9 @@ export default function CustomerDebtPage() {
               <th className="border p-2 sticky top-0 bg-gray-200 z-20">
                 SỐ CHUYẾN
               </th>
+              <th className="border p-2 sticky top-0 bg-gray-200 z-20">
+                GHI CHÚ
+              </th>
               <th className="border p-2 sticky top-0 bg-gray-200 z-20 w-[180px]">
                 HÀNH ĐỘNG
               </th>
@@ -608,6 +612,7 @@ export default function CustomerDebtPage() {
                   </div>
                 </td>
                 <td className="border p-2">{c.soChuyen}</td>
+                <td className="border p-2">{c.note}</td>
                 <td className="border p-2 flex gap-1 justify-center">
                   {c.debtCode && (
                     <>
