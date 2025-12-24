@@ -81,9 +81,7 @@ export default function DieuVanPage({ user, onLogout }) {
   // 🔹 3 danh sách gợi ý
   const [drivers, setDrivers] = useState([]);
   const [customers, setCustomers] = useState([]);
-  //const [vehicles, setVehicles] = useState([]);
-
-  console.log(customers)
+  const [vehicles, setVehicles] = useState([]);
 
   // 🔹 Lấy danh sách gợi ý
   useEffect(() => {
@@ -95,7 +93,7 @@ export default function DieuVanPage({ user, onLogout }) {
       ]);
       setDrivers(driverRes.data);
       setCustomers(customerRes.data);
-      //setVehicles(vehicleRes.data);
+      setVehicles(vehicleRes.data);
     };
     fetchData();
   }, []);
@@ -1568,7 +1566,7 @@ export default function DieuVanPage({ user, onLogout }) {
           currentUser={currentUser}
           drivers={drivers}
           customers={customers}
-          //vehicles={vehicles}
+          vehicles={vehicles}
         />
       )}
 
@@ -1591,7 +1589,7 @@ export default function DieuVanPage({ user, onLogout }) {
           dieuVanList={managers}
           drivers={drivers}
           customers={customers}
-          //vehicles={vehicles}
+          vehicles={vehicles}
           onClose={() => {
             setShowEditRequestModal(false);
             setEditRequestRide(null);

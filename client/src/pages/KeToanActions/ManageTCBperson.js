@@ -31,11 +31,14 @@ export const allColumns = [
   { key: "khachHang", label: "TÊN KHÁCH HÀNG CK" },
   { key: "keToan", label: "KẾ TOÁN PHỤ TRÁCH" },
   { key: "ghiChu", label: "GHI CHÚ" },
+  { key: "maChuyen", label: "MÃ CHUYẾN" },
 ];
 
 const prefKey = (userId) => `tcb_table_prefs_${userId || "guest"}`;
 
 export default function ManageTCBperson() {
+  const filterPopupRef = useRef(null);
+
   const navigate = useNavigate();
   const location = useLocation();
   const fileInputRef = useRef(null);
@@ -75,7 +78,7 @@ export default function ManageTCBperson() {
     );
   };
 
-    const isActive = (path) => location.pathname === path;
+  const isActive = (path) => location.pathname === path;
   // 👉 Hàm chuyển sang trang quản lý lái xe
   const handleGoToDrivers = () => {
     navigate("/manage-driver", { state: { user } });
@@ -117,6 +120,34 @@ export default function ManageTCBperson() {
     navigate("/tcb-person", { state: { user } });
   };
 
+  const [customerList, setCustomerList] = useState([]);
+  const [accountantList, setAccountantList] = useState([]);
+
+  const [selectedCustomers, setSelectedCustomers] = useState([]);
+  const [selectedAccountants, setSelectedAccountants] = useState([]);
+  useEffect(() => {
+    axios.get(`${apiTCB}/customers`).then((res) => {
+      setCustomerList(res.data.data || []);
+    });
+
+    axios.get(`${apiTCB}/accountants`).then((res) => {
+      setAccountantList(res.data.data || []);
+    });
+  }, []);
+
+  // ===== column filters =====
+  const [colFilters, setColFilters] = useState({
+    noiDungCK: "",
+    ghiChu: "",
+    maChuyen: "",
+  });
+  const [moneyFilter, setMoneyFilter] = useState({
+    soTien: "",
+    soDu: "",
+  });
+  const [searchKH, setSearchKH] = useState("");
+  const [searchKT, setSearchKT] = useState("");
+
   // ----------------- fetch data -----------------
   const [page, setPage] = useState(1); // trang hiện tại
   const [totalPages, setTotalPages] = useState(1);
@@ -125,9 +156,15 @@ export default function ManageTCBperson() {
   const fetchData = async (p = 1) => {
     try {
       const body = {
-        khachHang: qKH ? [qKH] : undefined,
+        khachHang: selectedCustomers,
+        keToan: selectedAccountants,
         from: from || undefined,
         to: to || undefined,
+        noiDungCK: colFilters.noiDungCK || undefined,
+        ghiChu: colFilters.ghiChu || undefined,
+        maChuyen: colFilters.maChuyen || undefined,
+        soTien: moneyFilter.soTien || undefined,
+        soDu: moneyFilter.soDu || undefined,
         page: p, // gửi page lên server
       };
       const res = await axios.post(`${apiTCB}/all`, body, {
@@ -148,7 +185,14 @@ export default function ManageTCBperson() {
 
   useEffect(() => {
     fetchData();
-  }, [from, to, qKH]);
+  }, [
+    from,
+    to,
+    colFilters,
+    moneyFilter,
+    selectedAccountants,
+    selectedCustomers,
+  ]);
 
   const goToPage = (p) => {
     if (p < 1 || p > totalPages) return;
@@ -338,9 +382,22 @@ export default function ManageTCBperson() {
     );
   };
 
+  const [showColFilter, setShowColFilter] = useState(null);
+  const [filterPos, setFilterPos] = useState({ top: 0, left: 0 });
+  const filterRef = useRef(null);
+  useEffect(() => {
+    const handler = (e) => {
+      if (filterRef.current && !filterRef.current.contains(e.target)) {
+        setShowColFilter(null);
+      }
+    };
+    window.addEventListener("mousedown", handler);
+    return () => window.removeEventListener("mousedown", handler);
+  }, []);
+
   return (
     <div className="p-4 bg-gray-50 min-h-screen text-xs">
-              <div className="flex gap-2 items-center mb-4">
+      <div className="flex gap-2 items-center mb-4">
         <button
           onClick={() => navigate("/ke-toan")}
           className="px-3 py-1 rounded text-white bg-blue-500"
@@ -470,6 +527,10 @@ export default function ManageTCBperson() {
             setQKH("");
             setFrom("");
             setTo("");
+            setMoneyFilter({ soTien: "", soDu: "" });
+            setColFilters({ noiDungCK: "", ghiChu: "", maChuyen: "" });
+            setSelectedAccountants([]);
+            setSelectedCustomers([]);
             fetchData();
           }}
           className="bg-gray-200 px-3 py-1 rounded"
@@ -513,15 +574,17 @@ export default function ManageTCBperson() {
             borderSpacing: 0,
           }}
         >
-          <thead className="bg-gray-200 sticky top-0">
+          <thead className="bg-gray-200 sticky top-0 z-40">
+            {/* ================= HEADER ================= */}
             <tr>
               <th
-                className="border p-1 sticky left-0 bg-gray-200 z-50"
+                className="border p-1 left-0 bg-gray-200 z-50"
                 style={{ width: 40 }}
               >
                 STT
               </th>
-              {visibleColumns.map((cKey, idx) => {
+
+              {visibleColumns.map((cKey) => {
                 const colMeta = allColumns.find((c) => c.key === cKey) || {
                   label: cKey,
                 };
@@ -532,13 +595,10 @@ export default function ManageTCBperson() {
                       maxWidth: columnWidths[cKey],
                     }
                   : {};
+
                 return (
                   <th
                     key={cKey}
-                    draggable
-                    onDragStart={(e) => onDragStart(e, cKey)}
-                    onDragOver={onDragOver}
-                    onDrop={(e) => onDrop(e, cKey)}
                     className="border p-1 relative text-center select-none"
                     style={{
                       position: "sticky",
@@ -547,7 +607,29 @@ export default function ManageTCBperson() {
                       ...widthStyle,
                     }}
                   >
-                    <div className="truncate p-1">{colMeta.label}</div>
+                    <div
+                      draggable
+                      onDragStart={(e) => onDragStart(e, cKey)}
+                      onDragOver={onDragOver}
+                      onDrop={(e) => onDrop(e, cKey)}
+                      className="truncate p-1 cursor-move"
+                    >
+                      <span
+                        className="cursor-pointer select-none"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const rect = e.target.getBoundingClientRect();
+                          setFilterPos({
+                            top: rect.bottom + window.scrollY,
+                            left: rect.left + window.scrollX,
+                          });
+                          setShowColFilter((p) => (p === cKey ? null : cKey));
+                        }}
+                      >
+                        {colMeta.label}
+                      </span>
+                    </div>
+
                     {/* Resize handle */}
                     <div
                       onMouseDown={(e) => {
@@ -569,6 +651,7 @@ export default function ManageTCBperson() {
                   </th>
                 );
               })}
+
               <th className="border p-1 sticky top-0 bg-gray-200">Hành động</th>
             </tr>
           </thead>
@@ -589,11 +672,21 @@ export default function ManageTCBperson() {
                 key={v._id}
                 className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
               >
-                <td className="border p-1 text-center left-0 sticky bg-gray-50">
+                <td className="border p-1 text-center left-0 bg-gray-50">
                   {idx + 1}
                 </td>
                 {visibleColumns.map((cKey) => (
-                  <td key={cKey} className="border p-1">
+                  <td
+                    key={cKey}
+                    className="border p-1"
+                    style={{
+                      width: columnWidths[cKey],
+                      maxWidth: columnWidths[cKey],
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
                     {["timePay"].includes(cKey)
                       ? formatDate(v[cKey])
                       : ["soTien", "soDu"].includes(cKey)
@@ -630,6 +723,7 @@ export default function ManageTCBperson() {
           }}
           onSave={handleSave}
           apiBase={apiTCB}
+          reload={fetchData}
         />
       )}
 
@@ -664,6 +758,188 @@ export default function ManageTCBperson() {
           Xóa tất cả
         </button>
       </div>
+      {showColFilter && (
+        <div
+          ref={filterRef}
+          className="fixed z-[9999] w-64 bg-white border rounded shadow p-2 text-xs"
+          style={{
+            top: filterPos.top,
+            left: filterPos.left,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* ===== KHÁCH HÀNG ===== */}
+          {showColFilter === "khachHang" && (
+            <>
+              {/* 🔍 input tìm */}
+              <input
+                className="w-full border px-1 py-0.5 mb-1"
+                placeholder="Tìm khách hàng..."
+                value={searchKH}
+                onChange={(e) => setSearchKH(e.target.value)}
+              />
+
+              {/* ✅ chọn tất cả */}
+              <button
+                className="mb-1 w-full bg-gray-200 hover:bg-gray-300 rounded py-0.5"
+                onClick={() => {
+                  const filtered = customerList.filter((c) =>
+                    c.toLowerCase().includes(searchKH.toLowerCase())
+                  );
+                  const allChecked = filtered.every((c) =>
+                    selectedCustomers.includes(c)
+                  );
+
+                  setSelectedCustomers(
+                    (prev) =>
+                      allChecked
+                        ? prev.filter((x) => !filtered.includes(x)) // bỏ chọn
+                        : Array.from(new Set([...prev, ...filtered])) // chọn
+                  );
+                }}
+              >
+                {customerList
+                  .filter((c) =>
+                    c.toLowerCase().includes(searchKH.toLowerCase())
+                  )
+                  .every((c) => selectedCustomers.includes(c))
+                  ? "Bỏ chọn tất cả"
+                  : "Chọn tất cả"}
+              </button>
+
+              <div className="max-h-40 overflow-auto">
+                {customerList
+                  .filter((c) =>
+                    c.toLowerCase().includes(searchKH.toLowerCase())
+                  )
+                  .map((c) => (
+                    <label key={c} className="flex items-center gap-1 mb-1">
+                      <input
+                        type="checkbox"
+                        checked={selectedCustomers.includes(c)}
+                        onChange={(e) =>
+                          setSelectedCustomers((p) =>
+                            e.target.checked
+                              ? [...p, c]
+                              : p.filter((x) => x !== c)
+                          )
+                        }
+                      />
+                      <span>{c}</span>
+                    </label>
+                  ))}
+              </div>
+            </>
+          )}
+
+          {/* ===== KẾ TOÁN ===== */}
+          {showColFilter === "keToan" && (
+            <>
+              {/* 🔍 input tìm */}
+              <input
+                className="w-full border px-1 py-0.5 mb-1"
+                placeholder="Tìm kế toán..."
+                value={searchKT}
+                onChange={(e) => setSearchKT(e.target.value)}
+              />
+
+              {/* ✅ chọn tất cả */}
+              <button
+                className="mb-1 w-full bg-gray-200 hover:bg-gray-300 rounded py-0.5"
+                onClick={() => {
+                  const filtered = accountantList.filter((a) =>
+                    a.toLowerCase().includes(searchKT.toLowerCase())
+                  );
+                  const allChecked = filtered.every((a) =>
+                    selectedAccountants.includes(a)
+                  );
+
+                  setSelectedAccountants((prev) =>
+                    allChecked
+                      ? prev.filter((x) => !filtered.includes(x))
+                      : Array.from(new Set([...prev, ...filtered]))
+                  );
+                }}
+              >
+                {accountantList
+                  .filter((a) =>
+                    a.toLowerCase().includes(searchKT.toLowerCase())
+                  )
+                  .every((a) => selectedAccountants.includes(a))
+                  ? "Bỏ chọn tất cả"
+                  : "Chọn tất cả"}
+              </button>
+
+              <div className="max-h-40 overflow-auto">
+                {accountantList
+                  .filter((a) =>
+                    a.toLowerCase().includes(searchKT.toLowerCase())
+                  )
+                  .map((a) => (
+                    <label key={a} className="flex items-center gap-1 mb-1">
+                      <input
+                        type="checkbox"
+                        checked={selectedAccountants.includes(a)}
+                        onChange={(e) =>
+                          setSelectedAccountants((p) =>
+                            e.target.checked
+                              ? [...p, a]
+                              : p.filter((x) => x !== a)
+                          )
+                        }
+                      />
+                      <span>{a}</span>
+                    </label>
+                  ))}
+              </div>
+            </>
+          )}
+
+          {/* ===== TEXT FILTER ===== */}
+          {["noiDungCK", "ghiChu", "maChuyen"].includes(showColFilter) && (
+            <>
+              <input
+                autoFocus
+                className="w-full border px-1 py-0.5"
+                placeholder="Nhập để lọc..."
+                value={colFilters[showColFilter] || ""}
+                onChange={(e) =>
+                  setColFilters((p) => ({
+                    ...p,
+                    [showColFilter]: e.target.value,
+                  }))
+                }
+              />
+            </>
+          )}
+          {["soTien", "soDu"].includes(showColFilter) && (
+            <>
+              <input
+                type="number"
+                className="w-full border px-1 py-0.5"
+                placeholder="Nhập số tiền"
+                value={moneyFilter[showColFilter] || ""}
+                onChange={(e) =>
+                  setMoneyFilter((p) => ({
+                    ...p,
+                    [showColFilter]: e.target.value,
+                  }))
+                }
+              />
+            </>
+          )}
+
+          <button
+            onClick={() => {
+              fetchData(1);
+              setShowColFilter(null);
+            }}
+            className="mt-2 w-full bg-blue-600 text-white py-1 rounded"
+          >
+            Áp dụng
+          </button>
+        </div>
+      )}
     </div>
   );
 }

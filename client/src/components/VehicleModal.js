@@ -2,6 +2,16 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import API from "../api";
 
+const formatDateForInput = (date) => {
+  if (!date) return "";
+  const d = new Date(date);
+  if (isNaN(d)) return "";
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const year = d.getFullYear();
+  return `${year}-${month}-${day}`;
+};
+
 export default function VehicleModal({
   initialData = null,
   onClose,
@@ -20,14 +30,15 @@ export default function VehicleModal({
     resExpDay: "",
     insDay: "",
     insExpDay: "",
+    dayTravel: "",
+    note: "",
   });
 
-  const [registrationImage, setRegistrationImage] = useState(null);
-  const [inspectionImage, setInspectionImage] = useState(null);
-  const [previewReg, setPreviewReg] = useState("");
-  const [previewInsp, setPreviewInsp] = useState("");
+  const [registrationImages, setRegistrationImages] = useState([]); // mảng
+  const [inspectionImages, setInspectionImages] = useState([]); // mảng
+  const [previewReg, setPreviewReg] = useState([]);
+  const [previewInsp, setPreviewInsp] = useState([]);
 
-  // ⬇ Load dữ liệu khi sửa
   useEffect(() => {
     if (initialData) {
       setForm({
@@ -38,14 +49,16 @@ export default function VehicleModal({
         width: initialData.width || "",
         height: initialData.height || "",
         norm: initialData.norm || "",
-        resDay: initialData.resDay || "",
-        resExpDay: initialData.resExpDay || "",
-        insDay: initialData.insDay || "",
-        insExpDay: initialData.insExpDay || "",
+        resDay: formatDateForInput(initialData.resDay),
+        resExpDay: formatDateForInput(initialData.resExpDay),
+        insDay: formatDateForInput(initialData.insDay),
+        insExpDay: formatDateForInput(initialData.insExpDay),
+        dayTravel: formatDateForInput(initialData.dayTravel),
+        note: initialData.note || "",
       });
 
-      setPreviewReg(initialData.registrationImage || "");
-      setPreviewInsp(initialData.inspectionImage || "");
+      setPreviewReg(initialData.registrationImage || []);
+      setPreviewInsp(initialData.inspectionImage || []);
     } else {
       setForm({
         plateNumber: "",
@@ -59,12 +72,13 @@ export default function VehicleModal({
         resExpDay: "",
         insDay: "",
         insExpDay: "",
+        dayTravel: "",
+        note: "",
       });
-
-      setPreviewReg("");
-      setPreviewInsp("");
-      setRegistrationImage(null);
-      setInspectionImage(null);
+      setPreviewReg([]);
+      setPreviewInsp([]);
+      setRegistrationImages([]);
+      setInspectionImages([]);
     }
   }, [initialData]);
 
@@ -73,18 +87,17 @@ export default function VehicleModal({
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleFile = (e, type) => {
-    const file = e.target.files[0];
+  const handleFiles = (e, type) => {
+    const files = Array.from(e.target.files);
     if (type === "registration") {
-      setRegistrationImage(file);
-      if (file) setPreviewReg(URL.createObjectURL(file));
+      setRegistrationImages(files);
+      setPreviewReg(files.map((f) => URL.createObjectURL(f)));
     } else {
-      setInspectionImage(file);
-      if (file) setPreviewInsp(URL.createObjectURL(file));
+      setInspectionImages(files);
+      setPreviewInsp(files.map((f) => URL.createObjectURL(f)));
     }
   };
 
-  // ⬇ Submit
   const submit = async (e) => {
     e.preventDefault();
 
@@ -95,14 +108,15 @@ export default function VehicleModal({
     const formData = new FormData();
     Object.keys(form).forEach((key) => formData.append(key, form[key] || ""));
 
-    if (registrationImage)
-      formData.append("registrationImage", registrationImage);
-    if (inspectionImage)
-      formData.append("inspectionImage", inspectionImage);
+    registrationImages.forEach((file) =>
+      formData.append("registrationImage", file)
+    );
+    inspectionImages.forEach((file) =>
+      formData.append("inspectionImage", file)
+    );
 
     try {
       let res;
-
       if (initialData?._id) {
         res = await axios.put(`${apiBase}/${initialData._id}`, formData, {
           headers: { "Content-Type": "multipart/form-data" },
@@ -114,9 +128,8 @@ export default function VehicleModal({
       }
 
       const savedData = res.data;
-
-      setPreviewReg(savedData.registrationImage || "");
-      setPreviewInsp(savedData.inspectionImage || "");
+      setPreviewReg(savedData.registrationImage || []);
+      setPreviewInsp(savedData.inspectionImage || []);
 
       onSave(savedData);
       onClose();
@@ -212,21 +225,59 @@ export default function VehicleModal({
             />
           </div>
 
-          {/* Ảnh đăng ký */}
+          {/* ===== Ảnh đăng ký xe ===== */}
           <div className="col-span-2">
-            <label className="block text-sm font-medium">Ảnh đăng ký xe</label>
+            <label className="block text-sm font-medium mb-1">
+              Ảnh đăng ký xe
+            </label>
+            <button
+              type="button"
+              className="bg-blue-500 text-white px-3 py-1 rounded mb-2"
+              onClick={() => document.getElementById("regInput").click()}
+            >
+              Thêm ảnh
+            </button>
             <input
               type="file"
+              id="regInput"
               accept="image/*"
-              onChange={(e) => handleFile(e, "registration")}
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                const files = Array.from(e.target.files);
+                setRegistrationImages((prev) => [...prev, ...files]);
+                setPreviewReg((prev) => [
+                  ...prev,
+                  ...files.map((f) => URL.createObjectURL(f)),
+                ]);
+              }}
             />
-            {previewReg && (
-              <img
-                src={previewReg}
-                alt="Đăng ký"
-                className="mt-2 max-h-40 rounded shadow-sm"
-              />
-            )}
+            <div className="flex flex-wrap gap-2 mt-2">
+              {previewReg.map((url, idx) => (
+                <div key={idx} className="relative">
+                  <img
+                    src={url}
+                    alt={`Đăng ký ${idx}`}
+                    className="max-h-40 rounded shadow-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newFiles = registrationImages.filter(
+                        (_, i) => i !== idx
+                      );
+                      setRegistrationImages(newFiles);
+                      setPreviewReg(
+                        newFiles.map((f) => URL.createObjectURL(f))
+                      );
+                    }}
+                    className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Ngày đăng ký */}
@@ -255,21 +306,59 @@ export default function VehicleModal({
             />
           </div>
 
-          {/* Ảnh đăng kiểm */}
+          {/* ===== Ảnh đăng kiểm xe ===== */}
           <div className="col-span-2">
-            <label className="block text-sm font-medium">Ảnh đăng kiểm xe</label>
+            <label className="block text-sm font-medium mb-1">
+              Ảnh đăng kiểm xe
+            </label>
+            <button
+              type="button"
+              className="bg-blue-500 text-white px-3 py-1 rounded mb-2"
+              onClick={() => document.getElementById("inspInput").click()}
+            >
+              Thêm ảnh
+            </button>
             <input
               type="file"
+              id="inspInput"
               accept="image/*"
-              onChange={(e) => handleFile(e, "inspection")}
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                const files = Array.from(e.target.files);
+                setInspectionImages((prev) => [...prev, ...files]);
+                setPreviewInsp((prev) => [
+                  ...prev,
+                  ...files.map((f) => URL.createObjectURL(f)),
+                ]);
+              }}
             />
-            {previewInsp && (
-              <img
-                src={previewInsp}
-                alt="Đăng kiểm"
-                className="mt-2 max-h-40 rounded shadow-sm"
-              />
-            )}
+            <div className="flex flex-wrap gap-2 mt-2">
+              {previewInsp.map((url, idx) => (
+                <div key={idx} className="relative">
+                  <img
+                    src={url}
+                    alt={`Đăng kiểm ${idx}`}
+                    className="max-h-40 rounded shadow-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newFiles = inspectionImages.filter(
+                        (_, i) => i !== idx
+                      );
+                      setInspectionImages(newFiles);
+                      setPreviewInsp(
+                        newFiles.map((f) => URL.createObjectURL(f))
+                      );
+                    }}
+                    className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Ngày đăng kiểm */}
@@ -297,8 +386,32 @@ export default function VehicleModal({
               className="border p-2 w-full rounded"
             />
           </div>
+          {/* Ngày giấy đi đường */}
+          <div>
+            <label className="block text-sm font-medium">
+              Ngày giấy đi đường
+            </label>
+            <input
+              type="date"
+              name="dayTravel"
+              value={form.dayTravel}
+              onChange={handleChange}
+              className="border p-2 w-full rounded"
+            />
+          </div>
 
-          <div className="col-span-2 flex justify-end gap-3 mt-4">
+          {/* Ghi chú */}
+          <div className="col-span-2">
+            <label className="block text-sm font-medium">Ghi chú</label>
+            <textarea
+              name="note"
+              value={form.note}
+              onChange={handleChange}
+              className="border p-2 w-full rounded"
+            />
+          </div>
+
+          <div className="col-span-2 flex justify-end gap-3 mt-4" >
             <button
               type="button"
               onClick={onClose}

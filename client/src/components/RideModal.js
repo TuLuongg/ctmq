@@ -13,6 +13,7 @@ export default function RideModal({
   currentUser,
   drivers = [],
   customers = [],
+  vehicles = [],
 }) {
   const [form, setForm] = useState(initialData || {});
   const [checkedFees, setCheckedFees] = useState({
@@ -25,6 +26,12 @@ export default function RideModal({
 
   const [customerSuggestions, setCustomerSuggestions] = useState([]);
   const [isCustomerFocused, setIsCustomerFocused] = useState(false);
+
+  const [driverSuggestions, setDriverSuggestions] = useState([]);
+  const [isDriverFocused, setIsDriverFocused] = useState(false);
+
+  const [vehicleSuggestions, setVehicleSuggestions] = useState([]);
+  const [isVehicleFocused, setIsVehicleFocused] = useState(false);
 
   const moneyFields = [
     "cuocPhi",
@@ -121,12 +128,14 @@ export default function RideModal({
   const handleChange = (e) => {
     const { name, value } = e.target;
 
+    // ===== TIỀN =====
     if (moneyFields.includes(name)) {
       const raw = value.replace(/\./g, "");
       setForm((prev) => ({ ...prev, [name]: raw }));
       return;
     }
 
+    // ===== KHÁCH HÀNG =====
     if (name === "khachHang") {
       setForm((prev) => ({ ...prev, khachHang: value }));
 
@@ -153,32 +162,34 @@ export default function RideModal({
       return;
     }
 
-    if (name === "bienSoXe") {
-      const matchedDriver = drivers.find(
-        (d) => d.bsx && d.bsx.toLowerCase() === value.toLowerCase()
+    // ===== LÁI XE =====
+    if (name === "tenLaiXe") {
+      setForm((prev) => ({ ...prev, tenLaiXe: value }));
+
+      const filtered = drivers.filter((d) =>
+        removeVietnameseTones(d.name).includes(removeVietnameseTones(value))
       );
-      if (matchedDriver) {
-        setForm((prev) => ({
-          ...prev,
-          bienSoXe: value,
-          tenLaiXe: matchedDriver.name || matchedDriver.tenLaiXe || "",
-        }));
-      } else {
-        setForm((prev) => ({ ...prev, bienSoXe: value, tenLaiXe: "" }));
-      }
+      setDriverSuggestions(filtered);
       return;
     }
 
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
+    // ===== BIỂN SỐ XE =====
+    if (name === "bienSoXe") {
+      setForm((prev) => ({ ...prev, bienSoXe: value }));
 
-  const handleDieuVanChange = (e) => {
-    const selectedId = e.target.value;
-    const selected = dieuVanList.find((d) => d._id === selectedId);
+      const filtered = vehicles.filter((v) =>
+        removeVietnameseTones(v.plateNumber).includes(
+          removeVietnameseTones(value)
+        )
+      );
+      setVehicleSuggestions(filtered);
+      return;
+    }
+
+    // ===== DEFAULT – CÁC FIELD CÒN LẠI =====
     setForm((prev) => ({
       ...prev,
-      dieuVanID: selected?._id || "",
-      dieuVan: selected?.fullname || selected?.username || "",
+      [name]: value,
     }));
   };
 
@@ -263,23 +274,42 @@ export default function RideModal({
         </h2>
 
         <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Điều vận phụ trách
-            </label>
-            <select
-              name="dieuVanID"
-              value={form.dieuVanID || ""}
-              onChange={handleDieuVanChange}
+          <div className="relative">
+            <label className="block text-sm font-medium mb-1">Tên lái xe</label>
+            <input
+              type="text"
+              name="tenLaiXe"
+              value={form.tenLaiXe || ""}
+              onChange={handleChange}
+              onFocus={() => setIsDriverFocused(true)}
+              onBlur={() => setTimeout(() => setIsDriverFocused(false), 150)}
               className="border p-2 w-full rounded"
-            >
-              <option value="">-- Chọn điều vận --</option>
-              {dieuVanList.map((d) => (
-                <option key={d._id} value={d._id}>
-                  {d.fullname || d.username}
-                </option>
-              ))}
-            </select>
+              placeholder="Nhập tên lái xe"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+
+            {isDriverFocused && driverSuggestions.length > 0 && (
+              <ul className="absolute z-50 bg-white border w-full max-h-40 overflow-y-auto mt-1 rounded shadow">
+                {driverSuggestions.map((d) => (
+                  <li
+                    key={d._id}
+                    className="p-2 cursor-pointer hover:bg-gray-200"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      setForm((prev) => ({
+                        ...prev,
+                        tenLaiXe: d.name,
+                      }));
+                      setDriverSuggestions([]);
+                    }}
+                  >
+                    {d.name}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           {fields.map((f) => (
@@ -288,6 +318,7 @@ export default function RideModal({
                 {f.label}
               </label>
 
+              {/* ===== DATE ===== */}
               {f.name === "ngayBocHang" || f.name === "ngayGiaoHang" ? (
                 <DatePicker
                   locale="vi"
@@ -307,9 +338,49 @@ export default function RideModal({
                   }
                   dateFormat="dd/MM/yyyy"
                   className="border p-2 w-full rounded"
-                  popperPlacement="right-start"
                 />
+              ) : f.name === "bienSoXe" ? (
+                /* ===== BIỂN SỐ XE ===== */
+                <>
+                  <input
+                    type="text"
+                    name="bienSoXe"
+                    value={form.bienSoXe || ""}
+                    onChange={handleChange}
+                    onFocus={() => setIsVehicleFocused(true)}
+                    onBlur={() =>
+                      setTimeout(() => setIsVehicleFocused(false), 150)
+                    }
+                    className="border p-2 w-full rounded"
+                    placeholder="Nhập biển số xe"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
+                  />
+
+                  {isVehicleFocused && vehicleSuggestions.length > 0 && (
+                    <ul className="absolute z-50 bg-white border w-full max-h-40 overflow-y-auto mt-1 rounded shadow">
+                      {vehicleSuggestions.map((v) => (
+                        <li
+                          key={v._id}
+                          className="p-2 cursor-pointer hover:bg-gray-200"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            setForm((prev) => ({
+                              ...prev,
+                              bienSoXe: v.plateNumber,
+                            }));
+                            setVehicleSuggestions([]);
+                          }}
+                        >
+                          {v.plateNumber}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
               ) : (
+                /* ===== CÁC FIELD KHÁC ===== */
                 <input
                   type={f.type}
                   name={f.name}
@@ -319,28 +390,19 @@ export default function RideModal({
                       : form[f.name] || ""
                   }
                   onChange={handleChange}
-                  list={f.list}
                   className={`border p-2 w-full rounded ${f.className || ""}`}
                   {...(f.name === "khachHang"
                     ? {
                         onFocus: () => setIsCustomerFocused(true),
                         onBlur: () =>
                           setTimeout(() => setIsCustomerFocused(false), 150),
+                        autoComplete: "off", 
                       }
                     : {})}
                 />
               )}
 
-              {f.name === "bienSoXe" && (
-                <datalist id="vehicleList">
-                  {drivers
-                    .filter((d) => d.bsx)
-                    .map((d) => (
-                      <option key={d._id} value={d.bsx} />
-                    ))}
-                </datalist>
-              )}
-
+              {/* ===== KHÁCH HÀNG ===== */}
               {f.name === "khachHang" &&
                 isCustomerFocused &&
                 customerSuggestions.length > 0 && (

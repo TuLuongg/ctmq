@@ -5,6 +5,7 @@ import { FaEdit, FaHistory, FaExclamationTriangle } from "react-icons/fa";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+import RideModal from "../../components/RideModal";
 import RideEditModal from "../../components/RideEditModal";
 import RideRequestListModal from "../../components/RideRequestListModal";
 import RideHistoryModal from "../../components/RideHistoryModal";
@@ -111,6 +112,26 @@ export default function ManageTrip({ user, onLogout }) {
   const handleGoToTCB = () => {
     navigate("/tcb-person", { state: { user } });
   };
+
+  // 🔹 3 danh sách gợi ý
+  const [drivers, setDrivers] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
+
+  // 🔹 Lấy danh sách gợi ý
+  useEffect(() => {
+    const fetchData = async () => {
+      const [driverRes, customerRes, vehicleRes] = await Promise.all([
+        axios.get(`${API}/drivers/names/list`),
+        axios.get(`${API}/customers`),
+        axios.get(`${API}/vehicles/names/list`),
+      ]);
+      setDrivers(driverRes.data);
+      setCustomers(customerRes.data);
+      setVehicles(vehicleRes.data);
+    };
+    fetchData();
+  }, []);
 
   // -------------------------------------
   // CÁC CỘT CHÍNH + MỞ RỘNG → GỘP 1 LIST
@@ -267,7 +288,6 @@ export default function ManageTrip({ user, onLogout }) {
         const res = await axios.get(`${API}/vehicles/names/list`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        console.log("DANH SÁCH XE:", res.data);
         setVehicleList(res.data || []);
       } catch (err) {
         console.error("Lỗi tải danh sách xe", err);
@@ -493,10 +513,10 @@ export default function ManageTrip({ user, onLogout }) {
         from: giaoFrom,
         to: giaoTo,
         maKHs:
-        Array.isArray(excelOptions?.khachHang) &&
-        excelOptions.khachHang.length > 0
-          ? excelOptions.khachHang
-          : undefined,
+          Array.isArray(excelOptions?.khachHang) &&
+          excelOptions.khachHang.length > 0
+            ? excelOptions.khachHang
+            : undefined,
       };
 
       const res = await axios.post(
@@ -531,10 +551,10 @@ export default function ManageTrip({ user, onLogout }) {
         from: giaoFrom,
         to: giaoTo,
         maKHs:
-        Array.isArray(excelOptions?.khachHang) &&
-        excelOptions.khachHang.length > 0
-          ? excelOptions.khachHang
-          : undefined,
+          Array.isArray(excelOptions?.khachHang) &&
+          excelOptions.khachHang.length > 0
+            ? excelOptions.khachHang
+            : undefined,
       };
 
       const res = await axios.post(
@@ -567,63 +587,63 @@ export default function ManageTrip({ user, onLogout }) {
   const [loadedCount, setLoadedCount] = useState(0);
   const [remainingCount, setRemainingCount] = useState(0);
 
-const handleSelectExcel = async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
+  const handleSelectExcel = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-  setLoadingFile(true);
-  setShowFileStatus(false);
-  setLoadedCount(0);
-  setRemainingCount(0);
+    setLoadingFile(true);
+    setShowFileStatus(false);
+    setLoadedCount(0);
+    setRemainingCount(0);
 
-  const data = await file.arrayBuffer();
-  const workbook = XLSX.read(data);
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const raw = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+    const data = await file.arrayBuffer();
+    const workbook = XLSX.read(data);
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const raw = XLSX.utils.sheet_to_json(sheet, { defval: "" });
 
-  const updates = [];
+    const updates = [];
 
-  for (let i = 0; i < raw.length; i++) {
-    const row = raw[i];
-    // Kiểm tra row có dữ liệu thật sự không
-    const hasData = Object.values(row).some(
-      (val) => val !== null && val !== undefined && val.toString().trim() !== ""
-    );
-    if (!hasData) continue; // bỏ qua dòng trống
+    for (let i = 0; i < raw.length; i++) {
+      const row = raw[i];
+      // Kiểm tra row có dữ liệu thật sự không
+      const hasData = Object.values(row).some(
+        (val) =>
+          val !== null && val !== undefined && val.toString().trim() !== ""
+      );
+      if (!hasData) continue; // bỏ qua dòng trống
 
-    const obj = {};
-    for (let k in row) {
-      const cleanKey = k.trim().toUpperCase().replace(/\s+/g, " ");
-      obj[cleanKey] = row[k];
+      const obj = {};
+      for (let k in row) {
+        const cleanKey = k.trim().toUpperCase().replace(/\s+/g, " ");
+        obj[cleanKey] = row[k];
+      }
+
+      const r = {
+        maChuyen: obj["MÃ CHUYẾN"] || obj["MA CHUYEN"] || "",
+        ltState: (obj["LT"] ?? "").toString(),
+        onlState: (obj["ONL"] ?? "").toString(),
+        offState: (obj["OFF"] ?? "").toString(),
+        cuocPhiBS: (obj["CƯỚC PHÍ"] ?? obj["CUOC PHI"] ?? "0").toString(),
+        daThanhToan: (obj["ĐÃ THANH TOÁN"] ?? "0").toString(),
+        bocXepBS: (obj["BỐC XẾP"] ?? "0").toString(),
+        veBS: (obj["VÉ"] ?? "0").toString(),
+        hangVeBS: (obj["HÀNG VỀ"] ?? "0").toString(),
+        luuCaBS: (obj["LƯU CA"] ?? "0").toString(),
+        cpKhacBS: (obj["CP KHÁC"] ?? "0").toString(),
+        themDiem: (obj["THÊM ĐIỂM"] ?? "").toString(),
+      };
+
+      // Chỉ push nếu có mã chuyến
+      if (r.maChuyen) updates.push(r);
     }
 
-    const r = {
-      maChuyen: obj["MÃ CHUYẾN"] || obj["MA CHUYEN"] || "",
-      ltState: (obj["LT"] ?? "").toString(),
-      onlState: (obj["ONL"] ?? "").toString(),
-      offState: (obj["OFF"] ?? "").toString(),
-      cuocPhiBS: (obj["CƯỚC PHÍ"] ?? obj["CUOC PHI"] ?? "0").toString(),
-      daThanhToan: (obj["ĐÃ THANH TOÁN"] ?? "0").toString(),
-      bocXepBS: (obj["BỐC XẾP"] ?? "0").toString(),
-      veBS: (obj["VÉ"] ?? "0").toString(),
-      hangVeBS: (obj["HÀNG VỀ"] ?? "0").toString(),
-      luuCaBS: (obj["LƯU CA"] ?? "0").toString(),
-      cpKhacBS: (obj["CP KHÁC"] ?? "0").toString(),
-      themDiem: (obj["THÊM ĐIỂM"] ?? "").toString(),
-    };
-
-    // Chỉ push nếu có mã chuyến
-    if (r.maChuyen) updates.push(r);
-  }
-
-  // Cập nhật state 1 lần duy nhất sau khi duyệt hết
-  setExcelData(updates);
-  setLoadedCount(updates.length);
-  setRemainingCount(0);
-  setLoadingFile(false);
-  setShowFileStatus(true);
-};
-
+    // Cập nhật state 1 lần duy nhất sau khi duyệt hết
+    setExcelData(updates);
+    setLoadedCount(updates.length);
+    setRemainingCount(0);
+    setLoadingFile(false);
+    setShowFileStatus(true);
+  };
 
   const handleAddCuocPhiBoSung = async () => {
     if (!excelData.length) return alert("Vui lòng chọn file Excel trước!");
@@ -947,6 +967,30 @@ const handleSelectExcel = async (e) => {
     return allColumns.find((c) => c.key === key)?.label || key;
   };
 
+  const [showModal, setShowModal] = useState(false);
+  const handleAdd = () => {
+    setShowModal(true);
+  };
+  const handleSave = async (payload) => {
+    try {
+      // chỉ POST, không check editRide
+      const res = await axios.post(API_URL, payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      // thêm vào state
+      setRides((prev) => [...prev, res.data]);
+
+      // nếu cần fetch lại danh sách
+      fetchAllRides();
+      alert("Thêm chuyến thành công !")
+      // đóng modal
+      setShowModal(false);
+    } catch (err) {
+      alert("Không lưu được: " + err.response?.data?.error);
+    }
+  };
+
   // ---------- Render ----------
   return (
     <div className="p-4 bg-gray-50 min-h-screen text-xs">
@@ -1033,7 +1077,7 @@ const handleSelectExcel = async (e) => {
         >
           Sổ phiếu chi
         </button>
-                <button
+        <button
           onClick={handleGoToContract}
           className={`px-3 py-1 rounded text-white ${
             isActive("/contract") ? "bg-green-600" : "bg-blue-500"
@@ -1228,14 +1272,9 @@ const handleSelectExcel = async (e) => {
                           const dangHien = g.keys.every(
                             (k) => !prev.includes(k)
                           );
-
-                          // đang hiện → ẩn cả cụm
-                          if (dangHien) {
-                            return [...new Set([...prev, ...g.keys])];
-                          }
-
-                          // đang ẩn → hiện cả cụm
-                          return prev.filter((k) => !g.keys.includes(k));
+                          return dangHien
+                            ? [...new Set([...prev, ...g.keys])]
+                            : prev.filter((k) => !g.keys.includes(k));
                         });
                       }}
                     />
@@ -1268,28 +1307,37 @@ const handleSelectExcel = async (e) => {
           )}
         </div>
 
-        {/* BÊN PHẢI: Xóa lọc sát mép phải */}
-        <button
-          onClick={() => {
-            setFilters(
-              Object.fromEntries(filterFields.map((f) => [f.key, ""]))
-            );
-            setExcelSelected({
-              khachHang: [],
-              tenLaiXe: [],
-              bienSoXe: [],
-              dienGiai: [],
-              cuocPhi: [],
-            });
-            setGiaoFrom("");
-            setGiaoTo("");
-            setMoneyFilter("");
-            setPage(1);
-          }}
-          className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded shadow"
-        >
-          Xóa lọc
-        </button>
+        {/* BÊN PHẢI: + Thêm & Xóa lọc */}
+        <div className="flex gap-2">
+          <button
+            onClick={handleAdd}
+            className="bg-blue-500 text-white px-3 py-1 rounded"
+          >
+            + Thêm chuyến
+          </button>
+
+          <button
+            onClick={() => {
+              setFilters(
+                Object.fromEntries(filterFields.map((f) => [f.key, ""]))
+              );
+              setExcelSelected({
+                khachHang: [],
+                tenLaiXe: [],
+                bienSoXe: [],
+                dienGiai: [],
+                cuocPhi: [],
+              });
+              setGiaoFrom("");
+              setGiaoTo("");
+              setMoneyFilter("");
+              setPage(1);
+            }}
+            className="px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded shadow"
+          >
+            Xóa lọc
+          </button>
+        </div>
       </div>
 
       {/* BẢNG */}
@@ -2423,6 +2471,23 @@ const handleSelectExcel = async (e) => {
             ride={historyRide}
             historyData={rideHistory}
             onClose={() => setShowHistoryModal(false)}
+          />
+        </div>
+      )}
+
+      {/* Modal thêm/sửa chuyến */}
+      {showModal && (
+        <div className="fixed z-[99999]">
+          <RideModal
+            key="new"
+            initialData={[]}
+            onClose={() => setShowModal(false)}
+            onSave={handleSave}
+            dieuVanList={[]}
+            currentUser={currentUser}
+            drivers={drivers}
+            customers={customers}
+            vehicles={vehicles}
           />
         </div>
       )}

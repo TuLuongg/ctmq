@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 
-export default function TCBModal({ initialData, onClose, onSave, apiBase }) {
+export default function TCBModal({ initialData, onClose, onSave, apiBase, reload }) {
   const [formData, setFormData] = useState({
     timePay: "",
     noiDungCK: "",
@@ -10,6 +10,7 @@ export default function TCBModal({ initialData, onClose, onSave, apiBase }) {
     khachHang: "",
     keToan: "",
     ghiChu: "",
+    maChuyen: ""
   });
   const [loading, setLoading] = useState(false);
 
@@ -25,6 +26,7 @@ export default function TCBModal({ initialData, onClose, onSave, apiBase }) {
         khachHang: initialData.khachHang || "",
         keToan: initialData.keToan || "",
         ghiChu: initialData.ghiChu || "",
+        maChuyen: initialData.maChuyen || "",
       });
     }
   }, [initialData]);
@@ -61,6 +63,7 @@ export default function TCBModal({ initialData, onClose, onSave, apiBase }) {
       }
 
       onSave(res.data);
+      reload()
       onClose();
     } catch (err) {
       console.error(err);
@@ -152,6 +155,17 @@ export default function TCBModal({ initialData, onClose, onSave, apiBase }) {
               type="text"
               name="ghiChu"
               value={formData.ghiChu}
+              onChange={handleChange}
+              className="border p-1 w-full rounded"
+            />
+          </label>
+
+          <label>
+            Mã chuyến
+            <input
+              type="text"
+              name="maChuyen"
+              value={formData.maChuyen}
               onChange={handleChange}
               className="border p-1 w-full rounded"
             />

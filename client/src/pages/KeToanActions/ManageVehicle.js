@@ -24,6 +24,8 @@ export const allColumns = [
   { key: "inspectionImage", label: "Ảnh đăng kiểm" },
   { key: "insDay", label: "Ngày đăng kiểm" },
   { key: "insExpDay", label: "Ngày hết hạn đăng kiểm" },
+  { key: "dayTravel", label: "Giấy đi đường" },
+  { key: "ghiChu", label: "Ghi chú" },
 ];
 
 // helper để dựng key trong localStorage
@@ -71,7 +73,7 @@ export default function ManageVehicle() {
   const handleGoToVouchers = () =>
     navigate("/voucher-list", { state: { user } });
 
-    const handleGoToContract = () => {
+  const handleGoToContract = () => {
     navigate("/contract", { state: { user } });
   };
 
@@ -288,48 +290,69 @@ export default function ManageVehicle() {
   };
 
   // ---------- helpers ----------
-const formatCellValue = (cKey, value) => {
-  if (!value && value !== 0) return "";
+  const formatCellValue = (cKey, value) => {
+    if (!value && value !== 0) return "";
 
-  // giữ nguyên phần hình ảnh
-  if (cKey === "registrationImage" || cKey === "inspectionImage") {
-    return value;
-  }
+    // giữ nguyên phần hình ảnh
+    if (cKey === "registrationImage" || cKey === "inspectionImage") {
+      return value;
+    }
 
-  // các cột liên quan tới ngày
-  const dateFields = ["resDay", "resExpDay", "insDay", "insExpDay"];
+    // các cột liên quan tới ngày
+    const dateFields = [
+      "resDay",
+      "resExpDay",
+      "insDay",
+      "insExpDay",
+      "dayTravel",
+    ];
 
-  if (dateFields.includes(cKey)) {
-    const d = new Date(value);
-    if (isNaN(d)) return value;
+    if (dateFields.includes(cKey)) {
+      const d = new Date(value);
+      if (isNaN(d)) return value;
 
-    const formatted = d.toLocaleDateString("vi-VN");
+      const formatted = d.toLocaleDateString("vi-VN");
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
-    // chỉ 2 cột hết hạn mới đổi màu
-    const isExpField = cKey === "resExpDay" || cKey === "insExpDay";
+      // kiểm tra hết hạn
+      if (cKey === "resExpDay" || cKey === "insExpDay") {
+        const isExpired = d < today;
+        return (
+          <span
+            className={
+              isExpired ? "text-red-600 font-bold" : "text-blue-600 font-bold"
+            }
+          >
+            {formatted}
+          </span>
+        );
+      }
 
-    if (!isExpField) {
-      // các ngày đăng ký thì để nguyên
+      // dayTravel: báo đỏ nếu sắp hết hạn 5 ngày
+      if (cKey === "dayTravel") {
+        const fiveDaysLater = new Date(today);
+        fiveDaysLater.setDate(today.getDate() + 5);
+        const isNearExpire = d < fiveDaysLater;
+        return (
+          <span
+            className={
+              isNearExpire
+                ? "text-red-600 font-bold"
+                : "text-blue-600 font-bold"
+            }
+          >
+            {formatted}
+          </span>
+        );
+      }
+
+      // các ngày khác để nguyên
       return formatted;
     }
 
-    // kiểm tra hết hạn thực tế
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const isExpired = d < today;
-
-    return (
-      <span className={isExpired ? "text-red-600 font-bold" : "text-blue-600 font-bold"}>
-        {formatted}
-      </span>
-    );
-  }
-
-  return value;
-};
-
-
+    return value;
+  };
 
   // ---------- action handlers (add/edit/delete/import/export) ----------
   const handleAdd = () => {
@@ -468,6 +491,21 @@ const formatCellValue = (cKey, value) => {
     }
   };
 
+  const [showColumnFilter, setShowColumnFilter] = useState(false);
+  const columnFilterRef = useRef();
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (
+        columnFilterRef.current &&
+        !columnFilterRef.current.contains(e.target)
+      ) {
+        setShowColumnFilter(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   return (
     <div className="p-4 bg-gray-50 min-h-screen text-xs">
       <div className="flex gap-2 items-center mb-4">
@@ -549,7 +587,7 @@ const formatCellValue = (cKey, value) => {
         >
           Sổ phiếu chi
         </button>
-                <button
+        <button
           onClick={handleGoToContract}
           className={`px-3 py-1 rounded text-white ${
             isActive("/contract") ? "bg-green-600" : "bg-blue-500"
@@ -634,24 +672,38 @@ const formatCellValue = (cKey, value) => {
       </div>
 
       {/* Choose visible columns UI */}
-      <div className="mb-3 flex flex-wrap gap-2">
-        {allColumns.map((c) => (
-          <label key={c.key} className="flex items-center gap-1 text-sm">
-            <input
-              type="checkbox"
-              checked={visibleColumns.includes(c.key)}
-              disabled={c.stickyIndex === 0 || c.stickyIndex === 1} // lock first two columns
-              onChange={() =>
-                setVisibleColumns((prev) =>
-                  prev.includes(c.key)
-                    ? prev.filter((k) => k !== c.key)
-                    : [...prev, c.key]
-                )
-              }
-            />
-            {c.label}
-          </label>
-        ))}
+      <div className="relative mb-3">
+        <button
+          onClick={() => setShowColumnFilter((prev) => !prev)}
+          className="bg-blue-500 text-white px-3 py-1 rounded text-xs"
+        >
+          Ẩn/Hiện cột
+        </button>
+
+        {showColumnFilter && (
+          <div
+            ref={columnFilterRef}
+            className="absolute mt-1 w-64 bg-white border rounded shadow p-2 text-sm z-[99]"
+          >
+            {allColumns.map((c) => (
+              <label key={c.key} className="flex items-center gap-1 mb-1">
+                <input
+                  type="checkbox"
+                  checked={visibleColumns.includes(c.key)}
+                  disabled={c.stickyIndex === 0 || c.stickyIndex === 1} // lock 2 cột đầu
+                  onChange={() =>
+                    setVisibleColumns((prev) =>
+                      prev.includes(c.key)
+                        ? prev.filter((k) => k !== c.key)
+                        : [...prev, c.key]
+                    )
+                  }
+                />
+                {c.label}
+              </label>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Table */}
@@ -852,27 +904,29 @@ const formatCellValue = (cKey, value) => {
                           ...cellWidthStyle,
                         }}
                       >
-                        {cKey === "registrationImage" ? (
-                          v[cKey] ? (
-                            <a href={v[cKey]} target="_blank" rel="noreferrer">
-                              <img
-                                src={v[cKey]}
-                                alt="reg"
-                                className="w-[42px] h-[28px] object-cover rounded border"
-                              />
-                            </a>
-                          ) : (
-                            ""
-                          )
-                        ) : cKey === "inspectionImage" ? (
-                          v[cKey] ? (
-                            <a href={v[cKey]} target="_blank" rel="noreferrer">
-                              <img
-                                src={v[cKey]}
-                                alt="insp"
-                                className="w-[42px] h-[28px] object-cover rounded border"
-                              />
-                            </a>
+                        {cKey === "registrationImage" ||
+                        cKey === "inspectionImage" ? (
+                          v[cKey] && v[cKey].length > 0 ? (
+                            <div className="flex gap-1">
+                              {v[cKey].map((url, idx) => (
+                                <a
+                                  href={url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  key={idx}
+                                >
+                                  <img
+                                    src={url}
+                                    alt={
+                                      cKey === "registrationImage"
+                                        ? "reg"
+                                        : "insp"
+                                    }
+                                    className="w-[42px] h-[28px] object-cover rounded border"
+                                  />
+                                </a>
+                              ))}
+                            </div>
                           ) : (
                             ""
                           )
@@ -886,6 +940,7 @@ const formatCellValue = (cKey, value) => {
                   <td
                     className="border p-1 flex gap-2 justify-center"
                     style={{ minWidth: 120, background: "#fff" }}
+                    onClick={(e) => e.stopPropagation()}
                   >
                     {canEditVehicle ? (
                       <>
