@@ -53,6 +53,8 @@ export default function ManageTCBperson() {
   const user =
     JSON.parse(localStorage.getItem("user") || "null") || location.state?.user;
   const userId = user?._id || "guest";
+  const permissions = user?.permissions || [];
+  const canEditTCB = permissions.includes("edit_tcb");
 
   const [visibleColumns, setVisibleColumns] = useState(
     allColumns.map((c) => c.key)
@@ -245,10 +247,12 @@ export default function ManageTCBperson() {
 
   // ----------------- add/edit -----------------
   const handleAdd = () => {
+    if (!canEditTCB) return alert("Bạn chưa có quyền!");
     setEditItem(null);
     setShowModal(true);
   };
   const handleEdit = (v) => {
+    if (!canEditTCB) return alert("Bạn chưa có quyền!");
     setEditItem(v);
     setShowModal(true);
   };
@@ -262,6 +266,7 @@ export default function ManageTCBperson() {
 
   // ----------------- delete -----------------
   const handleDelete = async (id) => {
+    if (!canEditTCB) return alert("Bạn chưa có quyền!");
     if (!window.confirm("Xác nhận xóa?")) return;
     try {
       await axios.delete(`${apiTCB}/${id}`, {
@@ -273,6 +278,7 @@ export default function ManageTCBperson() {
     }
   };
   const handleDeleteAll = async () => {
+    if (!canEditTCB) return alert("Bạn chưa có quyền!");
     if (!window.confirm("Xác nhận xóa tất cả?")) return;
     try {
       await axios.delete(apiTCB, {
@@ -652,7 +658,8 @@ export default function ManageTCBperson() {
       <div className="flex justify-end mt-3">
         <button
           onClick={handleDeleteAll}
-          className="px-4 py-2 bg-red-600 text-white rounded shadow hover:bg-red-700"
+          className={`px-4 py-2 bg-red-600 text-white rounded shadow hover:bg-red-700 
+      ${!canEditTCB ? "opacity-50 cursor-not-allowed" : ""}`}
         >
           Xóa tất cả
         </button>

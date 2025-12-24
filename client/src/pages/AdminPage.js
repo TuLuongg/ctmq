@@ -26,7 +26,9 @@ export default function AdminPage({ onLogout }) {
 
   const handleCreate = async () => {
     if (!username || !password || !fullname)
-      return alert("Vui lòng nhập đầy đủ: tên đăng nhập, mật khẩu và tên người dùng");
+      return alert(
+        "Vui lòng nhập đầy đủ: tên đăng nhập, mật khẩu và tên người dùng"
+      );
 
     setLoading(true);
 
@@ -87,7 +89,9 @@ export default function AdminPage({ onLogout }) {
       );
 
       setUsers((prev) =>
-        prev.map((u) => (u._id === userId ? { ...u, permissions: updatedPermissions } : u))
+        prev.map((u) =>
+          u._id === userId ? { ...u, permissions: updatedPermissions } : u
+        )
       );
     } catch {
       alert("Không cập nhật được quyền");
@@ -112,8 +116,7 @@ export default function AdminPage({ onLogout }) {
   }, []);
 
   return (
-    <div className="max-w-7xl mx-auto mt-20 bg-gray-200 shadow-lg rounded-2xl p-8 flex gap-6">
-      
+    <div className="w-9/10 mx-auto mt-5 bg-gray-200 shadow-lg rounded-xl p-8 flex gap-6">
       {/* 🟩 Cột bên trái: Menu quản lý */}
       <div className="w-1/5 bg-white p-4 rounded-lg shadow-sm">
         <h3 className="font-semibold text-lg mb-4">THAO TÁC QUẢN LÝ</h3>
@@ -156,7 +159,9 @@ export default function AdminPage({ onLogout }) {
       {/* 🟦 Cột bên phải: Quản lý tài khoản */}
       <div className="flex-1 bg-white p-6 rounded-lg shadow-sm">
         <div className="relative mb-10">
-          <h2 className="text-2xl font-semibold text-gray-700 text-center">👑 Quản lý tài khoản</h2>
+          <h2 className="text-2xl font-semibold text-gray-700 text-center">
+            👑 Quản lý tài khoản
+          </h2>
           <button
             onClick={onLogout || (() => navigate("/login"))}
             className="absolute right-0 top-1/2 -translate-y-1/2 bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition"
@@ -198,7 +203,9 @@ export default function AdminPage({ onLogout }) {
             onClick={handleCreate}
             disabled={loading}
             className={`px-4 py-2 rounded-lg text-white font-medium ${
-              loading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+              loading
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-700"
             }`}
           >
             {loading ? "Đang tạo..." : "Tạo tài khoản"}
@@ -207,20 +214,40 @@ export default function AdminPage({ onLogout }) {
 
         {/* Bảng danh sách tài khoản */}
         <div className="overflow-x-auto">
-          <table className="min-w-full border border-gray-200 text-sm rounded-lg overflow-hidden">
+          <table className="min-w-full border border-gray-200 text-xs rounded-lg overflow-hidden">
             <thead className="bg-blue-50">
               <tr>
                 <th className="px-4 py-2 border-b text-left">Tên đăng nhập</th>
                 <th className="px-4 py-2 border-b text-left">Tên người dùng</th>
                 <th className="px-4 py-2 border-b text-left">Chức vụ</th>
-                <th className="px-4 py-2 border-b text-center">Quản lý lái xe</th>
-                <th className="px-4 py-2 border-b text-center">Quản lý khách hàng</th>
+                <th className="px-4 py-2 border-b text-center">
+                  Quản lý lái xe
+                </th>
+                <th className="px-4 py-2 border-b text-center">
+                  Quản lý khách hàng
+                </th>
                 <th className="px-4 py-2 border-b text-center">Quản lý xe</th>
-                <th className="px-4 py-2 border-b text-center">Quản lý chuyến gốc</th>
-                <th className="px-4 py-2 border-b text-center">Quản lý toàn bộ cước phí BS</th>
-                <th className="px-4 py-2 border-b text-center">Quản lý phiếu chi</th>
-                <th className="px-4 py-2 border-b text-center">Duyệt phiếu chi</th>
-                <th className="px-4 py-2 border-b text-center">Công nợ KH 26</th>
+                <th className="px-4 py-2 border-b text-center">
+                  Quản lý chuyến gốc
+                </th>
+                <th className="px-4 py-2 border-b text-center">
+                  Quản lý toàn bộ cước phí BS
+                </th>
+                <th className="px-4 py-2 border-b text-center">
+                  Quản lý phiếu chi
+                </th>
+                <th className="px-4 py-2 border-b text-center">
+                  Duyệt phiếu chi
+                </th>
+                <th className="px-4 py-2 border-b text-center">
+                  Công nợ KH 26
+                </th>
+                <th className="px-4 py-2 border-b text-center">
+                  Quản lý TCB cá nhân
+                </th>
+                <th className="px-4 py-2 border-b text-center">
+                  Quản lý hợp đồng
+                </th>
                 <th className="px-4 py-2 border-b text-center">Thao tác</th>
               </tr>
             </thead>
@@ -228,19 +255,36 @@ export default function AdminPage({ onLogout }) {
               {users.map((u, index) => (
                 <tr
                   key={u._id}
-                  className={`${index % 2 === 0 ? "bg-white" : "bg-gray-50"} hover:bg-gray-100`}
+                  className={`${
+                    index % 2 === 0 ? "bg-white" : "bg-gray-50"
+                  } hover:bg-gray-100`}
                 >
                   <td className="px-4 py-2 border-b">{u.username}</td>
                   <td className="px-4 py-2 border-b">{u.fullname || "—"}</td>
-                  <td className="px-4 py-2 border-b capitalize">{getRoleName(u.role)}</td>
+                  <td className="px-4 py-2 border-b capitalize">
+                    {getRoleName(u.role)}
+                  </td>
 
-                  {["edit_driver", "edit_customer", "edit_vehicle", "edit_trip", "edit_trip_full", "edit_voucher", "approve_voucher", "cong_no_26"].map((perm) => (
+                  {[
+                    "edit_driver",
+                    "edit_customer",
+                    "edit_vehicle",
+                    "edit_trip",
+                    "edit_trip_full",
+                    "edit_voucher",
+                    "approve_voucher",
+                    "cong_no_26",
+                    "edit_tcb",
+                    "edit_contract",
+                  ].map((perm) => (
                     <td key={perm} className="px-4 py-2 border-b text-center">
                       <input
                         type="checkbox"
                         checked={u.permissions?.includes(perm)}
                         disabled={u.role === "admin"}
-                        onChange={(e) => togglePermission(u._id, perm, e.target.checked)}
+                        onChange={(e) =>
+                          togglePermission(u._id, perm, e.target.checked)
+                        }
                       />
                     </td>
                   ))}

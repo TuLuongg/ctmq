@@ -59,6 +59,8 @@ export default function ManageContract() {
   const user =
     JSON.parse(localStorage.getItem("user") || "null") || location.state?.user;
   const userId = user?._id || "guest";
+  const permissions = user?.permissions || [];
+  const canEditContract = permissions.includes("edit_contract");
 
   const [visibleColumns, setVisibleColumns] = useState(
     allColumns.map((c) => c.key)
@@ -111,7 +113,6 @@ export default function ManageContract() {
   const handleGoToTCB = () => {
     navigate("/tcb-person", { state: { user } });
   };
-
 
   useEffect(() => {
     if (firstColRef.current) {
@@ -242,16 +243,19 @@ export default function ManageContract() {
   };
 
   const handleAdd = () => {
+    if (!canEditContract) return alert("Bạn chưa có quyền!");
     setEditContract(null);
     setShowModal(true);
   };
 
   const handleEdit = (v) => {
+    if (!canEditContract) return alert("Bạn chưa có quyền!");
     setEditContract(v);
     setShowModal(true);
   };
 
   const handleDelete = async (id) => {
+    if (!canEditContract) return alert("Bạn chưa có quyền!");
     if (!window.confirm("Xác nhận xóa?")) return;
     try {
       await axios.delete(`${apiContracts}/${id}`, {
@@ -264,6 +268,7 @@ export default function ManageContract() {
   };
 
   const handleDeleteAll = async () => {
+    if (!canEditContract) return alert("Bạn chưa có quyền!");
     if (!window.confirm("Xác nhận xóa tất cả hợp đồng?")) return;
     try {
       await axios.delete(`${apiContracts}`, {
@@ -276,6 +281,41 @@ export default function ManageContract() {
       alert(
         "Không thể xóa tất cả: " + (err.response?.data?.error || err.message)
       );
+    }
+  };
+
+  const handleToggleLock = async (contract) => {
+    if (!canEditContract) {
+      alert("Bạn chưa có quyền!");
+      return;
+    }
+
+    const confirmMsg = contract.isLocked
+      ? "Mở khoá hợp đồng này?"
+      : "Khoá hợp đồng này?";
+
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      const res = await axios.patch(
+        `${apiContracts}/${contract._id}/toggle-lock`,
+        {},
+        {
+          headers: { Authorization: token ? `Bearer ${token}` : undefined },
+        }
+      );
+
+      // cập nhật lại row trong bảng
+      setContracts((prev) =>
+        prev.map((c) =>
+          c._id === contract._id ? { ...c, isLocked: res.data.isLocked } : c
+        )
+      );
+
+      alert(res.data.message);
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.error || "Không đổi được trạng thái");
     }
   };
 
@@ -692,17 +732,33 @@ export default function ManageContract() {
                   onClick={(e) => e.stopPropagation()}
                 >
                   <button
-                    onClick={() => handleEdit(v)}
-                    className="text-blue-600"
+                    onClick={() => handleToggleLock(v)}
+                    className={`${
+                      v.isLocked
+                        ? "text-red-600 font-semibold"
+                        : "text-green-600 font-semibold"
+                    }`}
                   >
-                    Sửa
+                    {v.isLocked ? "Mở khoá hợp đồng" : "Khoá HĐ"}
                   </button>
-                  <button
-                    onClick={() => handleDelete(v._id)}
-                    className="text-red-600"
-                  >
-                    Xóa
-                  </button>
+                  {/* Chỉ hiện SỬA + XOÁ khi CHƯA khoá */}
+                  {!v.isLocked && (
+                    <>
+                      <button
+                        onClick={() => handleEdit(v)}
+                        className="text-blue-600"
+                      >
+                        Sửa
+                      </button>
+
+                      <button
+                        onClick={() => handleDelete(v._id)}
+                        className="text-red-600"
+                      >
+                        Xóa
+                      </button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))}
@@ -713,7 +769,8 @@ export default function ManageContract() {
       <div className="flex justify-end mt-3">
         <button
           onClick={handleDeleteAll}
-          className="px-4 py-2 bg-red-600 text-white rounded shadow hover:bg-red-700"
+          className={`px-4 py-2 bg-red-600 text-white rounded shadow hover:bg-red-700 
+      ${!canEditContract ? "opacity-50 cursor-not-allowed" : ""}`}
         >
           Xóa tất cả
         </button>
