@@ -128,6 +128,7 @@ exports.getCustomerDebt = async (req, res) => {
         remainAmount: p.remainAmount,
         status: p.status,
         isLocked: p.isLocked,
+        note: p.note,
       }))
     );
 

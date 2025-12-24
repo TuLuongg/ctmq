@@ -9,46 +9,61 @@ const mongoose = require("mongoose");
 // 🆕 Tạo chuyến mới
 const createScheduleAdmin = async (req, res) => {
   try {
-    const { dieuVan, dieuVanID, ...data } = req.body;
+    const { dieuVan, dieuVanID, ngayGiaoHang, ...data } = req.body;
     const user = req.user;
 
     if (!user || !["admin", "dieuVan"].includes(user.role)) {
       return res.status(403).json({ error: "Không có quyền tạo chuyến" });
     }
 
-    // 🔹 Ngày hiện tại
-    const today = new Date();
-    const monthStr = String(today.getMonth() + 1).padStart(2, "0"); // 01 -> 12
-    const yearStr = String(today.getFullYear()).slice(-2); // lấy 2 số cuối của năm, ví dụ 25
-
-    // 🔹 Regex tìm mã chuyến cùng tháng và năm
-    const regex = new RegExp(`^BK${monthStr}${yearStr}\\.\\d{4}$`);
-
-    // 🔹 Lấy chuyến cao nhất trong tháng hiện tại
-    const lastRide = await ScheduleAdmin.find({ maChuyen: regex })
-      .sort({ maChuyen: -1 })
-      .limit(1);
-
-    let nextNum = 1;
-    if (lastRide.length > 0) {
-      const lastMa = lastRide[0].maChuyen; // ví dụ: BK11.0023
-      nextNum = parseInt(lastMa.split(".")[1], 10) + 1;
+    if (!ngayGiaoHang) {
+      return res.status(400).json({ error: "Thiếu ngày giao hàng" });
     }
 
-    const maChuyen = `BK${monthStr}.${String(nextNum).padStart(4, "0")}`;
+    const giaoDate = new Date(ngayGiaoHang);
+    if (isNaN(giaoDate.getTime())) {
+      return res.status(400).json({ error: "ngayGiaoHang không hợp lệ" });
+    }
 
-    // Nếu điều vận tạo, vẫn có thể tạo chuyến cho điều vận khác
+    const monthStr = String(giaoDate.getMonth() + 1).padStart(2, "0");
+    const yearStr = String(giaoDate.getFullYear()).slice(-2);
+
+    // ✅ REGEX ĐÚNG
+    const regex = new RegExp(`^BK\\.${monthStr}\\.${yearStr}\\.\\d{4}$`);
+
+    const lastRide = await ScheduleAdmin.findOne({ maChuyen: regex })
+      .sort({ maChuyen: -1 })
+      .lean();
+
+    let nextNum = 1;
+    if (lastRide?.maChuyen) {
+      const parts = lastRide.maChuyen.split(".");
+      nextNum = parseInt(parts[parts.length - 1], 10) + 1;
+    }
+
+    const maChuyen = `BK.${monthStr}.${yearStr}.${String(nextNum).padStart(
+      4,
+      "0"
+    )}`;
+
     const newSchedule = new ScheduleAdmin({
       dieuVan: dieuVan || user.username,
-      dieuVanID: dieuVanID || user.id,
+      dieuVanID: dieuVanID || user._id,
       createdBy: user.fullname || user.username,
-      maChuyen, // 💡 gán mã tự động
+      maChuyen,
+      ngayGiaoHang,
       ...data,
     });
 
     await newSchedule.save();
     res.status(201).json(newSchedule);
   } catch (err) {
+    if (err.code === 11000) {
+      return res.status(409).json({
+        error: "Mã chuyến bị trùng, vui lòng thử lại",
+      });
+    }
+
     console.error("❌ Lỗi khi tạo chuyến:", err);
     res.status(500).json({ error: err.message });
   }
@@ -240,7 +255,7 @@ const getTrashSchedules = async (req, res) => {
 
     // 👉 TÍNH SỐ NGÀY CÒN LẠI
     const now = new Date();
-    const MAX_DAYS = 30;
+    const MAX_DAYS = 60;
 
     data = data.map((item) => {
       const deletedAt = item.deletedAt || now;
@@ -1016,7 +1031,6 @@ const exportTripsByDateRange = async (req, res) => {
     const { from, to, maKHs } = req.body;
     console.log("EXPORT BODY >>>", req.body);
 
-
     if (!from || !to) {
       return res.status(400).json({ message: "Thiếu from hoặc to" });
     }
@@ -1076,8 +1090,12 @@ const exportTripsByDateRange = async (req, res) => {
       row.getCell("G").value = trip.dienGiai || "";
 
       // DATE
-      row.getCell("H").value = new Date(trip.ngayBocHang.toISOString().slice(0, 10));
-      row.getCell("I").value = new Date(trip.ngayGiaoHang.toISOString().slice(0, 10));
+      row.getCell("H").value = new Date(
+        trip.ngayBocHang.toISOString().slice(0, 10)
+      );
+      row.getCell("I").value = new Date(
+        trip.ngayGiaoHang.toISOString().slice(0, 10)
+      );
 
       row.getCell("J").value = trip.diemDoHang || "";
       row.getCell("K").value = trip.diemXepHang || "";
@@ -1188,8 +1206,12 @@ const exportTripsByDateRangeBS = async (req, res) => {
       row.getCell("G").value = trip.dienGiai || "";
 
       // DATE
-      row.getCell("H").value = new Date(trip.ngayBocHang.toISOString().slice(0, 10));
-      row.getCell("I").value = new Date(trip.ngayGiaoHang.toISOString().slice(0, 10));
+      row.getCell("H").value = new Date(
+        trip.ngayBocHang.toISOString().slice(0, 10)
+      );
+      row.getCell("I").value = new Date(
+        trip.ngayGiaoHang.toISOString().slice(0, 10)
+      );
 
       row.getCell("J").value = trip.diemDoHang || "";
       row.getCell("K").value = trip.diemXepHang || "";
@@ -1198,7 +1220,7 @@ const exportTripsByDateRangeBS = async (req, res) => {
       row.getCell("N").value = trip.bienSoXe || "";
 
       const cuocPhi = cleanNumber(trip.cuocPhiBS);
-      const daThanhToan = cleanNumber(trip.daThanhToan)
+      const daThanhToan = cleanNumber(trip.daThanhToan);
       const bocXep = cleanNumber(trip.bocXepBS);
       const ve = cleanNumber(trip.veBS);
       const hangVe = cleanNumber(trip.hangVeBS);
@@ -1258,5 +1280,5 @@ module.exports = {
   getScheduleFilterOptions,
   getAllScheduleFilterOptions,
   exportTripsByDateRange,
-  exportTripsByDateRangeBS
+  exportTripsByDateRangeBS,
 };
