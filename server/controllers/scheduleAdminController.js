@@ -839,7 +839,6 @@ const addBoSung = async (req, res) => {
         schedule.onlState = u.onlState?.toString() || "";
         schedule.offState = u.offState?.toString() || "";
         schedule.cuocPhiBS = u.cuocPhiBS?.toString() || "";
-        schedule.daThanhToan = u.daThanhToan?.toString() || "";
         schedule.bocXepBS = u.bocXepBS?.toString() || "";
         schedule.veBS = u.veBS?.toString() || "";
         schedule.hangVeBS = u.hangVeBS?.toString() || "";
