@@ -7,6 +7,7 @@ registerLocale("vi", vi);
 
 export default function RideModal({
   initialData,
+  setDraft,
   onClose,
   onSave,
   dieuVanList = [],
@@ -23,6 +24,10 @@ export default function RideModal({
     luuCa: false,
     luatChiPhiKhac: false,
   });
+
+  useEffect(() => {
+    setDraft?.(form);
+  }, [form]);
 
   const [customerSuggestions, setCustomerSuggestions] = useState([]);
   const [isCustomerFocused, setIsCustomerFocused] = useState(false);
@@ -230,11 +235,9 @@ export default function RideModal({
     };
 
     onSave(payload);
-    setForm({});
   };
 
   const handleClose = () => {
-    setForm({});
     onClose();
   };
 
@@ -396,7 +399,7 @@ export default function RideModal({
                         onFocus: () => setIsCustomerFocused(true),
                         onBlur: () =>
                           setTimeout(() => setIsCustomerFocused(false), 150),
-                        autoComplete: "off", 
+                        autoComplete: "off",
                       }
                     : {})}
                 />

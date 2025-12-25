@@ -610,7 +610,6 @@ export default function ManageTrip({ user, onLogout }) {
         onlState: (obj["ONL"] ?? "").toString(),
         offState: (obj["OFF"] ?? "").toString(),
         cuocPhiBS: (obj["CƯỚC PHÍ"] ?? obj["CUOC PHI"] ?? "0").toString(),
-        daThanhToan: (obj["ĐÃ THANH TOÁN"] ?? "0").toString(),
         bocXepBS: (obj["BỐC XẾP"] ?? "0").toString(),
         veBS: (obj["VÉ"] ?? "0").toString(),
         hangVeBS: (obj["HÀNG VỀ"] ?? "0").toString(),

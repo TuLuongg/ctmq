@@ -295,6 +295,9 @@ export default function DieuVanPage({ user, onLogout }) {
     cuocPhiBoSung: "",
   };
 
+  const [rideDraft, setRideDraft] = useState(null);
+
+
   const handleAdd = () => {
     setEditRide(null);
     setShowModal(true);
@@ -1555,11 +1558,12 @@ export default function DieuVanPage({ user, onLogout }) {
       </div>
 
       {/* Modal */}
-      {/* Modal thêm/sửa chuyến */}
+      {/* Modal thêm chuyến */}
       {showModal && !editRide && (
         <RideModal
           key="new"
-          initialData={emptyForm}
+          initialData={rideDraft || emptyForm}
+          setDraft={setRideDraft}
           onClose={() => setShowModal(false)}
           onSave={handleSave}
           dieuVanList={managers}

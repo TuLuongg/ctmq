@@ -59,6 +59,7 @@ const groupColumnKeys = columnGroups.flatMap((g) => g.keys);
 
 export default function ManageTrip({ user, onLogout }) {
   const [rides, setRides] = useState([]);
+  const [rideDraft, setRideDraft] = useState(null);
   const [managers, setManagers] = useState([]);
   const [today] = useState(new Date());
   const [date, setDate] = useState("");
@@ -625,7 +626,6 @@ export default function ManageTrip({ user, onLogout }) {
         onlState: (obj["ONL"] ?? "").toString(),
         offState: (obj["OFF"] ?? "").toString(),
         cuocPhiBS: (obj["CƯỚC PHÍ"] ?? obj["CUOC PHI"] ?? "0").toString(),
-        daThanhToan: (obj["ĐÃ THANH TOÁN"] ?? "0").toString(),
         bocXepBS: (obj["BỐC XẾP"] ?? "0").toString(),
         veBS: (obj["VÉ"] ?? "0").toString(),
         hangVeBS: (obj["HÀNG VỀ"] ?? "0").toString(),
@@ -2482,7 +2482,8 @@ export default function ManageTrip({ user, onLogout }) {
         <div className="fixed z-[99999]">
           <RideModal
             key="new"
-            initialData={[]}
+            initialData={rideDraft}
+            setDraft={setRideDraft}
             onClose={() => setShowModal(false)}
             onSave={handleSave}
             dieuVanList={[]}
