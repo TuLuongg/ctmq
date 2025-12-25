@@ -315,6 +315,7 @@ export default function ManageTrip({ user, onLogout }) {
     "hangVe",
     "luuCa",
     "luatChiPhiKhac",
+    "themDiem",
     "cuocPhiBS",
     "bocXepBS",
     "veBS",
@@ -933,6 +934,7 @@ export default function ManageTrip({ user, onLogout }) {
     "khoangCach",
     "laiXeThuCuoc",
     "daThanhToan",
+    "themDiem"
   ];
 
   const formatNumber = (n) => {

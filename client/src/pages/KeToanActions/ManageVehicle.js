@@ -26,6 +26,8 @@ export const allColumns = [
   { key: "insExpDay", label: "Ngày hết hạn đăng kiểm" },
   { key: "dayTravel", label: "Giấy đi đường" },
   { key: "ghiChu", label: "Ghi chú" },
+  { key: "bhTNDS", label: "Bảo hiểm TNDS" },
+  { key: "bhVC", label: "Bảo hiểm VC" },
 ];
 
 // helper để dựng key trong localStorage
@@ -845,7 +847,7 @@ export default function ManageVehicle() {
                 >
                   {/* Warning cell */}
                   <td
-                    className="border p-1 text-center"
+                    className="border text-center"
                     style={{
                       position: "sticky",
                       left: 0,

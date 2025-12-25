@@ -101,35 +101,68 @@ export default function CustomerDebtPage() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      const mapped = customers.map((c) => {
-        const debt = res.data.find((d) => d.customerCode === c.code);
-        let trangThai = "green";
-        if (debt?.remainAmount > 0) {
-          const tiLe = debt.totalAmount
-            ? debt.remainAmount / debt.totalAmount
-            : 0;
-          trangThai = tiLe <= 0.2 ? "yellow" : "red";
+      const periods = res.data || [];
+
+      const mapped = customers.flatMap((c) => {
+        const customerPeriods = periods.filter(
+          (p) => p.customerCode === c.code
+        );
+
+        // ❌ KHÔNG CÓ KỲ NÀO → vẫn tạo 1 dòng rỗng
+        if (customerPeriods.length === 0) {
+          return [
+            {
+              debtCode: null,
+              maKH: c.code,
+              tenKH: c.name,
+              fromDate: null,
+              toDate: null,
+              thangQuanLy: manageMonth,
+              tongCuoc: 0,
+              tongHoaDon: 0,
+              tongTienMat: 0,
+              tongKhac: 0,
+              thueVAT: 0,
+              daThanhToan: 0,
+              conLai: 0,
+              status: "CHUA_TAO",
+              trangThai: "green",
+              soChuyen: 0,
+              isLocked: false,
+              note: "",
+            },
+          ];
         }
 
-        return {
-          debtCode: debt?.debtCode || null,
-          maKH: c.code,
-          tenKH: c.name,
-          fromDate: debt?.fromDate ? new Date(debt.fromDate) : null,
-          toDate: debt?.toDate ? new Date(debt.toDate) : null,
-          thangQuanLy: debt?.manageMonth || manageMonth,
-          tongCuoc: Number(debt?.totalAmount || 0),
-          tongHoaDon: Number(debt?.totalAmountInvoice || 0),
-          tongTienMat: Number(debt?.totalAmountCash || 0),
-          thueVAT: Number(debt?.vatPercent || 0),
-          daThanhToan: Number(debt?.paidAmount || 0),
-          conLai: Number(debt?.remainAmount || 0),
-          status: debt?.status || "CHUA_TRA",
-          trangThai,
-          soChuyen: Number(debt?.soChuyen || 0),
-          isLocked: debt?.isLocked,
-          note: debt?.note
-        };
+        // ✅ CÓ N KỲ → trả về N dòng
+        return customerPeriods.map((p) => {
+          let trangThai = "green";
+          if (p?.remainAmount > 0) {
+            const tiLe = p.totalAmount ? p.remainAmount / p.totalAmount : 0;
+            trangThai = tiLe <= 0.2 ? "yellow" : "red";
+          }
+
+          return {
+            debtCode: p.debtCode,
+            maKH: c.code,
+            tenKH: c.name,
+            fromDate: p.fromDate ? new Date(p.fromDate) : null,
+            toDate: p.toDate ? new Date(p.toDate) : null,
+            thangQuanLy: p.manageMonth,
+            tongCuoc: Number(p.totalAmount || 0),
+            tongHoaDon: Number(p.totalAmountInvoice || 0),
+            tongTienMat: Number(p.totalAmountCash || 0),
+            tongKhac: Number(p.totalOther || 0),
+            thueVAT: Number(p.vatPercent || 0),
+            daThanhToan: Number(p.paidAmount || 0),
+            conLai: Number(p.remainAmount || 0),
+            status: p.status || "CHUA_TRA",
+            trangThai,
+            soChuyen: Number(p.tripCount || 0),
+            isLocked: p.isLocked,
+            note: p.note,
+          };
+        });
       });
 
       setDebtList(mapped);
@@ -298,6 +331,18 @@ export default function CustomerDebtPage() {
   const visibleCustomerCodes = filteredDebtList.map((c) => c.maKH);
   const [showDebtYearModal, setShowDebtYearModal] = useState(false);
 
+  // GROUP theo khách hàng
+  const groupedDebt = filteredDebtList.reduce((acc, item) => {
+    if (!acc[item.maKH]) {
+      acc[item.maKH] = {
+        customer: item,
+        periods: [],
+      };
+    }
+    acc[item.maKH].periods.push(item);
+    return acc;
+  }, {});
+
   // ====================== RENDER ======================
   return (
     <div className="p-4 text-xs">
@@ -379,7 +424,7 @@ export default function CustomerDebtPage() {
         >
           Sổ phiếu chi
         </button>
-                <button
+        <button
           onClick={handleGoToContract}
           className={`px-3 py-1 rounded text-white ${
             isActive("/contract") ? "bg-green-600" : "bg-blue-500"
@@ -487,7 +532,7 @@ export default function CustomerDebtPage() {
                 TÊN KH
               </th>
               <th className="border p-2 sticky top-0 bg-gray-200 z-20">
-                MÃ CÔNG NỢ
+                MÃ CN
               </th>
               <th className="border p-2 sticky top-0 bg-gray-200 z-20">
                 KỲ CÔNG NỢ
@@ -499,6 +544,7 @@ export default function CustomerDebtPage() {
               <th className="border p-2 sticky top-0 bg-gray-200 z-20">
                 TIỀN MẶT
               </th>
+              <th className="border p-2 sticky top-0 bg-gray-200 z-20">KHÁC</th>
               <th className="border p-2 sticky top-0 bg-gray-200 z-20">
                 TỔNG TIỀN
               </th>
@@ -511,169 +557,203 @@ export default function CustomerDebtPage() {
               <th className="border p-2 sticky top-0 bg-gray-200 z-20">
                 TRẠNG THÁI
               </th>
-              <th className="border p-2 sticky top-0 bg-gray-200 z-20">
-                SỐ CHUYẾN
-              </th>
+              <th className="border p-2 sticky top-0 bg-gray-200 z-20">SL</th>
               <th className="border p-2 sticky top-0 bg-gray-200 z-20">
                 GHI CHÚ
               </th>
-              <th className="border p-2 sticky top-0 bg-gray-200 z-20 w-[180px]">
+              <th className="border p-2 sticky top-0 bg-gray-200 z-20 w-[100px]">
                 HÀNH ĐỘNG
               </th>
             </tr>
           </thead>
           <tbody>
-            {filteredDebtList.map((c) => (
-              <tr key={c.maKH} className="h-[15px]">
-                <td className="border p-2 text-center">
-                  <input
-                    type="checkbox"
-                    checked={selectedCustomers.includes(c.maKH)}
-                    onChange={(e) =>
-                      setSelectedCustomers((prev) =>
-                        e.target.checked
-                          ? [...prev, c.maKH]
-                          : prev.filter((x) => x !== c.maKH)
-                      )
-                    }
-                  />
-                </td>
-
-                <td
-                  className="border p-2 text-blue-600 underline cursor-pointer font-bold"
-                  onClick={() => {
-                    setSelectedCustomer(c);
-                    setShowDebtYearModal(true);
-                  }}
+            {Object.values(groupedDebt).map(({ customer, periods }) =>
+              periods.map((c, index) => (
+                <tr
+                  key={c.debtCode || `empty-${c.maKH}-${index}`}
+                  className="h-[15px]"
                 >
-                  {c.maKH}
-                </td>
-
-                <td className="border p-2">{c.tenKH}</td>
-                <td className="border p-2">{c.debtCode || "-"}</td>
-                <td className="border p-2">
-                  {c.fromDate && c.toDate
-                    ? `${c.fromDate.toLocaleDateString()} - ${c.toDate.toLocaleDateString()}`
-                    : "-"}
-                </td>
-                <td className="border p-2 text-blue-700 font-bold">
-                  {c.tongHoaDon.toLocaleString()}
-                </td>
-                <td className="border p-2 text-blue-700 font-bold">
-                  {c.thueVAT.toLocaleString()}%
-                </td>
-                <td className="border p-2 text-blue-700 font-bold">
-                  {c.tongTienMat.toLocaleString()}
-                </td>
-                <td
-                  className="border p-2 text-blue-700 font-bold underline cursor-pointer"
-                  onClick={() => {
-                    setSelectedCustomer(c);
-                    setShowTripList(true);
-                  }}
-                >
-                  {c.tongCuoc.toLocaleString()}
-                </td>
-                <td className="border p-2 font-bold">
-                  {c.daThanhToan.toLocaleString()}
-                </td>
-                <td className="border p-2 font-bold text-red-600">
-                  {c.conLai.toLocaleString()}
-                </td>
-                <td className="border p-2">
-                  <div
-                    className="flex items-center gap-2 cursor-pointer"
-                    onClick={() => {
-                      setSelectedCustomer(c);
-                      setShowPaymentHistory(true);
-                    }}
-                  >
-                    <span
-                      style={{
-                        width: "12px",
-                        height: "12px",
-                        borderRadius: "50%",
-                        display: "inline-block",
-                        backgroundColor:
-                          c.trangThai === "green"
-                            ? "#00cc44"
-                            : c.trangThai === "yellow"
-                            ? "#ffcc00"
-                            : "#ff3333",
-                      }}
-                    />
-                    <span>
-                      {c.trangThai === "green"
-                        ? "Hoàn tất"
-                        : c.trangThai === "yellow"
-                        ? "Còn ít"
-                        : "Chưa trả"}
-                    </span>
-                  </div>
-                </td>
-                <td className="border p-2">{c.soChuyen}</td>
-                <td className="border p-2">{c.note}</td>
-                <td className="border p-2 flex gap-1 justify-center">
-                  {c.debtCode && (
+                  {/* ✅ CHECKBOX + MÃ KH → CHỈ RENDER Ở DÒNG ĐẦU */}
+                  {index === 0 && (
                     <>
-                      {c.isLocked ? (
-                        <button
-                          className="px-2 py-1 bg-green-600 text-white rounded"
-                          onClick={() => handleUnlockDebt(c.debtCode)}
-                        >
-                          Mở KCN
-                        </button>
-                      ) : (
-                        <button
-                          className="px-2 py-1 bg-yellow-500 text-white rounded"
-                          onClick={() => handleLockDebt(c.debtCode)}
-                        >
-                          Khoá KCN
-                        </button>
-                      )}
+                      <td
+                        rowSpan={periods.length}
+                        className="border p-2 text-center align-top"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedCustomers.includes(customer.maKH)}
+                          onChange={(e) =>
+                            setSelectedCustomers((prev) =>
+                              e.target.checked
+                                ? [...new Set([...prev, customer.maKH])]
+                                : prev.filter((x) => x !== customer.maKH)
+                            )
+                          }
+                        />
+                      </td>
 
-                      <button
-                        disabled={c.isLocked}
-                        className={`px-2 py-1 rounded text-white ${
-                          c.isLocked
-                            ? "bg-gray-400 cursor-not-allowed"
-                            : "bg-blue-500"
-                        }`}
+                      <td
+                        rowSpan={periods.length}
+                        className="border p-2 text-blue-600 underline cursor-pointer font-bold align-top"
                         onClick={() => {
-                          if (c.isLocked) return;
-                          setEditingDebt(c);
-                          setEditFromDate(
-                            c.fromDate
-                              ? c.fromDate.toISOString().slice(0, 10)
-                              : ""
-                          );
-                          setEditToDate(
-                            c.toDate ? c.toDate.toISOString().slice(0, 10) : ""
-                          );
-                          setEditVatPercent(c.thueVAT || 0);
-                          setShowEditDebtModal(true);
+                          setSelectedCustomer(customer);
+                          setShowDebtYearModal(true);
                         }}
                       >
-                        Sửa
-                      </button>
+                        {customer.maKH}
+                      </td>
 
-                      {/* 🗑️ NÚT XOÁ */}
-                      <button
-                        disabled={c.isLocked}
-                        className={`px-2 py-1 rounded text-white ${
-                          c.isLocked
-                            ? "bg-gray-400 cursor-not-allowed"
-                            : "bg-red-600"
-                        }`}
-                        onClick={() => handleDeleteDebtPeriod(c.debtCode)}
+                      <td
+                        rowSpan={periods.length}
+                        className="border p-2 align-top"
                       >
-                        Xoá
-                      </button>
+                        {customer.tenKH}
+                      </td>
                     </>
                   )}
-                </td>
-              </tr>
-            ))}
+
+                  {/* ===== CÁC CỘT THEO KỲ ===== */}
+                  <td className="border p-1">{c.debtCode || "-"}</td>
+
+                  <td className="border p-1">
+                    {c.fromDate && c.toDate
+                      ? `${c.fromDate.toLocaleDateString()} - ${c.toDate.toLocaleDateString()}`
+                      : "-"}
+                  </td>
+
+                  <td className="border p-1 text-blue-700 font-bold">
+                    {c.tongHoaDon.toLocaleString()}
+                  </td>
+
+                  <td className="border p-1 text-blue-700 font-bold">
+                    {c.thueVAT}%
+                  </td>
+
+                  <td className="border p-1 text-blue-700 font-bold">
+                    {c.tongTienMat.toLocaleString()}
+                  </td>
+
+                  <td className="border p-1 text-blue-700 font-bold">
+                    {c.tongKhac.toLocaleString()}
+                  </td>
+
+                  <td
+                    className="border p-1 text-blue-700 font-bold underline cursor-pointer"
+                    onClick={() => {
+                      setSelectedCustomer(c);
+                      setShowTripList(true);
+                    }}
+                  >
+                    {c.tongCuoc.toLocaleString()}
+                  </td>
+
+                  <td className="border p-1 font-bold">
+                    {c.daThanhToan.toLocaleString()}
+                  </td>
+
+                  <td className="border p-1 font-bold text-red-600">
+                    {c.conLai.toLocaleString()}
+                  </td>
+
+                  <td className="border p-1">
+                    <div
+                      className="flex items-center gap-2 cursor-pointer"
+                      onClick={() => {
+                        setSelectedCustomer(c);
+                        setShowPaymentHistory(true);
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: 12,
+                          height: 12,
+                          borderRadius: "50%",
+                          backgroundColor:
+                            c.trangThai === "green"
+                              ? "#00cc44"
+                              : c.trangThai === "yellow"
+                              ? "#ffcc00"
+                              : "#ff3333",
+                        }}
+                      />
+                      <span>
+                        {c.trangThai === "green"
+                          ? "Hoàn tất"
+                          : c.trangThai === "yellow"
+                          ? "Còn ít"
+                          : "Chưa trả"}
+                      </span>
+                    </div>
+                  </td>
+
+                  <td className="border p-1">{c.soChuyen}</td>
+                  <td className="border p-1">{c.note}</td>
+
+                  <td className="border p-1 flex gap-1 font-semibold justify-center">
+                    {c.debtCode && (
+                      <>
+                        {c.isLocked ? (
+                          <button
+                            className="p-1 text-green-600"
+                            onClick={() => handleUnlockDebt(c.debtCode)}
+                          >
+                            Mở
+                          </button>
+                        ) : (
+                          <button
+                            className="p-1 text-yellow-500"
+                            onClick={() => handleLockDebt(c.debtCode)}
+                          >
+                            Khoá
+                          </button>
+                        )}
+
+                        <button
+                          disabled={c.isLocked}
+                          className={`p-1 ${
+                            c.isLocked
+                              ? "text-gray-400 cursor-not-allowed"
+                              : "text-blue-500"
+                          }`}
+                          onClick={() => {
+                            if (c.isLocked) return;
+                            setEditingDebt(c);
+                            setEditFromDate(
+                              c.fromDate
+                                ? c.fromDate.toISOString().slice(0, 10)
+                                : ""
+                            );
+                            setEditToDate(
+                              c.toDate
+                                ? c.toDate.toISOString().slice(0, 10)
+                                : ""
+                            );
+                            setEditVatPercent(c.thueVAT || 0);
+                            setShowEditDebtModal(true);
+                          }}
+                        >
+                          Sửa
+                        </button>
+
+                        {/* 🗑️ NÚT XOÁ */}
+                        <button
+                          disabled={c.isLocked}
+                          className={`p-1 ${
+                            c.isLocked
+                              ? "text-gray-400 cursor-not-allowed"
+                              : "text-red-600"
+                          }`}
+                          onClick={() => handleDeleteDebtPeriod(c.debtCode)}
+                        >
+                          Xoá
+                        </button>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

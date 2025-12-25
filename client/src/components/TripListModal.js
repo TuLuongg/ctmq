@@ -104,33 +104,30 @@ export default function TripListModal({
     return parseFloat(base) || 0;
   };
 
-  const updatePaymentType = async (maChuyen, checked) => {
-    // 🔥 optimistic update (cập nhật UI trước)
+  const updatePaymentType = async (maChuyen, type) => {
+    const oldTrip = trips.find((t) => t.maChuyen === maChuyen);
+    const oldType = oldTrip?.paymentType;
+
+    // optimistic update
     setTrips((prev) =>
       prev.map((t) =>
-        t.maChuyen === maChuyen
-          ? { ...t, paymentType: checked ? "INVOICE" : "CASH" }
-          : t
+        t.maChuyen === maChuyen ? { ...t, paymentType: type } : t
       )
     );
 
     try {
       await axios.patch(
         `${API}/payment-history/trip/${maChuyen}/toggle-payment-type`,
-        {
-          paymentType: checked ? "INVOICE" : "CASH",
-        },
+        { paymentType: type },
         { headers: { Authorization: `Bearer ${token}` } }
       );
     } catch (err) {
-      console.error("Lỗi đổi paymentType", err);
+      console.error(err);
 
-      // ❌ rollback nếu lỗi
+      // rollback
       setTrips((prev) =>
         prev.map((t) =>
-          t.maChuyen === maChuyen
-            ? { ...t, paymentType: checked ? "CASH" : "INVOICE" }
-            : t
+          t.maChuyen === maChuyen ? { ...t, paymentType: oldType } : t
         )
       );
 
@@ -139,16 +136,9 @@ export default function TripListModal({
   };
 
   const bulkUpdatePaymentType = async (type) => {
-    // 🔥 optimistic update UI
-    setTrips((prev) =>
-      prev.map((t) => ({
-        ...t,
-        paymentType: type,
-      }))
-    );
+    setTrips((prev) => prev.map((t) => ({ ...t, paymentType: type })));
 
     try {
-      // gọi từng chuyến (an toàn, dễ debug)
       await Promise.all(
         trips.map((t) =>
           axios.patch(
@@ -159,10 +149,8 @@ export default function TripListModal({
         )
       );
     } catch (err) {
-      console.error("Bulk update paymentType lỗi", err);
+      console.error(err);
       alert("Có lỗi khi cập nhật hàng loạt");
-
-      // ❌ reload lại cho chắc
       await loadTrips();
     }
   };
@@ -193,7 +181,7 @@ export default function TripListModal({
           <input
             value={addTripCode}
             onChange={(e) => setAddTripCode(e.target.value)}
-            placeholder="Nhập nhiều mã chuyến, cách nhau bằng dấu phẩy"
+            placeholder="Nhập nhiều mã chuyến, cách nhau bằng dấu cách hoặc dấu phẩy"
             className="border px-2 py-1 rounded w-[350px]"
           />
 
@@ -259,6 +247,18 @@ export default function TripListModal({
                     <div>Tiền mặt</div>
                   </th>
 
+                  <th className="p-2 border text-center">
+                    <input
+                      type="checkbox"
+                      checked={
+                        trips.length > 0 &&
+                        trips.every((t) => t.paymentType === "OTHER")
+                      }
+                      onChange={() => bulkUpdatePaymentType("OTHER")}
+                    />
+                    <div>Khác</div>
+                  </th>
+
                   <th className="p-2 border">Đã thanh toán</th>
                   <th className="p-2 border">Còn lại</th>
                   <th className="p-2 border">Trạng thái</th>
@@ -303,21 +303,34 @@ export default function TripListModal({
                       <td className="p-2 border font-semibold text-blue-600">
                         {tongTien.toLocaleString()}
                       </td>
-                      {/* Hoá đơn */}
+                      {/* INVOICE */}
                       <td className="p-2 border text-center">
                         <input
                           type="checkbox"
                           checked={t.paymentType === "INVOICE"}
-                          onChange={() => updatePaymentType(t.maChuyen, true)}
+                          onChange={() =>
+                            updatePaymentType(t.maChuyen, "INVOICE")
+                          }
                         />
                       </td>
 
-                      {/* Tiền mặt */}
+                      {/* CASH */}
                       <td className="p-2 border text-center">
                         <input
                           type="checkbox"
                           checked={t.paymentType === "CASH"}
-                          onChange={() => updatePaymentType(t.maChuyen, false)}
+                          onChange={() => updatePaymentType(t.maChuyen, "CASH")}
+                        />
+                      </td>
+
+                      {/* OTHER */}
+                      <td className="p-2 border text-center">
+                        <input
+                          type="checkbox"
+                          checked={t.paymentType === "OTHER"}
+                          onChange={() =>
+                            updatePaymentType(t.maChuyen, "OTHER")
+                          }
                         />
                       </td>
 

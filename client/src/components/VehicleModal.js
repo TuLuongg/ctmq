@@ -32,6 +32,8 @@ export default function VehicleModal({
     insExpDay: "",
     dayTravel: "",
     note: "",
+    bhTNDS: "",
+    bhVC: ""
   });
 
   const [registrationImages, setRegistrationImages] = useState([]); // mảng
@@ -55,6 +57,8 @@ export default function VehicleModal({
         insExpDay: formatDateForInput(initialData.insExpDay),
         dayTravel: formatDateForInput(initialData.dayTravel),
         note: initialData.note || "",
+        bhTNDS: initialData.bhTNDS || "",
+        bhVC: initialData.bhVC || "",
       });
 
       setPreviewReg(initialData.registrationImage || []);
@@ -74,6 +78,8 @@ export default function VehicleModal({
         insExpDay: "",
         dayTravel: "",
         note: "",
+        bhTNDS: "",
+        bhVC: ""
       });
       setPreviewReg([]);
       setPreviewInsp([]);
@@ -149,7 +155,7 @@ export default function VehicleModal({
         <form onSubmit={submit} className="grid grid-cols-2 gap-3">
           {/* Biển số */}
           <div>
-            <label className="block text-sm font-medium">Biển số</label>
+            <label className="block text-xs font-medium">Biển số</label>
             <input
               name="plateNumber"
               value={form.plateNumber}
@@ -161,7 +167,7 @@ export default function VehicleModal({
 
           {/* Đơn vị */}
           <div>
-            <label className="block text-sm font-medium">Đơn vị vận tải</label>
+            <label className="block text-xs font-medium">Đơn vị vận tải</label>
             <input
               name="company"
               value={form.company}
@@ -172,7 +178,7 @@ export default function VehicleModal({
 
           {/* Loại xe */}
           <div>
-            <label className="block text-sm font-medium">Loại xe</label>
+            <label className="block text-xs font-medium">Loại xe</label>
             <input
               name="vehicleType"
               value={form.vehicleType}
@@ -183,7 +189,7 @@ export default function VehicleModal({
 
           {/* Dài */}
           <div>
-            <label className="block text-sm font-medium">Dài (m)</label>
+            <label className="block text-xs font-medium">Dài (m)</label>
             <input
               name="length"
               value={form.length}
@@ -194,7 +200,7 @@ export default function VehicleModal({
 
           {/* Rộng */}
           <div>
-            <label className="block text-sm font-medium">Rộng (m)</label>
+            <label className="block text-xs font-medium">Rộng (m)</label>
             <input
               name="width"
               value={form.width}
@@ -205,7 +211,7 @@ export default function VehicleModal({
 
           {/* Cao */}
           <div>
-            <label className="block text-sm font-medium">Cao (m)</label>
+            <label className="block text-xs font-medium">Cao (m)</label>
             <input
               name="height"
               value={form.height}
@@ -216,7 +222,7 @@ export default function VehicleModal({
 
           {/* Định mức */}
           <div>
-            <label className="block text-sm font-medium">Định mức</label>
+            <label className="block text-xs font-medium">Định mức</label>
             <input
               name="norm"
               value={form.norm}
@@ -227,7 +233,7 @@ export default function VehicleModal({
 
           {/* ===== Ảnh đăng ký xe ===== */}
           <div className="col-span-2">
-            <label className="block text-sm font-medium mb-1">
+            <label className="block text-xs font-medium mb-1">
               Ảnh đăng ký xe
             </label>
             <button
@@ -282,7 +288,7 @@ export default function VehicleModal({
 
           {/* Ngày đăng ký */}
           <div>
-            <label className="block text-sm font-medium">Ngày đăng ký</label>
+            <label className="block text-xs font-medium">Ngày đăng ký</label>
             <input
               type="date"
               name="resDay"
@@ -294,7 +300,7 @@ export default function VehicleModal({
 
           {/* Hết hạn đăng ký */}
           <div>
-            <label className="block text-sm font-medium">
+            <label className="block text-xs font-medium">
               Ngày hết hạn đăng ký
             </label>
             <input
@@ -308,7 +314,7 @@ export default function VehicleModal({
 
           {/* ===== Ảnh đăng kiểm xe ===== */}
           <div className="col-span-2">
-            <label className="block text-sm font-medium mb-1">
+            <label className="block text-xs font-medium mb-1">
               Ảnh đăng kiểm xe
             </label>
             <button
@@ -363,7 +369,7 @@ export default function VehicleModal({
 
           {/* Ngày đăng kiểm */}
           <div>
-            <label className="block text-sm font-medium">Ngày đăng kiểm</label>
+            <label className="block text-xs font-medium">Ngày đăng kiểm</label>
             <input
               type="date"
               name="insDay"
@@ -375,7 +381,7 @@ export default function VehicleModal({
 
           {/* Hết hạn đăng kiểm */}
           <div>
-            <label className="block text-sm font-medium">
+            <label className="block text-xs font-medium">
               Ngày hết hạn đăng kiểm
             </label>
             <input
@@ -388,7 +394,7 @@ export default function VehicleModal({
           </div>
           {/* Ngày giấy đi đường */}
           <div>
-            <label className="block text-sm font-medium">
+            <label className="block text-xs font-medium">
               Ngày giấy đi đường
             </label>
             <input
@@ -402,10 +408,28 @@ export default function VehicleModal({
 
           {/* Ghi chú */}
           <div className="col-span-2">
-            <label className="block text-sm font-medium">Ghi chú</label>
+            <label className="block text-xs font-medium">Ghi chú</label>
             <textarea
               name="note"
               value={form.note}
+              onChange={handleChange}
+              className="border p-2 w-full rounded"
+            />
+          </div>
+                    <div>
+            <label className="block text-xs font-medium">Bảo hiểm TNDS</label>
+            <input
+              name="bhTNDS"
+              value={form.bhTNDS}
+              onChange={handleChange}
+              className="border p-2 w-full rounded"
+            />
+          </div>
+                    <div>
+            <label className="block text-xs font-medium">Bảo hiểm VC</label>
+            <input
+              name="bhVC"
+              value={form.bhVC}
               onChange={handleChange}
               className="border p-2 w-full rounded"
             />

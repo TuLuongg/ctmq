@@ -60,6 +60,7 @@ export default function CustomerDebtYearModal({
                 <th className="border p-2">Đến ngày</th>
                 <th className="border p-2">Hoá đơn</th>
                 <th className="border p-2">Tiền mặt</th>
+                <th className="border p-2">Khác</th>
                 <th className="border p-2">VAT</th>
                 <th className="border p-2">Tổng tiền</th>
                 <th className="border p-2">Đã TT</th>
@@ -110,6 +111,9 @@ export default function CustomerDebtYearModal({
                     </td>
                     <td className="border p-2 text-right">
                       {Number(p.totalAmountCash || 0).toLocaleString()}
+                    </td>
+                    <td className="border p-2 text-right">
+                      {Number(p.totalOther || 0).toLocaleString()}
                     </td>
                     <td className="border p-2 text-center">
                       {p.vatPercent || 0}%

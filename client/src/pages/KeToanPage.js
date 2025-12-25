@@ -298,12 +298,6 @@ const KeToanPage = () => {
           Sổ phiếu chi
         </button>
         <button
-          onClick={handleGoToCostManagement}
-          className="bg-blue-500 text-white px-3 py-1 rounded"
-        >
-          Các mục chi phí
-        </button>
-        <button
           onClick={handleGoToContract}
           className="bg-blue-500 text-white px-3 py-1 rounded"
         >
@@ -314,6 +308,13 @@ const KeToanPage = () => {
           className="bg-blue-500 text-white px-3 py-1 rounded"
         >
           TCB cá nhân
+        </button>
+
+                <button
+          onClick={handleGoToCostManagement}
+          className="ml-auto bg-blue-500 text-white px-3 py-1 rounded"
+        >
+          Các mục chi phí
         </button>
       </div>
 

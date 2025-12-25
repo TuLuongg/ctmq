@@ -313,6 +313,7 @@ export default function ManageTrip({ user, onLogout }) {
     "hangVe",
     "luuCa",
     "luatChiPhiKhac",
+    "themDiem",
     "cuocPhiBS",
     "bocXepBS",
     "veBS",
@@ -615,7 +616,7 @@ export default function ManageTrip({ user, onLogout }) {
         hangVeBS: (obj["HÀNG VỀ"] ?? "0").toString(),
         luuCaBS: (obj["LƯU CA"] ?? "0").toString(),
         cpKhacBS: (obj["CP KHÁC"] ?? "0").toString(),
-        cpKhacBS: (obj["THÊM ĐIỂM"] ?? "").toString(),
+        themDiem: (obj["THÊM ĐIỂM"] ?? "").toString(),
       };
 
       if (r.maChuyen) updates.push(r);
@@ -907,6 +908,7 @@ export default function ManageTrip({ user, onLogout }) {
     "khoangCach",
     "laiXeThuCuoc",
     "daThanhToan",
+    "themDiem"
   ];
 
   const formatNumber = (n) => {
