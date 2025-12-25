@@ -964,24 +964,33 @@ export default function ManageDriver() {
                           ...dateStyle,
                         }}
                       >
-                        {cKey === "stt"
-                          ? idx + 1
-                          : cKey === "licenseImage" ||
-                            cKey === "licenseImageCCCD"
-                          ? d[cKey] && (
-                              <a
-                                href={d[cKey]}
-                                target="_blank"
-                                rel="noreferrer"
-                              >
-                                <img
-                                  src={d[cKey]}
-                                  alt="img"
-                                  className="w-[42px] h-[28px] object-cover rounded border"
-                                />
-                              </a>
-                            )
-                          : formatCellValue(cKey, d[cKey])}
+                        {cKey === "stt" ? (
+                          idx + 1
+                        ) : cKey === "licenseImage" ||
+                          cKey === "licenseImageCCCD" ? (
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {Array.isArray(d[cKey]) && d[cKey].length > 0 ? (
+                              d[cKey].map((url, i) => (
+                                <a
+                                  key={i}
+                                  href={url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  <img
+                                    src={url}
+                                    alt="img"
+                                    className="w-[42px] h-[28px] object-cover rounded border hover:scale-110 transition"
+                                  />
+                                </a>
+                              ))
+                            ) : (
+                              <span className="text-gray-400 text-xs">—</span>
+                            )}
+                          </div>
+                        ) : (
+                          formatCellValue(cKey, d[cKey])
+                        )}
                       </td>
                     );
                   })}

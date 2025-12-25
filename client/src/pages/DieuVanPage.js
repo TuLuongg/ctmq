@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { FaEdit, FaTrash, FaHistory, FaSearch } from "react-icons/fa";
+import { FaEdit, FaTrash, FaHistory, FaSearch, FaCopy } from "react-icons/fa";
 import RideModal from "../components/RideModal";
 import ProfileModal from "../components/ProfileModal";
 import RideEditRequestModal from "../components/RideEditRequestModal";
@@ -297,8 +297,43 @@ export default function DieuVanPage({ user, onLogout }) {
 
   const [rideDraft, setRideDraft] = useState(null);
 
-
   const handleAdd = () => {
+    setEditRide(null);
+    setShowModal(true);
+  };
+
+  const handleCopyRide = (ride) => {
+    const copied = {
+      ...emptyForm,
+      ...ride,
+
+      // ❌ loại bỏ field không copy
+      _id: undefined,
+      maChuyen: "",
+      createdAt: undefined,
+      updatedAt: undefined,
+
+      // ✅ GIỮ ngày gốc, chỉ fallback nếu null
+      ngayBocHang: ride.ngayBocHang
+        ? format(new Date(ride.ngayBocHang), "yyyy-MM-dd")
+        : format(date, "yyyy-MM-dd"),
+
+      ngayGiaoHang: ride.ngayGiaoHang
+        ? format(new Date(ride.ngayGiaoHang), "yyyy-MM-dd")
+        : format(date, "yyyy-MM-dd"),
+
+      ngayBoc: ride.ngayBoc
+        ? format(new Date(ride.ngayBoc), "yyyy-MM-dd")
+        : format(date, "yyyy-MM-dd"),
+
+      // người tạo mới
+      createdByID: currentUser._id,
+      createdBy: currentUser.fullname,
+      dieuVanID: currentUser._id,
+      dieuVan: currentUser.fullname,
+    };
+
+    setRideDraft(copied);
     setEditRide(null);
     setShowModal(true);
   };
@@ -589,7 +624,7 @@ export default function DieuVanPage({ user, onLogout }) {
           onClick={handleAdd}
           className="bg-blue-500 text-white px-4 py-2 rounded"
         >
-          + Thêm chuyến
+          Thêm chuyến
         </button>
       </div>
 
@@ -1475,6 +1510,12 @@ export default function DieuVanPage({ user, onLogout }) {
                           <span className="text-gray-400">-</span>
                         )}
                       </div>
+                      <button
+                        onClick={() => handleCopyRide(r)}
+                        className="text-gray-500 flex items-center justify-center w-4 h-4 rounded hover:bg-red-100"
+                      >
+                        <FaCopy />
+                      </button>
                     </div>
                   </td>
                   {columnOrder.map((key) => {
@@ -1563,7 +1604,6 @@ export default function DieuVanPage({ user, onLogout }) {
         <RideModal
           key="new"
           initialData={rideDraft || emptyForm}
-          setDraft={setRideDraft}
           onClose={() => setShowModal(false)}
           onSave={handleSave}
           dieuVanList={managers}

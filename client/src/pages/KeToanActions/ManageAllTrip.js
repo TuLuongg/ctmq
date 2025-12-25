@@ -907,7 +907,7 @@ export default function ManageTrip({ user, onLogout }) {
     "khoangCach",
     "laiXeThuCuoc",
     "daThanhToan",
-    "themDiem"
+    "themDiem",
   ];
 
   const formatNumber = (n) => {
@@ -1029,7 +1029,7 @@ export default function ManageTrip({ user, onLogout }) {
         >
           Sổ phiếu chi
         </button>
-                <button
+        <button
           onClick={handleGoToContract}
           className={`px-3 py-1 rounded text-white ${
             isActive("/contract") ? "bg-green-600" : "bg-blue-500"
@@ -1084,7 +1084,8 @@ export default function ManageTrip({ user, onLogout }) {
               setPage(1);
               setGiaoFrom(e.target.value);
             }}
-            className="border px-2 py-1 rounded"
+            onClick={(e) => e.target.showPicker()}
+            className="border px-2 py-1 rounded cursor-pointer"
           />
 
           <label>Đến:</label>
@@ -1095,7 +1096,8 @@ export default function ManageTrip({ user, onLogout }) {
               setPage(1);
               setGiaoTo(e.target.value);
             }}
-            className="border px-2 py-1 rounded"
+            onClick={(e) => e.target.showPicker()}
+            className="border px-2 py-1 rounded cursor-pointer"
           />
         </div>
       </div>

@@ -44,7 +44,6 @@ const PAYMENT_SOURCE_LABEL = {
   OTHER: "Khác",
 };
 
-
 export default function VoucherListPage() {
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -85,7 +84,7 @@ export default function VoucherListPage() {
   const handleGoToVouchers = () =>
     navigate("/voucher-list", { state: { user } });
 
-    const handleGoToContract = () => {
+  const handleGoToContract = () => {
     navigate("/contract", { state: { user } });
   };
 
@@ -255,6 +254,10 @@ export default function VoucherListPage() {
     }
   };
 
+  const currentYear = new Date().getFullYear();
+  const YEARS = Array.from({ length: 60 }, (_, i) => currentYear - 30 + i);
+  // từ (năm hiện tại - 20) → (năm hiện tại + 29)
+
   return (
     <div className="p-4 text-xs">
       <div className="flex gap-2 items-center mb-4">
@@ -336,7 +339,7 @@ export default function VoucherListPage() {
         >
           Sổ phiếu chi
         </button>
-                <button
+        <button
           onClick={handleGoToContract}
           className={`px-3 py-1 rounded text-white ${
             isActive("/contract") ? "bg-green-600" : "bg-blue-500"
@@ -376,7 +379,7 @@ export default function VoucherListPage() {
           onChange={(e) => setYear(Number(e.target.value))}
           className="border px-2 py-1 rounded mr-2"
         >
-          {[2023, 2024, 2025, 2026].map((y) => (
+          {YEARS.map((y) => (
             <option key={y} value={y}>
               Năm {y}
             </option>
@@ -410,7 +413,8 @@ export default function VoucherListPage() {
           type="date"
           value={transferDateBulk}
           onChange={(e) => setTransferDateBulk(e.target.value)}
-          className="border px-2 py-1 rounded"
+          onClick={(e) => e.target.showPicker()}
+          className="border px-2 py-1 rounded cursor-pointer"
         />
 
         <button
@@ -529,7 +533,8 @@ export default function VoucherListPage() {
                       case "source":
                         return (
                           <td key={col} className="border p-2">
-                            {PAYMENT_SOURCE_LABEL[v.paymentSource] || v.paymentSource}
+                            {PAYMENT_SOURCE_LABEL[v.paymentSource] ||
+                              v.paymentSource}
                           </td>
                         );
                       case "receiver":
@@ -719,7 +724,8 @@ export default function VoucherListPage() {
                                   : ""
                               }`}
                             >
-                              {PAYMENT_SOURCE_LABEL[v.paymentSource] || v.paymentSource}
+                              {PAYMENT_SOURCE_LABEL[v.paymentSource] ||
+                                v.paymentSource}
                             </td>
                           );
                         case "receiver":

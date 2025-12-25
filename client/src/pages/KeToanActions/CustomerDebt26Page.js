@@ -434,7 +434,8 @@ export default function CustomerDebt26Page() {
               <label>Từ ngày: </label>
               <input
                 type="date"
-                className="border p-1"
+                onClick={(e) => e.target.showPicker()}
+                className="border px-2 py-1 rounded cursor-pointer"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
               />
@@ -444,7 +445,8 @@ export default function CustomerDebt26Page() {
               <label>Đến ngày: </label>
               <input
                 type="date"
-                className="border p-1"
+                onClick={(e) => e.target.showPicker()}
+                className="border px-2 py-1 rounded cursor-pointer"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
               />

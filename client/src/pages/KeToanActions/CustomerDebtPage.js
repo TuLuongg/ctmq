@@ -17,8 +17,23 @@ const normalizeString = (str) => {
 
 export default function CustomerDebtPage() {
   const token = localStorage.getItem("token");
-  const [month, setMonth] = useState(new Date().getMonth() + 1);
-  const [year, setYear] = useState(new Date().getFullYear());
+  const now = new Date();
+
+  const [monthYear, setMonthYear] = useState(
+    `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+  );
+
+  // vẫn giữ month / year để dùng cho logic cũ
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [year, setYear] = useState(now.getFullYear());
+  useEffect(() => {
+    if (!monthYear) return;
+
+    const [y, m] = monthYear.split("-");
+    setYear(Number(y));
+    setMonth(Number(m));
+  }, [monthYear]);
+
   const [customers, setCustomers] = useState([]);
   const [debtList, setDebtList] = useState([]);
 
@@ -73,6 +88,22 @@ export default function CustomerDebtPage() {
   };
 
   const [searchText, setSearchText] = useState("");
+  const [autoManageMonth, setAutoManageMonth] = useState(
+    `${year}-${String(month).padStart(2, "0")}`
+  );
+  useEffect(() => {
+    if (!autoManageMonth) return;
+
+    const [y, m] = autoManageMonth.split("-");
+    const formatted = `${m}/${y}`; // MM/YYYY
+
+    setAutoDebtData((prev) => ({
+      ...prev,
+      manageMonth: formatted,
+      month: Number(m),
+      year: Number(y),
+    }));
+  }, [autoManageMonth]);
 
   // ====================== LOAD DATA ======================
   useEffect(() => {
@@ -175,12 +206,6 @@ export default function CustomerDebtPage() {
   useEffect(() => {
     if (customers.length > 0) loadData();
   }, [month, year, customers]);
-
-  // ====================== HELPERS ======================
-  const getCustomerName = (maKH) => {
-    const found = customers.find((c) => c.code === maKH);
-    return found ? found.name : "";
-  };
 
   // ====================== ACTIONS ======================
   const handleLockDebt = async (debtCode) => {
@@ -446,19 +471,13 @@ export default function CustomerDebtPage() {
       <h1 className="text-xl font-bold mb-4">TỔNG CÔNG NỢ KHÁCH HÀNG</h1>
       <div className="flex gap-3 mb-4">
         <input
-          type="number"
-          value={month}
-          min={1}
-          max={12}
-          onChange={(e) => setMonth(e.target.value)}
-          className="border p-2"
+          type="month"
+          value={monthYear}
+          onChange={(e) => setMonthYear(e.target.value)}
+          onClick={(e) => e.target.showPicker()}
+          className="border px-2 py-1 rounded cursor-pointer"
         />
-        <input
-          type="number"
-          value={year}
-          onChange={(e) => setYear(e.target.value)}
-          className="border p-2"
-        />
+
         <button
           onClick={loadData}
           className="px-4 py-2 bg-blue-600 text-white rounded"
@@ -786,16 +805,11 @@ export default function CustomerDebtPage() {
             {/* manageMonth + note */}
             <div className="flex gap-2 mb-2 items-center">
               <input
-                type="text"
-                placeholder="MM/YYYY"
-                value={autoDebtData.manageMonth || ""}
-                onChange={(e) =>
-                  setAutoDebtData({
-                    ...autoDebtData,
-                    manageMonth: e.target.value,
-                  })
-                }
-                className="border p-2 w-36"
+                type="month"
+                value={autoManageMonth}
+                onChange={(e) => setAutoManageMonth(e.target.value)}
+                onClick={(e) => e.target.showPicker()}
+                className="border p-2 w-40 cursor-pointer"
               />
 
               <input

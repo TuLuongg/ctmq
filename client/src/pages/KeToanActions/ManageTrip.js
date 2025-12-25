@@ -1,7 +1,13 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { format } from "date-fns";
 import { useNavigate, useLocation } from "react-router-dom";
-import { FaEdit, FaHistory, FaExclamationTriangle } from "react-icons/fa";
+import {
+  FaEdit,
+  FaHistory,
+  FaExclamationTriangle,
+  FaInfoCircle,
+  FaCopy
+} from "react-icons/fa";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
@@ -9,6 +15,7 @@ import RideModal from "../../components/RideModal";
 import RideEditModal from "../../components/RideEditModal";
 import RideRequestListModal from "../../components/RideRequestListModal";
 import RideHistoryModal from "../../components/RideHistoryModal";
+import BoSungSingleModal from "../../components/BoSungSingleModal";
 import API from "../../api";
 
 const API_URL = `${API}/schedule-admin`;
@@ -686,6 +693,9 @@ export default function ManageTrip({ user, onLogout }) {
     }
   };
 
+  const [openBoSung, setOpenBoSung] = useState(false);
+  const [selectedRideBS, setSelectedRideBS] = useState(null);
+
   //Yêu cầu sửa chuyến
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingRide, setEditingRide] = useState(null);
@@ -934,7 +944,7 @@ export default function ManageTrip({ user, onLogout }) {
     "khoangCach",
     "laiXeThuCuoc",
     "daThanhToan",
-    "themDiem"
+    "themDiem",
   ];
 
   const formatNumber = (n) => {
@@ -971,8 +981,45 @@ export default function ManageTrip({ user, onLogout }) {
 
   const [showModal, setShowModal] = useState(false);
   const handleAdd = () => {
+    setRideDraft([]);
     setShowModal(true);
   };
+const handleCopyRide = (ride) => {
+  const copied = {
+    ...ride,
+
+    // ❌ loại bỏ field không copy
+    _id: undefined,
+    createdAt: undefined,
+    updatedAt: undefined,
+
+    // ✅ GIỮ ngày gốc, chỉ fallback nếu null
+    ngayBocHang: ride.ngayBocHang
+      ? format(new Date(ride.ngayBocHang), "yyyy-MM-dd")
+      : format(date, "yyyy-MM-dd"),
+
+    ngayGiaoHang: ride.ngayGiaoHang
+      ? format(new Date(ride.ngayGiaoHang), "yyyy-MM-dd")
+      : format(date, "yyyy-MM-dd"),
+
+    ngayBoc: ride.ngayBoc
+      ? format(new Date(ride.ngayBoc), "yyyy-MM-dd")
+      : format(date, "yyyy-MM-dd"),
+
+    // người tạo mới
+    createdByID: currentUser._id,
+    createdBy: currentUser.fullname,
+    dieuVanID: currentUser._id,
+    dieuVan: currentUser.fullname,
+  };
+
+  delete copied.maChuyen;
+  console.log(copied.maChuyen)
+
+  setRideDraft(copied);
+  setShowModal(true);
+};
+  
   const handleSave = async (payload) => {
     try {
       // chỉ POST, không check editRide
@@ -985,7 +1032,7 @@ export default function ManageTrip({ user, onLogout }) {
 
       // nếu cần fetch lại danh sách
       fetchAllRides();
-      alert("Thêm chuyến thành công !")
+      alert("Thêm chuyến thành công !");
       // đóng modal
       setShowModal(false);
     } catch (err) {
@@ -1134,7 +1181,8 @@ export default function ManageTrip({ user, onLogout }) {
               setPage(1);
               setGiaoFrom(e.target.value);
             }}
-            className="border px-2 py-1 rounded"
+            onClick={(e) => e.target.showPicker()}
+            className="border px-2 py-1 rounded cursor-pointer"
           />
 
           <label>Đến:</label>
@@ -1145,7 +1193,8 @@ export default function ManageTrip({ user, onLogout }) {
               setPage(1);
               setGiaoTo(e.target.value);
             }}
-            className="border px-2 py-1 rounded"
+            onClick={(e) => e.target.showPicker()}
+            className="border px-2 py-1 rounded cursor-pointer"
           />
         </div>
       </div>
@@ -2215,8 +2264,16 @@ export default function ManageTrip({ user, onLogout }) {
                         </span>
                       </button>
                     ) : (
-                      <span className="text-gray-400 text-xs">-</span>
+                      <span className="text-gray-400 text-xs">null</span>
                     )}
+
+                                        <button
+                      onClick={() => handleCopyRide(r)}
+                      className="p-1.5 bg-gray-400 text-white rounded-lg shadow-sm hover:bg-green-500 hover:shadow-md transition"
+                      title="Nhân bản"
+                    >
+                      <FaCopy className="w-2 h-2" />
+                    </button>
                   </div>
                 </td>
 
@@ -2328,7 +2385,7 @@ export default function ManageTrip({ user, onLogout }) {
                         </div>
                       ) : (
                         <div
-                          className="truncate"
+                          className="flex items-center w-full truncate"
                           style={{
                             fontWeight: [
                               "cuocPhiBS",
@@ -2352,9 +2409,25 @@ export default function ManageTrip({ user, onLogout }) {
                               : "black",
                           }}
                         >
-                          {numberColumns.includes(col.key)
-                            ? formatNumber(cellValue)
-                            : cellValue}
+                          {/* TEXT (có thể rỗng) */}
+                          <span className="truncate">
+                            {numberColumns.includes(col.key)
+                              ? formatNumber(cellValue)
+                              : cellValue || ""}
+                          </span>
+
+                          {/* ICON luôn sát phải */}
+                          {col.key === "cpKhacBS" && (
+                            <FaInfoCircle
+                              className="ml-auto shrink-0 text-gray-500 hover:text-blue-600 cursor-pointer mr-1"
+                              title="Chi tiết chi phí khác"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedRideBS(r);
+                                setOpenBoSung(true);
+                              }}
+                            />
+                          )}
                         </div>
                       )}
                       {hoverVehicle && (
@@ -2381,6 +2454,7 @@ export default function ManageTrip({ user, onLogout }) {
                           </div>
                         </div>
                       )}
+                      {/* ⭐ ICON THÔNG TIN – CHỈ cpKhacBS */}
                     </td>
                   );
                 })}
@@ -2483,7 +2557,6 @@ export default function ManageTrip({ user, onLogout }) {
           <RideModal
             key="new"
             initialData={rideDraft}
-            setDraft={setRideDraft}
             onClose={() => setShowModal(false)}
             onSave={handleSave}
             dieuVanList={[]}
@@ -2494,6 +2567,21 @@ export default function ManageTrip({ user, onLogout }) {
           />
         </div>
       )}
+
+      <div className="fixed z-[99999]">
+        <BoSungSingleModal
+          open={openBoSung}
+          schedule={selectedRideBS}
+          onClose={() => setOpenBoSung(false)}
+          onSaved={(updatedRide) => {
+            setRides((prev) =>
+              prev.map((r) => (r._id === updatedRide._id ? updatedRide : r))
+            );
+
+            setOpenBoSung(false);
+          }}
+        />
+      </div>
     </div>
   );
 }

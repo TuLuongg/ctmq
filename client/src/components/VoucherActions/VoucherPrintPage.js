@@ -5,10 +5,19 @@ import API from "../../api";
 
 const boxClass = "border-2 border-black p-2 mt-1 print:border-black";
 
+const PAYMENT_SOURCE_LABEL = {
+  PERSONAL_VCB: "Cá nhân - VCB",
+  PERSONAL_TCB: "Cá nhân - TCB",
+  COMPANY_VCB: "Công ty - VCB",
+  COMPANY_TCB: "Công ty - TCB",
+  CASH: "Tiền mặt",
+  OTHER: "Khác",
+};
+
 export default function VoucherPrintPage() {
   const { id } = useParams();
   const [data, setData] = useState(null);
-  console.log("VoucherPrintPage id:", data);
+  console.log(data);
 
   useEffect(() => {
     axios.get(`${API}/vouchers/${id}`).then((res) => {
@@ -17,6 +26,10 @@ export default function VoucherPrintPage() {
   }, [id]);
 
   if (!data) return <div className="p-4">Đang tải...</div>;
+
+  const isCompanyPayment = data.paymentSource?.startsWith("COMPANY");
+
+  const voucherTitle = isCompanyPayment ? "ĐỀ NGHỊ THANH TOÁN" : "PHIẾU CHI";
 
   return (
     <div
@@ -35,7 +48,7 @@ export default function VoucherPrintPage() {
   "
     >
       <h1 className="text-center text-xl font-bold mb-2 mt-0">
-        PHIẾU CHI
+        {voucherTitle}
       </h1>
 
       {/* --- DATE --- */}
@@ -50,7 +63,7 @@ export default function VoucherPrintPage() {
       <div className="mb-2">
         <div className="font-semibold">TÀI KHOẢN CHI (CHỌN NGUỒN TIỀN)</div>
         <div className={`${boxClass} inline-block`}>
-          {data.paymentSource === "company" ? "CÔNG TY" : "CÁ NHÂN"}
+          {PAYMENT_SOURCE_LABEL[data.paymentSource] || data.paymentSource}
         </div>
       </div>
 
@@ -90,19 +103,21 @@ export default function VoucherPrintPage() {
       <div className="mb-2 grid grid-cols-2 gap-4">
         <div>
           <div className="font-semibold">PHÂN LOẠI CHI</div>
-          <div className={boxClass}>{data.expenseType}</div>
+          <div className={`${boxClass} text-lg`}>{data.expenseType}</div>
         </div>
 
         <div>
           <div className="font-semibold">SỐ TIỀN (VNĐ)</div>
-          <div className={boxClass}>{data.amount.toLocaleString()}</div>
+          <div className={`${boxClass} text-lg`}>
+            {data.amount.toLocaleString()}
+          </div>
         </div>
       </div>
 
       {/* --- SỐ TIỀN BẰNG CHỮ --- */}
       <div className="mb-6">
         <div className="font-semibold">SỐ TIỀN BẰNG CHỮ</div>
-        <div className={`${boxClass} italic text-red-600`}>
+        <div className={`${boxClass} italic text-red-600 text-lg`}>
           {data.amountInWords}
         </div>
       </div>

@@ -514,13 +514,15 @@ export default function ManageTCBperson() {
           type="date"
           value={from}
           onChange={(e) => setFrom(e.target.value)}
-          className="border p-2 rounded"
+          onClick={(e) => e.target.showPicker()}
+          className="border px-2 py-1 rounded cursor-pointer"
         />
         <input
           type="date"
           value={to}
           onChange={(e) => setTo(e.target.value)}
-          className="border p-2 rounded"
+          onClick={(e) => e.target.showPicker()}
+          className="border px-2 py-1 rounded cursor-pointer"
         />
         <button
           onClick={() => {

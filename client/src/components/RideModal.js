@@ -7,7 +7,6 @@ registerLocale("vi", vi);
 
 export default function RideModal({
   initialData,
-  setDraft,
   onClose,
   onSave,
   dieuVanList = [],
@@ -24,10 +23,6 @@ export default function RideModal({
     luuCa: false,
     luatChiPhiKhac: false,
   });
-
-  useEffect(() => {
-    setDraft?.(form);
-  }, [form]);
 
   const [customerSuggestions, setCustomerSuggestions] = useState([]);
   const [isCustomerFocused, setIsCustomerFocused] = useState(false);
@@ -233,6 +228,10 @@ export default function RideModal({
       ngayBoc: `${yyyy}-${mm}-${dd}`,
       ghiChu: form.ghiChu || "",
     };
+
+    if (!payload.maChuyen) {
+      delete payload.maChuyen;
+    }
 
     onSave(payload);
   };
