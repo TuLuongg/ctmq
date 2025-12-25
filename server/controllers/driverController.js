@@ -42,7 +42,8 @@ const getDriver = async (req, res) => {
     if (!mongoose.isValidObjectId(id))
       return res.status(400).json({ error: "ID không hợp lệ" });
     const driver = await Driver.findById(id);
-    if (!driver) return res.status(404).json({ error: "Không tìm thấy lái xe" });
+    if (!driver)
+      return res.status(404).json({ error: "Không tìm thấy lái xe" });
     res.json(driver);
   } catch (err) {
     console.error(err);
@@ -69,12 +70,16 @@ const createDriver = async (req, res) => {
       cccd: body.cccd || "",
       cccdIssuedAt: body.cccdIssuedAt ? new Date(body.cccdIssuedAt) : null,
       cccdExpiryAt: body.cccdExpiryAt ? new Date(body.cccdExpiryAt) : null,
-      licenseImageCCCD: body.licenseImageCCCD || "",
+      licenseImageCCCD: body.licenseImageCCCD || [],
       numberClass: body.numberClass || "",
       licenseClass: body.licenseClass || "",
-      licenseIssuedAt: body.licenseIssuedAt ? new Date(body.licenseIssuedAt) : null,
-      licenseExpiryAt: body.licenseExpiryAt ? new Date(body.licenseExpiryAt) : null,
-      licenseImage: body.licenseImage || "",
+      licenseIssuedAt: body.licenseIssuedAt
+        ? new Date(body.licenseIssuedAt)
+        : null,
+      licenseExpiryAt: body.licenseExpiryAt
+        ? new Date(body.licenseExpiryAt)
+        : null,
+      licenseImage: body.licenseImage || [],
       numberHDLD: body.numberHDLD || "",
       dayStartWork: body.dayStartWork ? new Date(body.dayStartWork) : null,
       dayEndWork: body.dayEndWork ? new Date(body.dayEndWork) : null,
@@ -99,7 +104,8 @@ const updateDriver = async (req, res) => {
       return res.status(400).json({ error: "ID không hợp lệ" });
 
     const driver = await Driver.findById(id);
-    if (!driver) return res.status(404).json({ error: "Không tìm thấy lái xe" });
+    if (!driver)
+      return res.status(404).json({ error: "Không tìm thấy lái xe" });
 
     const body = req.body || {};
 
@@ -115,42 +121,71 @@ const updateDriver = async (req, res) => {
       resHometown: body.resHometown || driver.resHometown,
       address: body.address || driver.address,
       cccd: body.cccd || driver.cccd,
-      cccdIssuedAt: body.cccdIssuedAt ? new Date(body.cccdIssuedAt) : driver.cccdIssuedAt,
-      cccdExpiryAt: body.cccdExpiryAt ? new Date(body.cccdExpiryAt) : driver.cccdExpiryAt,
+      cccdIssuedAt: body.cccdIssuedAt
+        ? new Date(body.cccdIssuedAt)
+        : driver.cccdIssuedAt,
+      cccdExpiryAt: body.cccdExpiryAt
+        ? new Date(body.cccdExpiryAt)
+        : driver.cccdExpiryAt,
       numberClass: body.numberClass || driver.numberClass,
       licenseClass: body.licenseClass || driver.licenseClass,
-      licenseIssuedAt: body.licenseIssuedAt ? new Date(body.licenseIssuedAt) : driver.licenseIssuedAt,
-      licenseExpiryAt: body.licenseExpiryAt ? new Date(body.licenseExpiryAt) : driver.licenseExpiryAt,
+      licenseIssuedAt: body.licenseIssuedAt
+        ? new Date(body.licenseIssuedAt)
+        : driver.licenseIssuedAt,
+      licenseExpiryAt: body.licenseExpiryAt
+        ? new Date(body.licenseExpiryAt)
+        : driver.licenseExpiryAt,
       numberHDLD: body.numberHDLD || driver.numberHDLD,
-      dayStartWork: body.dayStartWork ? new Date(body.dayStartWork) : driver.dayStartWork,
-      dayEndWork: body.dayEndWork ? new Date(body.dayEndWork) : driver.dayEndWork,
+      dayStartWork: body.dayStartWork
+        ? new Date(body.dayStartWork)
+        : driver.dayStartWork,
+      dayEndWork: body.dayEndWork
+        ? new Date(body.dayEndWork)
+        : driver.dayEndWork,
     });
 
     // Xử lý file
-    if (req.body.licenseImage) {
-      if (driver.licenseImage) {
-        const oldPath = path.join(process.cwd(), driver.licenseImage.replace(/^\//, ""));
-        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+    // ===== LICENSE IMAGE =====
+    if (Array.isArray(req.body.licenseImage)) {
+      // Xoá ảnh cũ
+      if (Array.isArray(driver.licenseImage)) {
+        for (const img of driver.licenseImage) {
+          const oldPath = path.join(process.cwd(), img.replace(/^\//, ""));
+          if (fs.existsSync(oldPath)) {
+            try {
+              fs.unlinkSync(oldPath);
+            } catch (e) {}
+          }
+        }
       }
+
+      // Gán mảng mới
       driver.licenseImage = req.body.licenseImage;
     }
-    if (req.body.licenseImageCCCD) {
-      if (driver.licenseImageCCCD) {
-        const oldPath = path.join(process.cwd(), driver.licenseImageCCCD.replace(/^\//, ""));
-        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+
+    // ===== LICENSE IMAGE CCCD =====
+    if (Array.isArray(req.body.licenseImageCCCD)) {
+      if (Array.isArray(driver.licenseImageCCCD)) {
+        for (const img of driver.licenseImageCCCD) {
+          const oldPath = path.join(process.cwd(), img.replace(/^\//, ""));
+          if (fs.existsSync(oldPath)) {
+            try {
+              fs.unlinkSync(oldPath);
+            } catch (e) {}
+          }
+        }
       }
+
       driver.licenseImageCCCD = req.body.licenseImageCCCD;
     }
 
     await driver.save();
     res.json(driver);
-
   } catch (err) {
     console.error("Lỗi khi cập nhật lái xe:", err);
     res.status(500).json({ error: err.message });
   }
 };
-
 
 // ==============================
 // XOÁ
@@ -162,12 +197,30 @@ const deleteDriver = async (req, res) => {
       return res.status(400).json({ error: "ID không hợp lệ" });
 
     const driver = await Driver.findById(id);
-    if (!driver) return res.status(404).json({ error: "Không tìm thấy lái xe" });
+    if (!driver)
+      return res.status(404).json({ error: "Không tìm thấy lái xe" });
 
-    if (driver.licenseImage) {
-      const oldPath = path.join(process.cwd(), driver.licenseImage.replace(/^\//, ""));
-      if (fs.existsSync(oldPath)) {
-        try { fs.unlinkSync(oldPath); } catch (e) {}
+    // Xoá ảnh GPLX
+    if (Array.isArray(driver.licenseImage)) {
+      for (const img of driver.licenseImage) {
+        const imgPath = path.join(process.cwd(), img.replace(/^\//, ""));
+        if (fs.existsSync(imgPath)) {
+          try {
+            fs.unlinkSync(imgPath);
+          } catch (e) {}
+        }
+      }
+    }
+
+    // Xoá ảnh CCCD
+    if (Array.isArray(driver.licenseImageCCCD)) {
+      for (const img of driver.licenseImageCCCD) {
+        const imgPath = path.join(process.cwd(), img.replace(/^\//, ""));
+        if (fs.existsSync(imgPath)) {
+          try {
+            fs.unlinkSync(imgPath);
+          } catch (e) {}
+        }
       }
     }
 
@@ -184,9 +237,10 @@ const deleteDriver = async (req, res) => {
 // ==============================
 const importDriversFromExcel = async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ error: "Chưa upload file Excel" });
+    if (!req.file)
+      return res.status(400).json({ error: "Chưa upload file Excel" });
 
-    const mode = req.query.mode || "append"; 
+    const mode = req.query.mode || "append";
     // append = thêm hết, KHÔNG kiểm tra trùng
     // overwrite = ghi đè nếu trùng cccd
 
@@ -200,27 +254,26 @@ const importDriversFromExcel = async (req, res) => {
     const errors = [];
 
     const parseExcelDate = (str) => {
-  if (!str) return null;
-  // Nếu Excel trả về số thì giữ nguyên (Excel đôi khi trả kiểu số cho date)
-  if (typeof str === "number") {
-    // XLSX.SSF.parse_date_code có thể dùng nếu cần, nhưng hầu hết XLSX.utils.sheet_to_json sẽ trả về string
-    return new Date(Math.round((str - 25569)*86400*1000));
-  }
-  if (typeof str === "string") {
-    const parts = str.split("/");
-    if (parts.length !== 3) return null;
-    const [day, month, year] = parts.map(Number);
-    if (!day || !month || !year) return null;
-    return new Date(year, month - 1, day);
-  }
-  return null;
-};
-
+      if (!str) return null;
+      // Nếu Excel trả về số thì giữ nguyên (Excel đôi khi trả kiểu số cho date)
+      if (typeof str === "number") {
+        // XLSX.SSF.parse_date_code có thể dùng nếu cần, nhưng hầu hết XLSX.utils.sheet_to_json sẽ trả về string
+        return new Date(Math.round((str - 25569) * 86400 * 1000));
+      }
+      if (typeof str === "string") {
+        const parts = str.split("/");
+        if (parts.length !== 3) return null;
+        const [day, month, year] = parts.map(Number);
+        if (!day || !month || !year) return null;
+        return new Date(year, month - 1, day);
+      }
+      return null;
+    };
 
     for (const [idx, row] of rows.entries()) {
       try {
         if (!row["HỌ TÊN LÁI XE"] && !row["Tên"]) continue;
-        
+
         const cccd = row["SỐ CCCD"] || "";
 
         const driverData = {
@@ -238,8 +291,12 @@ const importDriversFromExcel = async (req, res) => {
           cccdExpiryAt: parseExcelDate(row["Ngày hết hạn CCCD"]),
           numberClass: row["Số GPLX"] || "",
           licenseClass: row["Hạng bằng lái xe"] || row["HẠNG BL"] || "",
-          licenseIssuedAt: parseExcelDate(row["Ngày cấp GPLX"] || row["Ngày cấp BL"]),
-          licenseExpiryAt: parseExcelDate(row["Ngày hết hạn GPLX"] || row["Ngày hết hạn BL"]),
+          licenseIssuedAt: parseExcelDate(
+            row["Ngày cấp GPLX"] || row["Ngày cấp BL"]
+          ),
+          licenseExpiryAt: parseExcelDate(
+            row["Ngày hết hạn GPLX"] || row["Ngày hết hạn BL"]
+          ),
           numberHDLD: row["Số HĐLĐ"] || "",
           dayStartWork: parseExcelDate(row["Ngày vào làm"]),
           dayEndWork: parseExcelDate(row["Ngày nghỉ"]),
@@ -269,7 +326,6 @@ const importDriversFromExcel = async (req, res) => {
           }
           continue;
         }
-
       } catch (err) {
         errors.push({ row: idx + 2, error: err.message });
       }
@@ -280,16 +336,13 @@ const importDriversFromExcel = async (req, res) => {
       mode,
       imported,
       updated,
-      errors
+      errors,
     });
-
   } catch (err) {
     console.error("Lỗi import Excel:", err);
     res.status(500).json({ error: err.message });
   }
 };
-
-
 
 // ==============================
 // Lấy danh sách chỉ gồm _id và name
@@ -320,9 +373,8 @@ const toggleWarning = async (req, res) => {
     res.json({
       success: true,
       message: schedule.warning ? "Đã bật cảnh báo" : "Đã tắt cảnh báo",
-      warning: schedule.warning
+      warning: schedule.warning,
     });
-
   } catch (err) {
     console.error("❌ Lỗi toggle cảnh báo:", err);
     res.status(500).json({ error: err.message });
@@ -335,18 +387,27 @@ const toggleWarning = async (req, res) => {
 const deleteAllDrivers = async (req, res) => {
   try {
     const drivers = await Driver.find({});
-    
+
     for (const driver of drivers) {
-      if (driver.licenseImage) {
-        const imgPath = path.join(process.cwd(), driver.licenseImage.replace(/^\//, ""));
-        if (fs.existsSync(imgPath)) {
-          try { fs.unlinkSync(imgPath); } catch (e) {}
+      if (Array.isArray(driver.licenseImage)) {
+        for (const img of driver.licenseImage) {
+          const imgPath = path.join(process.cwd(), img.replace(/^\//, ""));
+          if (fs.existsSync(imgPath)) {
+            try {
+              fs.unlinkSync(imgPath);
+            } catch (e) {}
+          }
         }
       }
-      if (driver.licenseImageCCCD) {
-        const imgCCCDPath = path.join(process.cwd(), driver.licenseImageCCCD.replace(/^\//, ""));
-        if (fs.existsSync(imgCCCDPath)) {
-          try { fs.unlinkSync(imgCCCDPath); } catch (e) {}
+
+      if (Array.isArray(driver.licenseImageCCCD)) {
+        for (const img of driver.licenseImageCCCD) {
+          const imgPath = path.join(process.cwd(), img.replace(/^\//, ""));
+          if (fs.existsSync(imgPath)) {
+            try {
+              fs.unlinkSync(imgPath);
+            } catch (e) {}
+          }
         }
       }
     }
@@ -360,7 +421,6 @@ const deleteAllDrivers = async (req, res) => {
   }
 };
 
-
 module.exports = {
   listDrivers,
   getDriver,
@@ -370,5 +430,5 @@ module.exports = {
   importDriversFromExcel,
   listDriverNames,
   toggleWarning,
-  deleteAllDrivers
+  deleteAllDrivers,
 };

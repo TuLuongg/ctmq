@@ -856,6 +856,55 @@ const addBoSung = async (req, res) => {
   }
 };
 
+// 🆕 Cập nhật bổ sung cho 1 chuyến
+const addBoSungSingle = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      ltState,
+      onlState,
+      offState,
+      cuocPhiBS,
+      bocXepBS,
+      veBS,
+      hangVeBS,
+      luuCaBS,
+      cpKhacBS,
+      themDiem,
+    } = req.body;
+
+    const schedule = await ScheduleAdmin.findById(id);
+    if (!schedule) {
+      return res.status(404).json({ error: "Không tìm thấy chuyến" });
+    }
+
+    schedule.ltState = ltState?.toString() || "";
+    schedule.onlState = onlState?.toString() || "";
+    schedule.offState = offState?.toString() || "";
+
+    schedule.cuocPhiBS = cuocPhiBS?.toString() || "";
+    schedule.bocXepBS = bocXepBS?.toString() || "";
+    schedule.veBS = veBS?.toString() || "";
+    schedule.hangVeBS = hangVeBS?.toString() || "";
+    schedule.luuCaBS = luuCaBS?.toString() || "";
+    schedule.cpKhacBS = cpKhacBS?.toString() || "";
+
+    schedule.themDiem = themDiem?.toString() || "";
+
+    await schedule.save();
+
+    res.json({
+      success: true,
+      message: "Cập nhật bổ sung chuyến thành công",
+      data: schedule,
+    });
+  } catch (err) {
+    console.error("❌ addBoSungSingle error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
 const importSchedulesFromExcel = async (req, res) => {
   try {
     const user = req.user;
@@ -1280,4 +1329,5 @@ module.exports = {
   getAllScheduleFilterOptions,
   exportTripsByDateRange,
   exportTripsByDateRangeBS,
+  addBoSungSingle
 };

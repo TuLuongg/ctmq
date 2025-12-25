@@ -19,7 +19,8 @@ const {
   getScheduleFilterOptions,
   getAllScheduleFilterOptions,
   exportTripsByDateRange,
-  exportTripsByDateRangeBS
+  exportTripsByDateRangeBS,
+  addBoSungSingle
 } = require("../controllers/scheduleAdminController");
 const authMiddleware = require("../middleware/authMiddleware");
 
@@ -91,6 +92,7 @@ router.post("/add-hoa-don", authMiddleware(["keToan"]), addHoaDonToSchedules);
 
 // Thêm cước phí bổ sung cho chuyến
 router.post("/add-bo-sung", authMiddleware(["keToan"]), addBoSung);
+router.put("/bo-sung/:id", authMiddleware(["keToan"]), addBoSungSingle);
 
 router.put("/warning/:id", authMiddleware(["admin","dieuVan","keToan"]), toggleWarning);
 

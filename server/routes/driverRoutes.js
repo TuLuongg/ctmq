@@ -11,7 +11,7 @@ const {
   importDriversFromExcel,
   listDriverNames,
   toggleWarning,
-  deleteAllDrivers
+  deleteAllDrivers,
 } = require("../controllers/driverController");
 
 const cloudinary = require("../config/cloudinary");
@@ -50,24 +50,37 @@ async function uploadToCloudinary(buffer, folder = "drivers") {
 // --------------------------
 async function handleImageUpload(req, res, next) {
   try {
-    if (req.files?.licenseImage?.[0]) {
-      req.body.licenseImage = await uploadToCloudinary(
-        req.files.licenseImage[0].buffer,
-        "drivers/license"
-      );
+    // ===== GPLX =====
+    if (Array.isArray(req.files?.licenseImage)) {
+      const urls = [];
+
+      for (const file of req.files.licenseImage) {
+        const url = await uploadToCloudinary(file.buffer, "drivers/license");
+        urls.push(url);
+      }
+
+      req.body.licenseImage = urls;
     }
 
-    if (req.files?.licenseImageCCCD?.[0]) {
-      req.body.licenseImageCCCD = await uploadToCloudinary(
-        req.files.licenseImageCCCD[0].buffer,
-        "drivers/cccd"
-      );
+    // ===== CCCD =====
+    if (Array.isArray(req.files?.licenseImageCCCD)) {
+      const urls = [];
+
+      for (const file of req.files.licenseImageCCCD) {
+        const url = await uploadToCloudinary(file.buffer, "drivers/cccd");
+        urls.push(url);
+      }
+
+      req.body.licenseImageCCCD = urls;
     }
 
     next();
   } catch (err) {
     console.error("Upload error:", err);
-    return res.status(500).json({ message: "Upload image failed", error: err });
+    return res.status(500).json({
+      message: "Upload image failed",
+      error: err.message,
+    });
   }
 }
 
@@ -81,8 +94,8 @@ router.get("/:id", getDriver);
 router.post(
   "/",
   imageUpload.fields([
-    { name: "licenseImage", maxCount: 1 },
-    { name: "licenseImageCCCD", maxCount: 1 }
+    { name: "licenseImage", maxCount: 5 },
+    { name: "licenseImageCCCD", maxCount: 5 },
   ]),
   handleImageUpload,
   createDriver
@@ -92,8 +105,8 @@ router.post(
 router.put(
   "/:id",
   imageUpload.fields([
-    { name: "licenseImage", maxCount: 1 },
-    { name: "licenseImageCCCD", maxCount: 1 }
+    { name: "licenseImage", maxCount: 5 },
+    { name: "licenseImageCCCD", maxCount: 5 },
   ]),
   handleImageUpload,
   updateDriver

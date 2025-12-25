@@ -15,12 +15,12 @@ const driverSchema = new mongoose.Schema(
     cccd: { type: String, default: "" }, // CĂN CƯỚC CÔNG DÂN
     cccdIssuedAt: { type: Date, default: null }, // NGÀY CẤP CCCD
     cccdExpiryAt: { type: Date, default: null }, // NGÀY HẾT HẠN CCCD
-    licenseImageCCCD: { type: String, default: "" }, // ĐƯỜNG DẪN FILE ẢNH CCCD (REL PATH)
+    licenseImageCCCD: { type: [String], default: [] }, // ĐƯỜNG DẪN FILE ẢNH CCCD (REL PATH)
     numberClass: { type: String, default: "" }, // SỐ BẰNG LÁI
     licenseClass: { type: String, default: "" }, // HẠNG BẰNG LÁI
     licenseIssuedAt: { type: Date, default: null }, // NGÀY CẤP BLX 
     licenseExpiryAt: { type: Date, default: null }, // NGÀY HẾT HẠN BLX
-    licenseImage: { type: String, default: "" }, // ĐƯỜNG DẪN FILE ẢNH BLX (REL PATH)
+    licenseImage: { type: [String], default: [] }, // ĐƯỜNG DẪN FILE ẢNH BLX (REL PATH)
     numberHDLD: { type: String, default: "" }, // SỐ HỢP ĐỒNG LAO ĐỘNG
     dayStartWork: { type: Date, default: null }, // NGÀY BẮT ĐẦU LÀM VIỆC
     dayEndWork: { type: Date, default: null }, // NGÀY KẾT THÚC LÀM VIỆC
