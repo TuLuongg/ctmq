@@ -273,7 +273,6 @@ const exportTripsByCustomer = async (req, res) => {
     );
 
     const sheet = workbook.getWorksheet("BẢNG KÊ");
-    console.log("MERGES:", sheet._merges);
 
     // Header
     sheet.getCell("C6").value = customer.nameHoaDon || "";
@@ -283,7 +282,7 @@ const exportTripsByCustomer = async (req, res) => {
     // ==========================
     // SCHEMA
     // ==========================
-    const startRow = 12;
+    const startRow = 11;
     const templateRows = 7;
 
     const rowSchema = getRowSchema(sheet, startRow);
@@ -346,14 +345,14 @@ const exportTripsByCustomer = async (req, res) => {
       sumO += Number(sheet.getCell(`O${startRow + i}`).value) || 0;
     }
 
-    const totalRow = lastRow <= 18 ? 19 : lastRow;
+    const totalRow = lastRow <= 17 ? 18 : lastRow;
     const vatRow = totalRow + 1;
     const grandTotalRow = totalRow + 2;
-    const signRow = totalRow + 5;
+    const signRow = totalRow + 4;
 
-    sheet.getCell(`G${totalRow}`).value = sumO;
-    sheet.getCell(`G${vatRow}`).value = Math.round(sumO * 0.08);
-    sheet.getCell(`G${grandTotalRow}`).value = Math.round(sumO * 1.08);
+    sheet.getCell(`O${totalRow}`).value = sumO;
+    sheet.getCell(`O${vatRow}`).value = Math.round(sumO * 0.08);
+    sheet.getCell(`O${grandTotalRow}`).value = Math.round(sumO * 1.08);
     sheet.getCell(`I${signRow}`).value = customer.nameHoaDon || "";
 
     res.setHeader(
