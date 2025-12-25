@@ -67,7 +67,7 @@ const scheduleAdminSchema = new mongoose.Schema(
     // 💰 HÌNH THỨC THANH TOÁN (MẶC ĐỊNH)
     paymentType: {
       type: String,
-      enum: ["INVOICE", "CASH"],
+      enum: ["INVOICE", "CASH", "OTHER"],
       default: "INVOICE", // mặc định là hoá đơn
     },
     nameCustomer: { type: String, default: "" },

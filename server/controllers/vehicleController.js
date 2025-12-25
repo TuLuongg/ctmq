@@ -79,6 +79,8 @@ const createVehicle = async (req, res) => {
       // 🎯 Thêm giấy đi đường và ghi chú
       dayTravel: body.dayTravel || null,
       note: body.note || "",
+      bhTNDS: body.bhTNDS || null,
+      bhVC: body.bhVC || null,
 
       createdBy: req.user?.username || body.createdBy || "",
     };
@@ -127,6 +129,8 @@ const updateVehicle = async (req, res) => {
       // 🎯 Giấy đi đường và ghi chú
       dayTravel: body.dayTravel ?? vehicle.dayTravel,
       note: body.note ?? vehicle.note,
+      bhTNDS: body.bhTNDS ?? vehicle.bhTNDS,
+      bhVC: body.bhVC ?? vehicle.bhVC,
     });
 
     await vehicle.save();
@@ -219,6 +223,8 @@ const importVehiclesFromExcel = async (req, res) => {
           // Giấy đi đường và ghi chú
           dayTravel: parseDate(row["Giấy đi đường"]),
           note: row["Ghi chú"] || "",
+          bhTNDS: row["Bảo hiểm TNDS"] || "",
+          bhVC: row["Bảo hiểm VC"] || "",
 
           // Mảng ảnh, nếu cần bạn có thể map từ Excel
           registrationImage: row["Ảnh đăng ký"] ? [row["Ảnh đăng ký"]] : [],

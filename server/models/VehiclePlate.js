@@ -17,6 +17,8 @@ const vehiclePlateSchema = new mongoose.Schema({
   insExpDay: { type: Date, default: null },        // Ngày hết hạn đăng kiểm
   dayTravel: { type: Date, default: null },        // Giấy đi đường
   note: { type: String, default: "" },             // Ghi chú
+  bhTNDS: { type: String, default: "" },            // Bảo hiểm TNDS
+  bhVC: { type: String, default: "" },             // Bảo hiểm VC
 }, { timestamps: true });
 
 module.exports = mongoose.model("VehiclePlate", vehiclePlateSchema);

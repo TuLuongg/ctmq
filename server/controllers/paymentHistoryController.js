@@ -51,10 +51,27 @@ const calcTripCostSharedCustomer = (trip) => {
 };
 
 //Sinh mã công nợ
-const buildDebtCode = (maKH, month, year) => {
+const buildDebtCode = async (maKH, month, year) => {
   const mm = String(month).padStart(2, "0");
   const yy = String(year).slice(-2);
-  return `CN.${maKH}.${mm}.${yy}`;
+
+  const prefix = `CN.${maKH}.${mm}.${yy}`;
+
+  // 🔎 tìm kỳ lớn nhất hiện có trong tháng
+  const latest = await CustomerDebtPeriod.findOne({
+    debtCode: { $regex: `^${prefix}\\.\\d{2}$` },
+  }).sort({ debtCode: -1 });
+
+  let nextIndex = 1;
+
+  if (latest) {
+    const parts = latest.debtCode.split(".");
+    nextIndex = parseInt(parts[parts.length - 1], 10) + 1;
+  }
+
+  const xx = String(nextIndex).padStart(2, "0");
+
+  return `${prefix}.${xx}`;
 };
 
 const calcStatus = (total, paid, remain) => {
@@ -66,6 +83,7 @@ const calcStatus = (total, paid, remain) => {
 const calcPeriodMoneyFromTrips = (trips, vatPercent = 0) => {
   let totalAmountInvoice = 0;
   let totalAmountCash = 0;
+  let totalOther = 0;
   let paidAmount = 0;
 
   for (const t of trips) {
@@ -74,6 +92,8 @@ const calcPeriodMoneyFromTrips = (trips, vatPercent = 0) => {
 
     if (t.paymentType === "CASH") {
       totalAmountCash += tripTotal;
+    } else if (t.paymentType === "OTHER") {
+      totalOther += tripTotal;
     } else {
       totalAmountInvoice += tripTotal; // INVOICE
     }
@@ -82,12 +102,15 @@ const calcPeriodMoneyFromTrips = (trips, vatPercent = 0) => {
   }
 
   const vatAmount = totalAmountInvoice * (vatPercent / 100);
-  const totalAmount = totalAmountInvoice + totalAmountCash + vatAmount;
+  const totalAmount =
+    totalAmountInvoice + totalAmountCash + totalOther + vatAmount;
+
   const remainAmount = totalAmount - paidAmount;
 
   return {
     totalAmountInvoice,
     totalAmountCash,
+    totalOther,
     vatAmount,
     totalAmount,
     paidAmount,
@@ -122,10 +145,12 @@ exports.getCustomerDebt = async (req, res) => {
         vatPercent: p.vatPercent || 0,
         totalAmountInvoice: p.totalAmountInvoice || 0,
         totalAmountCash: p.totalAmountCash || 0,
+        totalOther: p.totalOther || 0,
 
         totalAmount: p.totalAmount, // sau VAT
         paidAmount: p.paidAmount,
         remainAmount: p.remainAmount,
+        tripCount: p.tripCount || 0,
         status: p.status,
         isLocked: p.isLocked,
         note: p.note,
@@ -139,22 +164,27 @@ exports.getCustomerDebt = async (req, res) => {
 
         // lấy lại trips của kỳ
         const trips = await ScheduleAdmin.find({ debtCode: p.debtCode });
+        const tripCount = trips.length;
 
         const money = calcPeriodMoneyFromTrips(trips, p.vatPercent || 0);
 
         const changed =
           p.totalAmountInvoice !== money.totalAmountInvoice ||
           p.totalAmountCash !== money.totalAmountCash ||
+          p.totalOther !== money.totalOther ||
           p.totalAmount !== money.totalAmount ||
           p.paidAmount !== money.paidAmount ||
-          p.remainAmount !== money.remainAmount;
+          p.remainAmount !== money.remainAmount ||
+          p.tripCount !== tripCount;
 
         if (changed) {
           p.totalAmountInvoice = money.totalAmountInvoice;
           p.totalAmountCash = money.totalAmountCash;
+          p.totalOther = money.totalOther;
           p.totalAmount = money.totalAmount;
           p.paidAmount = money.paidAmount;
           p.remainAmount = money.remainAmount;
+          p.tripCount = tripCount;
           p.status = calcStatus(
             money.totalAmount,
             money.paidAmount,
@@ -213,24 +243,27 @@ exports.getCustomerDebtPeriodsByYear = async (req, res) => {
           debtCode: p.debtCode,
         });
 
-        const money = calcPeriodMoneyFromTrips(
-          trips,
-          p.vatPercent || 0
-        );
+        const tripCount = trips.length;
+
+        const money = calcPeriodMoneyFromTrips(trips, p.vatPercent || 0);
 
         const changed =
           p.totalAmountInvoice !== money.totalAmountInvoice ||
           p.totalAmountCash !== money.totalAmountCash ||
+          p.totalOther !== money.totalOther ||
           p.totalAmount !== money.totalAmount ||
           p.paidAmount !== money.paidAmount ||
-          p.remainAmount !== money.remainAmount;
+          p.remainAmount !== money.remainAmount ||
+          p.tripCount !== tripCount;
 
         if (changed) {
           p.totalAmountInvoice = money.totalAmountInvoice;
           p.totalAmountCash = money.totalAmountCash;
+          p.totalOther = money.totalOther;
           p.totalAmount = money.totalAmount;
           p.paidAmount = money.paidAmount;
           p.remainAmount = money.remainAmount;
+          p.tripCount = tripCount;
           p.status = calcStatus(
             money.totalAmount,
             money.paidAmount,
@@ -254,10 +287,12 @@ exports.getCustomerDebtPeriodsByYear = async (req, res) => {
         vatPercent: p.vatPercent || 0,
         totalAmountInvoice: p.totalAmountInvoice || 0,
         totalAmountCash: p.totalAmountCash || 0,
+        totalOther: p.totalOther || 0,
 
         totalAmount: p.totalAmount,
         paidAmount: p.paidAmount,
         remainAmount: p.remainAmount,
+        tripCount: p.tripCount || 0,
 
         status: p.status,
         isLocked: p.isLocked,
@@ -269,7 +304,6 @@ exports.getCustomerDebtPeriodsByYear = async (req, res) => {
     res.status(500).json({ error: "Lỗi lấy kỳ công nợ theo năm" });
   }
 };
-
 
 // =====================================================
 // 📌 TẠO KỲ CÔNG NỢ (KH CHUNG)
@@ -310,15 +344,6 @@ exports.createDebtPeriod = async (req, res) => {
       });
     }
 
-    // check trùng tháng
-    const existed = await CustomerDebtPeriod.findOne({
-      customerCode,
-      manageMonth,
-    });
-    if (existed) {
-      return res.status(400).json({ error: "Kỳ công nợ đã tồn tại" });
-    }
-
     // ❗ kiểm tra chồng kỳ
     const overlapped = await CustomerDebtPeriod.findOne({
       customerCode,
@@ -339,7 +364,7 @@ exports.createDebtPeriod = async (req, res) => {
     }
 
     // ✅ TẠO debtCode TRƯỚC
-    const debtCode = buildDebtCode(customerCode, month, year);
+    const debtCode = await buildDebtCode(customerCode, month, year);
 
     // ✅ GÁN debtCode + paymentType cho chuyến
     await ScheduleAdmin.updateMany(
@@ -371,6 +396,7 @@ exports.createDebtPeriod = async (req, res) => {
       vatPercent,
       totalAmountInvoice: money.totalAmountInvoice,
       totalAmountCash: money.totalAmountCash,
+      totalOther: money.totalOther,
       totalAmount: money.totalAmount,
       paidAmount: money.paidAmount,
       remainAmount: money.remainAmount,
@@ -451,6 +477,7 @@ exports.updateDebtPeriod = async (req, res) => {
 
     period.totalAmountInvoice = money.totalAmountInvoice;
     period.totalAmountCash = money.totalAmountCash;
+    period.totalOther = money.totalOther;
     period.totalAmount = money.totalAmount;
     period.paidAmount = money.paidAmount;
     period.remainAmount = money.remainAmount;
@@ -500,14 +527,16 @@ exports.removeTripFromDebtPeriod = async (req, res) => {
     await trip.save();
 
     // 🔄 TÍNH LẠI TIỀN KỲ
-    const trips = await ScheduleAdmin.find({
-      debtCode,
-    });
+    const trips = await ScheduleAdmin.find({ debtCode });
+    const tripCount = trips.length;
+
+    period.tripCount = tripCount;
 
     const money = calcPeriodMoneyFromTrips(trips, period.vatPercent || 0);
 
     period.totalAmountInvoice = money.totalAmountInvoice;
     period.totalAmountCash = money.totalAmountCash;
+    period.totalOther = money.totalOther;
     period.totalAmount = money.totalAmount;
     period.paidAmount = money.paidAmount;
     period.remainAmount = money.remainAmount;
@@ -570,11 +599,15 @@ exports.addTripToDebtPeriod = async (req, res) => {
 
     // 🔄 TÍNH LẠI TIỀN KỲ
     const trips = await ScheduleAdmin.find({ debtCode });
+    const tripCount = trips.length;
+
+    period.tripCount = tripCount;
 
     const money = calcPeriodMoneyFromTrips(trips, period.vatPercent || 0);
 
     period.totalAmountInvoice = money.totalAmountInvoice;
     period.totalAmountCash = money.totalAmountCash;
+    period.totalOther = money.totalOther;
     period.totalAmount = money.totalAmount;
     period.paidAmount = money.paidAmount;
     period.remainAmount = money.remainAmount;
@@ -605,7 +638,7 @@ exports.toggleTripPaymentType = async (req, res) => {
     const { maChuyenCode } = req.params;
     const { paymentType } = req.body; // 👈 nhận từ FE
 
-    if (!["CASH", "INVOICE"].includes(paymentType)) {
+    if (!["CASH", "INVOICE", "OTHER"].includes(paymentType)) {
       return res.status(400).json({
         error: "paymentType phải là CASH hoặc INVOICE",
       });
@@ -643,6 +676,7 @@ exports.toggleTripPaymentType = async (req, res) => {
 
       period.totalAmountInvoice = money.totalAmountInvoice;
       period.totalAmountCash = money.totalAmountCash;
+      period.totalOther = money.totalOther;
       period.totalAmount = money.totalAmount;
       period.paidAmount = money.paidAmount;
       period.remainAmount = money.remainAmount;

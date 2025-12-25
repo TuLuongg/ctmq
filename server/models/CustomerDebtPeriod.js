@@ -18,9 +18,12 @@ const CustomerDebtPeriodSchema = new mongoose.Schema(
     vatPercent: { type: Number, default: 0, min: 0, max: 100 }, //VAT  %
     totalAmountInvoice: { type: Number, default: 0 }, // tổng cước hoá đơn
     totalAmountCash: { type: Number, default: 0 }, //tổng cước tiền mặt
+    totalOther: { type: Number, default: 0 }, // khác
     totalAmount: { type: Number, default: 0 }, //tổng tất cả
-    paidAmount: { type: Number, default: 0 },  // đã trả
-    remainAmount: { type: Number, default: 0 },// còn lại
+    paidAmount: { type: Number, default: 0 }, // đã trả
+    remainAmount: { type: Number, default: 0 }, // còn lại
+
+    tripCount: { type: Number, default: 0 }, //số lượng chuyến trong kỳ
 
     status: {
       type: String,
@@ -31,15 +34,11 @@ const CustomerDebtPeriodSchema = new mongoose.Schema(
     note: { type: String, default: "" },
 
     // thêm vào schema
-isLocked: { type: Boolean, default: false },
-lockedAt: { type: Date },
-lockedBy: { type: String },
-
+    isLocked: { type: Boolean, default: false },
+    lockedAt: { type: Date },
+    lockedBy: { type: String },
   },
   { timestamps: true }
 );
 
-module.exports = mongoose.model(
-  "CustomerDebtPeriod",
-  CustomerDebtPeriodSchema
-);
+module.exports = mongoose.model("CustomerDebtPeriod", CustomerDebtPeriodSchema);
