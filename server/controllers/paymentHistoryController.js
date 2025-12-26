@@ -1016,7 +1016,10 @@ exports.deleteDebtPeriod = async (req, res) => {
 // =====================================================
 exports.getDebtForCustomer26 = async (req, res) => {
   try {
-    let { startDate, endDate } = req.query;
+    let { startDate, endDate, page = 1, limit = 100 } = req.query;
+
+    page = Number(page);
+    limit = Number(limit);
 
     if (!startDate || !endDate) {
       return res.status(400).json({ error: "Thiếu startDate hoặc endDate" });
@@ -1024,15 +1027,26 @@ exports.getDebtForCustomer26 = async (req, res) => {
 
     const start = new Date(startDate);
     const end = new Date(endDate);
+    end.setDate(end.getDate() + 1); // <= endDate
 
-    // end tăng thêm 1 ngày để <= endDate
-    end.setDate(end.getDate() + 1);
-
-    const trips = await ScheduleAdmin.find({
+    const condition = {
       maKH: "26",
       ngayGiaoHang: { $gte: start, $lt: end },
-    });
+    };
 
+    const skip = (page - 1) * limit;
+
+    // 🔥 LẤY SONG SONG: tổng chuyến + dữ liệu trang
+    const [totalTrips, trips] = await Promise.all([
+      ScheduleAdmin.countDocuments(condition),
+      ScheduleAdmin.find(condition)
+        .sort({ ngayGiaoHang: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+    ]);
+
+    // 🔥 map chi tiết (chỉ 100 chuyến → rất nhanh)
     const list = await Promise.all(
       trips.map(async (t) => {
         const tongTien = calcTripCostOddCustomer(t);
@@ -1048,7 +1062,7 @@ exports.getDebtForCustomer26 = async (req, res) => {
         return {
           tripId: t._id,
           ngayGiaoHang: t.ngayGiaoHang,
-          thongTinChuyen: t.toObject(),
+          thongTinChuyen: t,
           tongTien,
           daThanhToan,
           conLai,
@@ -1059,31 +1073,42 @@ exports.getDebtForCustomer26 = async (req, res) => {
       })
     );
 
-    const tongCuoc = list.reduce((s, r) => s + r.tongTien, 0);
-    const tongDaTT = list.reduce((s, r) => s + r.daThanhToan, 0);
+    // 🔥 TÍNH TỔNG TIỀN TOÀN BỘ (NHẸ)
+    const allTrips = await ScheduleAdmin.find(condition).lean();
+
+    const tongCuoc = allTrips.reduce(
+      (s, t) => s + calcTripCostOddCustomer(t),
+      0
+    );
+    const tongDaTT = allTrips.reduce(
+      (s, t) => s + (parseFloat(t.daThanhToan) || 0),
+      0
+    );
     const tongConLai = tongCuoc - tongDaTT;
 
     let trangThai = "green";
     if (tongConLai > 0) {
       const tiLe = tongCuoc === 0 ? 0 : tongConLai / tongCuoc;
-      if (tiLe <= 0.2) trangThai = "yellow";
-      else trangThai = "red";
+      trangThai = tiLe <= 0.2 ? "yellow" : "red";
     }
 
     res.json({
       maKH: "26",
-      soChuyen: trips.length,
+      soChuyen: totalTrips, // ✅ TỔNG TOÀN BỘ
+      page,
+      limit,
       tongCuoc,
       daThanhToan: tongDaTT,
       tongConLai,
       trangThai,
-      chiTietChuyen: list,
+      chiTietChuyen: list, // ✅ CHỈ 100 CHUYẾN
     });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Lỗi KH 26" });
   }
 };
+
 
 // =====================================================
 // 📌 LỊCH SỬ THANH TOÁN THEO CHUYẾN
