@@ -4,6 +4,7 @@ import axios from "axios";
 import { format } from "date-fns";
 import API from "../../api";
 import TripPaymentModal from "../../components/TripPaymentModal";
+import CostEditModal from "../../components/CostEditModal";
 import "./CustomerDebt26Page.css"; // tạo CSS cho resize và overflow
 
 const removeVietnameseTones = (str = "") => {
@@ -135,18 +136,27 @@ export default function CustomerDebt26Page() {
   };
 
   const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [limit] = useState(100); // cố định 100 / trang
+  const [totalTrips, setTotalTrips] = useState(0);
+  const [pageInput, setPageInput] = useState(page);
 
-  const loadData = async () => {
-    if (loading) return; // ⛔ chặn spam nút
+  const loadData = async (p = page) => {
+    if (loading) return;
 
-    setLoading(true); // 🔵 khóa nút
+    setLoading(true);
     try {
-      const res = await axios.get(
-        `${API}/payment-history/customer26/debt?startDate=${startDate}&endDate=${endDate}`,
-        {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        }
-      );
+      const res = await axios.get(`${API}/payment-history/customer26/debt`, {
+        params: {
+          startDate,
+          endDate,
+          page: p,
+          limit,
+        },
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
 
       const list = res.data?.chiTietChuyen || [];
       const mapped = list.map((c) => ({
@@ -159,7 +169,10 @@ export default function CustomerDebt26Page() {
         noiDungCK: c.noiDungCK,
         trangThai: c.conLai === 0 ? "green" : "red",
       }));
+
       setTrips(mapped);
+      setTotalTrips(res.data?.soChuyen || 0);
+      setPage(p);
     } catch (err) {
       console.error(err);
       setTrips([]);
@@ -167,13 +180,13 @@ export default function CustomerDebt26Page() {
     setLoading(false);
   };
 
-  const [editingTrip, setEditingTrip] = useState(null); // _id chuyến đang edit
-  const [editValues, setEditValues] = useState({}); // lưu 6 ô tiền
-
   useEffect(() => {
     if (!hasCongNo26Permission) return;
-    loadData();
+    loadData(1);
   }, [startDate, endDate, hasCongNo26Permission]);
+  useEffect(() => {
+    setPageInput(page);
+  }, [page]);
 
   const toggleColumn = (key) => {
     const newCols = columns.map((c) =>
@@ -311,6 +324,22 @@ export default function CustomerDebt26Page() {
 
   const allTripCodes = filteredTrips.map((t) => t.maChuyen);
 
+  const [showCostModal, setShowCostModal] = useState(false);
+  const [editingTrip, setEditingTrip] = useState(null);
+  const [editValues, setEditValues] = useState({});
+
+  const openCostModal = (trip) => {
+    setEditingTrip(trip);
+    setEditValues({
+      _id: trip._id,
+      ...MONEY_FIELDS.reduce((acc, f) => {
+        acc[f] = trip[f] ?? 0;
+        return acc;
+      }, {}),
+    });
+    setShowCostModal(true);
+  };
+
   return (
     <div className="p-4 text-xs">
       <div className="flex gap-2 items-center mb-4">
@@ -397,7 +426,7 @@ export default function CustomerDebt26Page() {
         >
           Sổ phiếu chi
         </button>
-                <button
+        <button
           onClick={handleGoToContract}
           className={`px-3 py-1 rounded text-white ${
             isActive("/contract") ? "bg-green-600" : "bg-blue-500"
@@ -437,7 +466,10 @@ export default function CustomerDebt26Page() {
                 onClick={(e) => e.target.showPicker()}
                 className="border px-2 py-1 rounded cursor-pointer"
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                onChange={(e) => {
+                  setPage(1);
+                  setStartDate(e.target.value);
+                }}
               />
             </div>
 
@@ -448,7 +480,10 @@ export default function CustomerDebt26Page() {
                 onClick={(e) => e.target.showPicker()}
                 className="border px-2 py-1 rounded cursor-pointer"
                 value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
+                onChange={(e) => {
+                  setPage(1);
+                  setEndDate(e.target.value);
+                }}
               />
             </div>
 
@@ -748,7 +783,7 @@ export default function CustomerDebt26Page() {
                           return (
                             <td
                               key={col.key}
-                              className={`border table-cell relative ${
+                              className={`border table-cell cursor-pointer hover:bg-yellow-50 ${
                                 col.key === "maChuyen"
                                   ? "sticky left-[30px] bg-white z-20"
                                   : ""
@@ -758,79 +793,13 @@ export default function CustomerDebt26Page() {
                                 minWidth: col.width,
                                 maxWidth: col.width,
                               }}
-                              onClick={() => {
-                                setEditingTrip(t._id);
-                                setEditValues({
-                                  _id: t._id,
-                                  ...MONEY_FIELDS.reduce((acc, f) => {
-                                    acc[f] = t[f] ?? 0; // lấy giá trị cũ từ row
-                                    return acc;
-                                  }, {}),
-                                });
-                              }}
+                              onClick={() => openCostModal(t)}
                             >
-                              {editingTrip === t._id ? (
-                                <div className="relative">
-                                  <input
-                                    type="number"
-                                    className="border p-1 text-right w-full"
-                                    value={editValues[col.key]}
-                                    onChange={(e) =>
-                                      setEditValues((prev) => ({
-                                        ...prev,
-                                        [col.key]: Number(e.target.value),
-                                      }))
-                                    }
-                                  />
-
-                                  {col.key === "luatChiPhiKhac" && (
-                                    <div
-                                      className="absolute top-0 left-full ml-1 flex gap-1 items-center"
-                                      style={{ height: "100%" }}
-                                    >
-                                      <button
-                                        className="px-2 py-1 bg-green-600 text-white rounded text-xs"
-                                        onClick={async (e) => {
-                                          e.stopPropagation();
-                                          try {
-                                            await axios.put(
-                                              `${API}/schedule-admin/${editValues._id}`,
-                                              editValues,
-                                              {
-                                                headers: {
-                                                  Authorization: `Bearer ${localStorage.getItem(
-                                                    "token"
-                                                  )}`,
-                                                },
-                                              }
-                                            );
-                                            setEditingTrip(null);
-                                            loadData();
-                                          } catch (err) {
-                                            console.error(err);
-                                          }
-                                        }}
-                                      >
-                                        Lưu
-                                      </button>
-                                      <button
-                                        className="px-2 py-1 bg-gray-400 text-white rounded text-xs"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setEditingTrip(null);
-                                        }}
-                                      >
-                                        Hủy
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
-                              ) : (
-                                <div className="text-right">{displayValue}</div>
-                              )}
+                              <div className="text-right">{displayValue}</div>
                             </td>
                           );
                         }
+
                         if (
                           col.key === "tongTien" ||
                           col.key === "daThanhToan" ||
@@ -911,10 +880,50 @@ export default function CustomerDebt26Page() {
             </table>
           </div>
 
-          <div className="flex justify-end items-center mt-2">
+          <div className="flex justify-between items-center mt-3">
             <div className="font-semibold">
-              Tổng số chuyến:{" "}
-              <span className="text-black-600">{filteredTrips.length}</span>
+              Tổng số chuyến: <span className="text-black">{totalTrips}</span> || hiển thị: <span className="text-black">{filteredTrips.length}</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                disabled={page <= 1 || loading}
+                onClick={() => loadData(page - 1)}
+                className="px-3 py-1 border rounded disabled:opacity-50"
+              >
+                Trước
+              </button>
+
+              <span className="text-xs">
+                Trang {page} / {Math.ceil(totalTrips / limit) || 1}
+              </span>
+
+              <input
+                type="number"
+                min={1}
+                max={Math.ceil(totalTrips / limit) || 1}
+                value={pageInput}
+                onChange={(e) => setPageInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    let p = Number(pageInput);
+                    const maxPage = Math.ceil(totalTrips / limit) || 1;
+                    if (p < 1) p = 1;
+                    if (p > maxPage) p = maxPage;
+                    loadData(p);
+                  }
+                }}
+                className="w-16 border px-2 py-1 text-xs text-center"
+                disabled={loading}
+              />
+
+              <button
+                disabled={page >= Math.ceil(totalTrips / limit) || loading}
+                onClick={() => loadData(page + 1)}
+                className="px-3 py-1 border rounded disabled:opacity-50"
+              >
+                Sau
+              </button>
             </div>
           </div>
         </>
@@ -927,6 +936,16 @@ export default function CustomerDebt26Page() {
           onClose={() => setSelectedTrip(null)}
         />
       )}
+
+      <CostEditModal
+        open={showCostModal}
+        onClose={() => setShowCostModal(false)}
+        trip={editingTrip}
+        values={editValues}
+        setValues={setEditValues}
+        moneyFields={MONEY_FIELDS}
+        onSaved={loadData}
+      />
     </div>
   );
 }

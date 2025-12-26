@@ -488,8 +488,8 @@ export default function ManageContract() {
           TCB cá nhân
         </button>
       </div>
-      <div className="flex justify-between items-center mb-4 mt-2">
-        <h1 className="text-xl font-bold">HỢP ĐỒNG VẬN CHUYỂN</h1>
+      <h1 className="text-xl font-bold">HỢP ĐỒNG VẬN CHUYỂN</h1>
+      <div className="flex justify-end items-center mb-4 mt-2">
         <div className="flex gap-2 items-center flex-wrap">
           <input
             value={q}
@@ -736,7 +736,7 @@ export default function ManageContract() {
                 })}
 
                 <td
-                  className="border p-1 flex gap-2 justify-center"
+                  className="border p-1 h-[30px] flex gap-2 justify-center"
                   style={{ minWidth: 120, background: "#fff" }}
                   onClick={(e) => e.stopPropagation()}
                 >

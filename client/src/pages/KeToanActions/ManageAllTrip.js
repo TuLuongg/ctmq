@@ -304,8 +304,25 @@ export default function ManageTrip({ user, onLogout }) {
   const [limit, setLimit] = useState(30);
   const [totalPages, setTotalPages] = useState(1);
 
-  const [giaoFrom, setGiaoFrom] = useState("");
-  const [giaoTo, setGiaoTo] = useState("");
+  const [giaoFrom, setGiaoFrom] = useState(
+    () => localStorage.getItem("filter_giaoFromAll") || ""
+  );
+  const [giaoTo, setGiaoTo] = useState(
+    () => localStorage.getItem("filter_giaoToAll") || ""
+  );
+
+  useEffect(() => {
+    if (giaoFrom) {
+      localStorage.setItem("filter_giaoFromAll", giaoFrom);
+    }
+  }, [giaoFrom]);
+
+  useEffect(() => {
+    if (giaoTo) {
+      localStorage.setItem("filter_giaoToAll", giaoTo);
+    }
+  }, [giaoTo]);
+
   const [totalFromBE, setTotalFromBE] = useState(0);
   const moneyColumns = [
     "bocXep",
@@ -500,12 +517,17 @@ export default function ManageTrip({ user, onLogout }) {
   };
 
   // 🔹 Xuất Excel
+  const [exporting, setExporting] = useState(false);
   const exportToExcel = async () => {
+    if (exporting) return; // ⛔ chống spam click
+
     try {
       if (!giaoFrom || !giaoTo) {
         alert("Vui lòng chọn khoảng ngày");
         return;
       }
+
+      setExporting(true); // 🔒 khóa nút
 
       const payload = {
         from: giaoFrom,
@@ -523,7 +545,6 @@ export default function ManageTrip({ user, onLogout }) {
         }
       );
 
-      // ⬇️ tải file
       saveAs(
         new Blob([res.data]),
         `DANH_SACH_CHUYEN_${giaoFrom}_den_${giaoTo}.xlsx`
@@ -531,18 +552,26 @@ export default function ManageTrip({ user, onLogout }) {
     } catch (err) {
       console.error(err);
       alert("Xuất Excel thất bại");
+    } finally {
+      setExporting(false); // 🔓 mở lại nút
     }
   };
+
   const exportToExcelBS = async () => {
+    if (exporting) return;
+
     if (!canEditTripFull) {
       alert("Bạn không có quyền này!");
       return;
     }
+
     try {
       if (!giaoFrom || !giaoTo) {
         alert("Vui lòng chọn khoảng ngày");
         return;
       }
+
+      setExporting(true);
 
       const payload = {
         from: giaoFrom,
@@ -560,7 +589,6 @@ export default function ManageTrip({ user, onLogout }) {
         }
       );
 
-      // ⬇️ tải file
       saveAs(
         new Blob([res.data]),
         `DANH_SACH_CHUYEN_BS_${giaoFrom}_den_${giaoTo}.xlsx`
@@ -568,6 +596,8 @@ export default function ManageTrip({ user, onLogout }) {
     } catch (err) {
       console.error(err);
       alert("Xuất Excel thất bại");
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -1113,13 +1143,28 @@ export default function ManageTrip({ user, onLogout }) {
 
         <button
           onClick={exportToExcel}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm"
+          disabled={exporting}
+          className={`px-4 py-2 rounded-lg shadow-sm text-white
+    ${
+      exporting
+        ? "bg-gray-400 cursor-not-allowed"
+        : "bg-blue-500 hover:bg-blue-600"
+    }
+  `}
         >
           Xuất File gốc
         </button>
+
         <button
           onClick={exportToExcelBS}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm"
+          disabled={exporting}
+          className={`px-4 py-2 rounded-lg shadow-sm text-white
+    ${
+      exporting
+        ? "bg-gray-400 cursor-not-allowed"
+        : "bg-blue-500 hover:bg-blue-600"
+    }
+  `}
         >
           Xuất File BS
         </button>
@@ -1151,6 +1196,12 @@ export default function ManageTrip({ user, onLogout }) {
                 : `Đã load file... Đã load: ${loadedCount} / ${
                     loadedCount + remainingCount
                   } | Còn lại: ${remainingCount}`}
+            </span>
+          )}
+
+          {exporting && (
+            <span className="text-red-600 font-medium ml-2">
+              Đang xuất file, vui lòng chờ...!
             </span>
           )}
         </div>

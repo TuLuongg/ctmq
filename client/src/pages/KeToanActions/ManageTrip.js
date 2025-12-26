@@ -6,7 +6,7 @@ import {
   FaHistory,
   FaExclamationTriangle,
   FaInfoCircle,
-  FaCopy
+  FaCopy,
 } from "react-icons/fa";
 import axios from "axios";
 import * as XLSX from "xlsx";
@@ -314,8 +314,25 @@ export default function ManageTrip({ user, onLogout }) {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(30);
   const [totalPages, setTotalPages] = useState(1);
-  const [giaoFrom, setGiaoFrom] = useState("");
-  const [giaoTo, setGiaoTo] = useState("");
+  const [giaoFrom, setGiaoFrom] = useState(
+    () => localStorage.getItem("filter_giaoFrom") || ""
+  );
+  const [giaoTo, setGiaoTo] = useState(
+    () => localStorage.getItem("filter_giaoTo") || ""
+  );
+
+  useEffect(() => {
+    if (giaoFrom) {
+      localStorage.setItem("filter_giaoFrom", giaoFrom);
+    }
+  }, [giaoFrom]);
+
+  useEffect(() => {
+    if (giaoTo) {
+      localStorage.setItem("filter_giaoTo", giaoTo);
+    }
+  }, [giaoTo]);
+
   const [totalFromBE, setTotalFromBE] = useState(0);
   const moneyColumns = [
     "bocXep",
@@ -511,12 +528,18 @@ export default function ManageTrip({ user, onLogout }) {
   };
 
   // 🔹 Xuất Excel
+  const [exporting, setExporting] = useState(false);
+
   const exportToExcel = async () => {
+    if (exporting) return; // ⛔ chống bấm nhiều lần
+
     try {
       if (!giaoFrom || !giaoTo) {
         alert("Vui lòng chọn khoảng ngày");
         return;
       }
+
+      setExporting(true); // 🔒 khóa nút + hiện text
 
       const payload = {
         from: giaoFrom,
@@ -539,7 +562,6 @@ export default function ManageTrip({ user, onLogout }) {
         }
       );
 
-      // ⬇️ tải file
       saveAs(
         new Blob([res.data]),
         `DANH_SACH_CHUYEN_${giaoFrom}_den_${giaoTo}.xlsx`
@@ -547,14 +569,21 @@ export default function ManageTrip({ user, onLogout }) {
     } catch (err) {
       console.error(err);
       alert("Xuất Excel thất bại");
+    } finally {
+      setExporting(false); // 🔓 mở lại nút (dù lỗi hay thành công)
     }
   };
+
   const exportToExcelBS = async () => {
+    if (exporting) return;
+
     try {
       if (!giaoFrom || !giaoTo) {
         alert("Vui lòng chọn khoảng ngày");
         return;
       }
+
+      setExporting(true);
 
       const payload = {
         from: giaoFrom,
@@ -577,7 +606,6 @@ export default function ManageTrip({ user, onLogout }) {
         }
       );
 
-      // ⬇️ tải file
       saveAs(
         new Blob([res.data]),
         `DANH_SACH_CHUYEN_BS_${giaoFrom}_den_${giaoTo}.xlsx`
@@ -585,6 +613,8 @@ export default function ManageTrip({ user, onLogout }) {
     } catch (err) {
       console.error(err);
       alert("Xuất Excel thất bại");
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -984,42 +1014,42 @@ export default function ManageTrip({ user, onLogout }) {
     setRideDraft([]);
     setShowModal(true);
   };
-const handleCopyRide = (ride) => {
-  const copied = {
-    ...ride,
+  const handleCopyRide = (ride) => {
+    const copied = {
+      ...ride,
 
-    // ❌ loại bỏ field không copy
-    _id: undefined,
-    createdAt: undefined,
-    updatedAt: undefined,
+      // ❌ loại bỏ field không copy
+      _id: undefined,
+      createdAt: undefined,
+      updatedAt: undefined,
 
-    // ✅ GIỮ ngày gốc, chỉ fallback nếu null
-    ngayBocHang: ride.ngayBocHang
-      ? format(new Date(ride.ngayBocHang), "yyyy-MM-dd")
-      : format(date, "yyyy-MM-dd"),
+      // ✅ GIỮ ngày gốc, chỉ fallback nếu null
+      ngayBocHang: ride.ngayBocHang
+        ? format(new Date(ride.ngayBocHang), "yyyy-MM-dd")
+        : format(date, "yyyy-MM-dd"),
 
-    ngayGiaoHang: ride.ngayGiaoHang
-      ? format(new Date(ride.ngayGiaoHang), "yyyy-MM-dd")
-      : format(date, "yyyy-MM-dd"),
+      ngayGiaoHang: ride.ngayGiaoHang
+        ? format(new Date(ride.ngayGiaoHang), "yyyy-MM-dd")
+        : format(date, "yyyy-MM-dd"),
 
-    ngayBoc: ride.ngayBoc
-      ? format(new Date(ride.ngayBoc), "yyyy-MM-dd")
-      : format(date, "yyyy-MM-dd"),
+      ngayBoc: ride.ngayBoc
+        ? format(new Date(ride.ngayBoc), "yyyy-MM-dd")
+        : format(date, "yyyy-MM-dd"),
 
-    // người tạo mới
-    createdByID: currentUser._id,
-    createdBy: currentUser.fullname,
-    dieuVanID: currentUser._id,
-    dieuVan: currentUser.fullname,
+      // người tạo mới
+      createdByID: currentUser._id,
+      createdBy: currentUser.fullname,
+      dieuVanID: currentUser._id,
+      dieuVan: currentUser.fullname,
+    };
+
+    delete copied.maChuyen;
+    console.log(copied.maChuyen);
+
+    setRideDraft(copied);
+    setShowModal(true);
   };
 
-  delete copied.maChuyen;
-  console.log(copied.maChuyen)
-
-  setRideDraft(copied);
-  setShowModal(true);
-};
-  
   const handleSave = async (payload) => {
     try {
       // chỉ POST, không check editRide
@@ -1210,13 +1240,28 @@ const handleCopyRide = (ride) => {
 
         <button
           onClick={exportToExcel}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm"
+          disabled={exporting}
+          className={`px-4 py-2 rounded-lg shadow-sm text-white
+    ${
+      exporting
+        ? "bg-gray-400 cursor-not-allowed"
+        : "bg-blue-500 hover:bg-blue-600"
+    }
+  `}
         >
           Xuất File gốc
         </button>
+
         <button
           onClick={exportToExcelBS}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm"
+          disabled={exporting}
+          className={`px-4 py-2 rounded-lg shadow-sm text-white
+    ${
+      exporting
+        ? "bg-gray-400 cursor-not-allowed"
+        : "bg-blue-500 hover:bg-blue-600"
+    }
+  `}
         >
           Xuất File BS
         </button>
@@ -1248,6 +1293,12 @@ const handleCopyRide = (ride) => {
                 : `Đã load file... Đã load: ${loadedCount} / ${
                     loadedCount + remainingCount
                   } | Còn lại: ${remainingCount}`}
+            </span>
+          )}
+
+          {exporting && (
+            <span className="text-red-600 font-medium ml-2">
+              Đang xuất file, vui lòng chờ...!
             </span>
           )}
         </div>
@@ -2267,7 +2318,7 @@ const handleCopyRide = (ride) => {
                       <span className="text-gray-400 text-xs">null</span>
                     )}
 
-                                        <button
+                    <button
                       onClick={() => handleCopyRide(r)}
                       className="p-1.5 bg-gray-400 text-white rounded-lg shadow-sm hover:bg-green-500 hover:shadow-md transition"
                       title="Nhân bản"
