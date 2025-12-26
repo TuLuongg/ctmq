@@ -61,12 +61,10 @@ function numberToWordsVND(num) {
   return result.trim() + " VNĐ";
 }
 
-function formatAccountNumber(raw) {
+function formatBankAccount(raw) {
   if (!raw) return "";
-  const digits = raw.replace(/\D/g, "");
-  return digits.replace(/(.{4})/g, "$1 ").trim();
+  return raw.replace(/\d+/g, (m) => m.replace(/(.{4})/g, "$1 ").trim());
 }
-
 const PAYMENT_SOURCE_OPTIONS = [
   { value: "PERSONAL_VCB", label: "Cá nhân - VCB" },
   { value: "PERSONAL_TCB", label: "Cá nhân - TCB" },
@@ -76,7 +74,17 @@ const PAYMENT_SOURCE_OPTIONS = [
   { value: "OTHER", label: "Khác" },
 ];
 
-export default function VoucherEditModal({ id, voucher, onClose }) {
+function normalizeVN(str = "") {
+  return str
+    .toLowerCase()
+    .normalize("NFD") // tách dấu
+    .replace(/[\u0300-\u036f]/g, "") // xoá dấu
+    .replace(/đ/g, "d")
+    .replace(/[^a-z0-9\s]/g, "") // bỏ ký tự lạ
+    .trim();
+}
+
+export default function VoucherEditModal({ id, customers, voucher, onClose }) {
   const [form, setForm] = useState({ ...voucher });
   const [saving, setSaving] = useState(false);
   const token = localStorage.getItem("token");
@@ -104,6 +112,44 @@ export default function VoucherEditModal({ id, voucher, onClose }) {
     loadReceiverNames();
     loadReceiverCompanies();
   }, []);
+
+  const [showCompanySuggest, setShowCompanySuggest] = useState(false);
+  const [filteredCompanies, setFilteredCompanies] = useState([]);
+
+  function handleCompanyChange(e) {
+    const value = e.target.value;
+
+    setForm((s) => ({ ...s, receiverCompany: value }));
+
+    if (!value.trim()) {
+      setFilteredCompanies([]);
+      setShowCompanySuggest(false);
+      return;
+    }
+
+    const keywordRaw = value.toLowerCase();
+    const keywordNormalize = normalizeVN(value);
+
+    const matched = companySuggestions.filter((name) => {
+      const nameRaw = name.toLowerCase();
+      const nameNormalize = normalizeVN(name);
+
+      return (
+        nameRaw.includes(keywordRaw) || nameNormalize.includes(keywordNormalize)
+      );
+    });
+
+    setFilteredCompanies(matched.slice(0, 50));
+    setShowCompanySuggest(true);
+  }
+
+  // ===== GỢI Ý TÊN CÔNG TY =====
+  const companySuggestions = Array.from(
+    new Set([
+      ...receiverCompanyList.map((e) => e.name),
+      ...(customers || []).map((c) => c.nameHoaDon),
+    ])
+  ).filter(Boolean);
 
   async function loadExpenseTypes() {
     const res = await axios.get(`${API}/expense/expense-types`, {
@@ -250,7 +296,7 @@ export default function VoucherEditModal({ id, voucher, onClose }) {
               name="paymentSource"
               value={form.paymentSource}
               onChange={change}
-              className="border border-gray-300 rounded-md outline-none p-2 w-48 mt-2"
+              className="border border-gray-300 rounded-md outline-none p-2 w-48"
             >
               {PAYMENT_SOURCE_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -307,7 +353,7 @@ export default function VoucherEditModal({ id, voucher, onClose }) {
           {/* Công ty nhận */}
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
-              <label className="font-semibold">Công ty nhận</label>
+              <label className="font-semibold">Tên công ty</label>
               <button
                 type="button"
                 className="text-blue-600 font-bold"
@@ -318,29 +364,55 @@ export default function VoucherEditModal({ id, voucher, onClose }) {
             </div>
 
             <input
-              list="receiverCompanyList"
               name="receiverCompany"
               value={form.receiverCompany}
-              onChange={change}
-              className="border p-2 rounded"
+              onChange={handleCompanyChange}
+              onFocus={() => {
+                if (filteredCompanies.length > 0) setShowCompanySuggest(true);
+              }}
+              onBlur={() => {
+                // delay để click được item
+                setTimeout(() => setShowCompanySuggest(false), 150);
+              }}
+              className="border border-gray-300 rounded-md outline-none p-2 w-full"
+              placeholder="Nhập tên công ty..."
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
             />
 
-            <datalist id="receiverCompanyList">
-              {receiverCompanyList.map((e) => (
-                <option key={e._id} value={e.name} />
-              ))}
-            </datalist>
+            {/* DROPDOWN GỢI Ý */}
+            {showCompanySuggest && filteredCompanies.length > 0 && (
+              <div className="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded shadow max-h-48 overflow-y-auto">
+                {filteredCompanies.map((name, idx) => (
+                  <div
+                    key={idx}
+                    onMouseDown={() => {
+                      setForm((s) => ({ ...s, receiverCompany: name }));
+                      setShowCompanySuggest(false);
+                    }}
+                    className="px-3 py-2 cursor-pointer hover:bg-blue-100 text-sm"
+                  >
+                    {name}
+                  </div>
+                ))}
+              </div>
+            )}
 
+            {/* ADD NEW COMPANY */}
             {showAddReceiverCompany && (
-              <div className="flex gap-2 mt-1">
+              <div className="flex gap-2 mt-2">
                 <input
                   value={newReceiverCompany}
                   onChange={(e) => setNewReceiverCompany(e.target.value)}
-                  className="border p-2 rounded flex-1"
+                  placeholder="Nhập tên công ty mới"
+                  className="border border-gray-300 rounded-md outline-none p-2 flex-1"
                 />
                 <button
+                  type="button"
                   onClick={addReceiverCompany}
-                  className="px-3 bg-green-600 text-white rounded"
+                  disabled={addingReceiverCompany}
+                  className="px-3 rounded bg-green-600 text-white"
                 >
                   {addingReceiverCompany ? "..." : "Thêm"}
                 </button>
@@ -353,11 +425,10 @@ export default function VoucherEditModal({ id, voucher, onClose }) {
             <label className="font-semibold mb-1">Số tài khoản</label>
             <input
               name="receiverBankAccount"
-              value={formatAccountNumber(form.receiverBankAccount)}
-              onChange={(e) => {
-                const raw = e.target.value.replace(/\s+/g, "");
-                setForm({ ...form, receiverBankAccount: raw });
-              }}
+              value={formatBankAccount(form.receiverBankAccount)}
+              onChange={(e) =>
+                setForm({ ...form, receiverBankAccount: e.target.value })
+              }
               className="border p-2 rounded"
             />
           </div>
@@ -365,7 +436,7 @@ export default function VoucherEditModal({ id, voucher, onClose }) {
           {/* Phân loại chi */}
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
-              <label className="font-semibold">Phân loại chi</label>
+              <label className="font-semibold mb-1">Phân loại chi</label>
               <button
                 type="button"
                 className="text-blue-600 font-bold"

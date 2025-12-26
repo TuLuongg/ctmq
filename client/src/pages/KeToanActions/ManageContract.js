@@ -127,6 +127,15 @@ export default function ManageContract() {
     );
   };
 
+  const [customers, setCustomers] = useState([]);
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      const res = await axios.get(`${API}/customers`);
+      setCustomers(res.data);
+    };
+    fetchCustomers();
+  }, []);
+
   // -------- fetch contracts
   const fetch = async (search = "") => {
     try {
@@ -779,6 +788,7 @@ export default function ManageContract() {
       {showModal && (
         <ContractModal
           initialData={editContract}
+          customers={customers}
           onClose={() => {
             setShowModal(false);
             setEditContract(null);

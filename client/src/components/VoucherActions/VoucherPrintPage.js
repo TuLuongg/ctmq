@@ -47,6 +47,9 @@ export default function VoucherPrintPage() {
     print:overflow-hidden
   "
     >
+      <div className="flex justify-end">
+        <span>{data.voucherCode}</span>
+      </div>
       <h1 className="text-center text-xl font-bold mb-2 mt-0">
         {voucherTitle}
       </h1>
