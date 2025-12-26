@@ -3,30 +3,6 @@ const Voucher = require("../models/Voucher");
 // =========================
 //  TẠO PHIẾU
 // =========================
-const generateVoucherCode = async (date) => {
-  const d = date ? new Date(date) : new Date();
-
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const year = String(d.getFullYear()).slice(-2);
-
-  // lấy ngày đầu & cuối tháng
-  const startOfMonth = new Date(d.getFullYear(), d.getMonth(), 1);
-  const endOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
-
-  // đếm số phiếu trong tháng
-  const count = await Voucher.countDocuments({
-    dateCreated: {
-      $gte: startOfMonth,
-      $lte: endOfMonth
-    }
-  });
-
-  const index = String(count + 1).padStart(3, "0");
-
-  return `PC.${month}.${year}.${index}`;
-};
-
-
 exports.createVoucher = async (req, res) => {
   try {
     const data = req.body;
@@ -35,23 +11,63 @@ exports.createVoucher = async (req, res) => {
       ? new Date(data.dateCreated)
       : new Date();
 
-    // 🔹 BE tự sinh mã
-    const voucherCode = await generateVoucherCode(dateCreated);
+    if (isNaN(dateCreated.getTime())) {
+      return res.status(400).json({ error: "dateCreated không hợp lệ" });
+    }
 
-    const v = new Voucher({
-      ...data,
-      voucherCode,              // gán mã tại đây
-      dateCreated,
-      status: "waiting_check",  // trạng thái mặc định
+    const monthStr = String(dateCreated.getMonth() + 1).padStart(2, "0");
+    const yearStr = String(dateCreated.getFullYear()).slice(-2);
+
+    // ✅ REGEX đúng format PC.mm.yy.000
+    const regex = new RegExp(`^PC\\.${monthStr}\\.${yearStr}\\.\\d{3}$`);
+
+    let voucherCode;
+    let retry = 0;
+    const MAX_RETRY = 5;
+
+    while (retry < MAX_RETRY) {
+      const lastVoucher = await Voucher.findOne({ voucherCode: regex })
+        .sort({ voucherCode: -1 })
+        .lean();
+
+      let nextNum = 1;
+      if (lastVoucher?.voucherCode) {
+        const parts = lastVoucher.voucherCode.split(".");
+        nextNum = parseInt(parts[parts.length - 1], 10) + 1;
+      }
+
+      voucherCode = `PC.${monthStr}.${yearStr}.${String(nextNum).padStart(3, "0")}`;
+
+      try {
+        const v = new Voucher({
+          ...data,
+          voucherCode,
+          dateCreated,
+          status: "waiting_check",
+        });
+
+        await v.save();
+        return res.status(201).json(v);
+      } catch (err) {
+        if (err.code === 11000) {
+          // 🔁 trùng mã → thử lại
+          retry++;
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    return res.status(409).json({
+      error: "Không thể sinh mã phiếu, vui lòng thử lại",
     });
 
-    const saved = await v.save();
-    res.json(saved);
-
   } catch (err) {
+    console.error("❌ Lỗi tạo phiếu:", err);
     res.status(500).json({ error: err.message });
   }
 };
+
 
 
 // =========================
