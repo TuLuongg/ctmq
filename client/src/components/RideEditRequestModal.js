@@ -6,6 +6,47 @@ import "react-datepicker/dist/react-datepicker.css";
 
 registerLocale("vi", vi);
 
+// tách chuỗi nhiều địa chỉ bằng ;
+const splitAddressInput = (value) => {
+  const parts = value.split(";");
+  const last = parts.pop() || "";
+  return {
+    prefix: parts.length ? parts.join(";").trim() + "; " : "",
+    keyword: last.trim(),
+  };
+};
+
+// levenshtein cho fuzzy
+const levenshtein = (a, b) => {
+  const m = a.length;
+  const n = b.length;
+  if (!m) return n;
+  if (!n) return m;
+
+  const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,
+        dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+    }
+  }
+  return dp[m][n];
+};
+
+const fuzzyIncludes = (word, text) => {
+  if (text.includes(word)) return true;
+  if (word.length <= 2) return false;
+
+  return text.split(/\s+/).some((t) => levenshtein(word, t) <= 1);
+};
+
 export default function RideEditRequestModal({
   ride,
   onClose,
@@ -15,6 +56,7 @@ export default function RideEditRequestModal({
   drivers = [],
   customers = [],
   vehicles = [],
+  addresses = [],
 }) {
   const [form, setForm] = useState(ride || {});
   const [reason, setReason] = useState("");
@@ -160,6 +202,11 @@ export default function RideEditRequestModal({
   const [vehicleSuggestions, setVehicleSuggestions] = useState([]);
   const [isVehicleFocused, setIsVehicleFocused] = useState(false);
 
+  const [pickupSuggestions, setPickupSuggestions] = useState([]);
+  const [dropSuggestions, setDropSuggestions] = useState([]);
+  const [isPickupFocused, setIsPickupFocused] = useState(false);
+  const [isDropFocused, setIsDropFocused] = useState(false);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -218,6 +265,45 @@ export default function RideEditRequestModal({
         )
       );
       setVehicleSuggestions(filtered);
+      return;
+    }
+
+    if (name === "diemXepHang") {
+      setForm((prev) => ({ ...prev, diemXepHang: value }));
+
+      const { keyword } = splitAddressInput(value);
+      if (!keyword) {
+        setPickupSuggestions([]);
+        return;
+      }
+
+      const words = removeVietnameseTones(keyword).split(/\s+/).filter(Boolean);
+
+      const filtered = (addresses || []).filter((a) => {
+        const addr = removeVietnameseTones(a.diaChi);
+        return words.every((w) => fuzzyIncludes(w, addr));
+      });
+
+      setPickupSuggestions(filtered.slice(0, 50));
+      return;
+    }
+    if (name === "diemDoHang") {
+      setForm((prev) => ({ ...prev, diemDoHang: value }));
+
+      const { keyword } = splitAddressInput(value);
+      if (!keyword) {
+        setDropSuggestions([]);
+        return;
+      }
+
+      const words = removeVietnameseTones(keyword).split(/\s+/).filter(Boolean);
+
+      const filtered = (addresses || []).filter((a) => {
+        const addr = removeVietnameseTones(a.diaChi);
+        return words.every((w) => fuzzyIncludes(w, addr));
+      });
+
+      setDropSuggestions(filtered.slice(0, 50));
       return;
     }
 
@@ -435,6 +521,92 @@ export default function RideEditRequestModal({
                             }}
                           >
                             {v.plateNumber}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
+                ) : f.name === "diemXepHang" ? (
+                  <>
+                    <input
+                      type="text"
+                      name="diemXepHang"
+                      value={form.diemXepHang || ""}
+                      onChange={handleChange}
+                      onFocus={() => setIsPickupFocused(true)}
+                      onBlur={() =>
+                        setTimeout(() => setIsPickupFocused(false), 150)
+                      }
+                      className="border p-2 w-full rounded"
+                      placeholder="Nhập điểm đóng hàng (cách nhau bằng ;)"
+                      autoComplete="off"
+                      spellCheck={false}
+                    />
+
+                    {isPickupFocused && pickupSuggestions.length > 0 && (
+                      <ul className="absolute z-50 bg-white border w-full max-h-48 overflow-y-auto mt-1 rounded shadow">
+                        {pickupSuggestions.map((a) => (
+                          <li
+                            key={a._id}
+                            className="p-2 cursor-pointer hover:bg-gray-200 text-sm"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => {
+                              setForm((prev) => {
+                                const { prefix } = splitAddressInput(
+                                  prev.diemXepHang || ""
+                                );
+                                return {
+                                  ...prev,
+                                  diemXepHang: `${prefix}${a.diaChi}; `,
+                                };
+                              });
+                              setPickupSuggestions([]);
+                            }}
+                          >
+                            {a.diaChi}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
+                ) : f.name === "diemDoHang" ? (
+                  <>
+                    <input
+                      type="text"
+                      name="diemDoHang"
+                      value={form.diemDoHang || ""}
+                      onChange={handleChange}
+                      onFocus={() => setIsDropFocused(true)}
+                      onBlur={() =>
+                        setTimeout(() => setIsDropFocused(false), 150)
+                      }
+                      className="border p-2 w-full rounded"
+                      placeholder="Nhập điểm giao hàng (cách nhau bằng ;)"
+                      autoComplete="off"
+                      spellCheck={false}
+                    />
+
+                    {isDropFocused && dropSuggestions.length > 0 && (
+                      <ul className="absolute z-50 bg-white border w-full max-h-48 overflow-y-auto mt-1 rounded shadow">
+                        {dropSuggestions.map((a) => (
+                          <li
+                            key={a._id}
+                            className="p-2 cursor-pointer hover:bg-gray-200 text-sm"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => {
+                              setForm((prev) => {
+                                const { prefix } = splitAddressInput(
+                                  prev.diemDoHang || ""
+                                );
+                                return {
+                                  ...prev,
+                                  diemDoHang: `${prefix}${a.diaChi}; `,
+                                };
+                              });
+                              setDropSuggestions([]);
+                            }}
+                          >
+                            {a.diaChi}
                           </li>
                         ))}
                       </ul>

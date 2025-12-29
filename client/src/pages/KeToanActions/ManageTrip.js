@@ -125,18 +125,21 @@ export default function ManageTrip({ user, onLogout }) {
   const [drivers, setDrivers] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [vehicles, setVehicles] = useState([]);
+  const [addresses, setAddresses] = useState([]);
 
   // 🔹 Lấy danh sách gợi ý
   useEffect(() => {
     const fetchData = async () => {
-      const [driverRes, customerRes, vehicleRes] = await Promise.all([
+      const [driverRes, customerRes, vehicleRes, addressRes] = await Promise.all([
         axios.get(`${API}/drivers/names/list`),
         axios.get(`${API}/customers`),
         axios.get(`${API}/vehicles/names/list`),
+        axios.get(`${API}/address`),
       ]);
       setDrivers(driverRes.data);
       setCustomers(customerRes.data);
       setVehicles(vehicleRes.data);
+      setAddresses(addressRes.data.data || []);
     };
     fetchData();
   }, []);
@@ -2637,6 +2640,7 @@ export default function ManageTrip({ user, onLogout }) {
             drivers={drivers}
             customers={customers}
             vehicles={vehicles}
+            addresses={addresses}
           />
         </div>
       )}

@@ -78,25 +78,29 @@ export default function DieuVanPage({ user, onLogout }) {
     ngayBoc: todayStr, // ✅ MẶC ĐỊNH HÔM NAY
   });
 
-  // 🔹 3 danh sách gợi ý
+  // 🔹 4 danh sách gợi ý
   const [drivers, setDrivers] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [vehicles, setVehicles] = useState([]);
+  const [addressSuggestions, setAddressSuggestions] = useState([]);
 
   // 🔹 Lấy danh sách gợi ý
   useEffect(() => {
     const fetchData = async () => {
-      const [driverRes, customerRes, vehicleRes] = await Promise.all([
+      const [driverRes, customerRes, vehicleRes, addressRes] = await Promise.all([
         axios.get(`${API}/drivers/names/list`),
         axios.get(`${API}/customers`),
         axios.get(`${API}/vehicles/names/list`),
+        axios.get(`${API}/address`),
       ]);
       setDrivers(driverRes.data);
       setCustomers(customerRes.data);
       setVehicles(vehicleRes.data);
+      setAddressSuggestions(addressRes.data.data || []);
     };
     fetchData();
   }, []);
+
 
   // 🟢 Lấy danh sách điều vận
   const fetchManagers = async () => {
@@ -1611,6 +1615,7 @@ export default function DieuVanPage({ user, onLogout }) {
           drivers={drivers}
           customers={customers}
           vehicles={vehicles}
+          addresses={addressSuggestions}  // thêm địa chỉ gợi ý
         />
       )}
 
@@ -1634,6 +1639,7 @@ export default function DieuVanPage({ user, onLogout }) {
           drivers={drivers}
           customers={customers}
           vehicles={vehicles}
+          addresses={addressSuggestions}  // thêm địa chỉ gợi ý
           onClose={() => {
             setShowEditRequestModal(false);
             setEditRequestRide(null);

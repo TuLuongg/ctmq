@@ -7,9 +7,22 @@ import VoucherAdjustModal from "./VoucherAdjustModal";
 
 function formatAccountNumber(raw) {
   if (!raw) return "";
-  const digits = raw.replace(/\D/g, "");
-  return digits.replace(/(.{4})/g, "$1 ").trim();
+
+  // tách phần số ở đầu + phần text phía sau
+  const match = raw.match(/^([\d\s]+)(.*)$/);
+
+  if (!match) return raw;
+
+  const numberPart = match[1].replace(/\D/g, "");
+  const textPart = match[2] || "";
+
+  const formattedNumber = numberPart
+    .replace(/(.{4})/g, "$1 ")
+    .trim();
+
+  return `${formattedNumber}${textPart}`;
 }
+
 
 const PAYMENT_SOURCE_LABEL = {
   PERSONAL_VCB: "Cá nhân - VCB",
@@ -162,7 +175,16 @@ export default function VoucherDetailModal({
           {/* ============================== */}
           {/* Khi ĐÃ duyệt → chỉ hiện Tạo điều chỉnh */}
           {/* ============================== */}
-          {v.status === "approved" && (
+          {v.status === "approved" && !v.adjustedFrom && (
+              <button
+                onClick={() => setShowAdjust(true)}
+                className="px-3 py-1 bg-purple-600 text-white rounded"
+              >
+                Tạo điều chỉnh
+              </button>
+            )}
+
+            {v.status === "adjusted" && (
               <button
                 onClick={() => setShowAdjust(true)}
                 className="px-3 py-1 bg-purple-600 text-white rounded"

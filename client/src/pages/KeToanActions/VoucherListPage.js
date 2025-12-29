@@ -5,36 +5,6 @@ import VoucherDetailModal from "../../components/VoucherActions/VoucherDetailMod
 import API from "../../api";
 import axios from "axios";
 
-const ORIGIN_COL_WIDTH = {
-  select: 30, // ✅ thêm
-  stt: 40,
-  date: 110,
-  transferDate: 120, // ✅ thêm
-  code: 140,
-  source: 120,
-  receiver: 160,
-  company: 200,
-  content: 280,
-  reason: 220,
-  amount: 140,
-  status: 140,
-  action: 140,
-};
-
-const ADJUST_COL_WIDTH = {
-  stt: 60,
-  date: 110,
-  source: 120,
-  receiver: 200,
-  company: 200,
-  content: 300,
-  reason: 280,
-  amount: 140,
-  orig: 150,
-  status: 140,
-  action: 140,
-};
-
 const PAYMENT_SOURCE_LABEL = {
   PERSONAL_VCB: "Cá nhân - VCB",
   PERSONAL_TCB: "Cá nhân - TCB",
@@ -43,6 +13,15 @@ const PAYMENT_SOURCE_LABEL = {
   CASH: "Tiền mặt",
   OTHER: "Khác",
 };
+
+const cellStyle = {
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  minWidth: 0,
+  maxWidth: "100%",
+};
+
 
 export default function VoucherListPage() {
   const [list, setList] = useState([]);
@@ -172,11 +151,13 @@ export default function VoucherListPage() {
   const [adjustColOrder, setAdjustColOrder] = useState([
     "stt",
     "date",
+    "code",
     "source",
     "receiver",
     "company",
     "content",
     "reason",
+    "transferDate",
     "amount",
     "orig",
     "status",
@@ -431,7 +412,15 @@ export default function VoucherListPage() {
       </div>
 
       <div className="overflow-auto mb-6 max-h-[600px] border min-w-0">
-        <table className="text-xs w-max">
+        <table
+          style={{
+            tableLayout: "fixed",
+            width: "max-content",
+            maxWidth: "max-content",
+            borderCollapse: "separate", // important: avoid collapse seams
+            borderSpacing: 0,
+          }}
+        >
           <thead className="bg-gray-100 sticky top-0 z-10">
             <tr>
               {originColOrder.map((key) => (
@@ -444,11 +433,7 @@ export default function VoucherListPage() {
                     moveCol(originColOrder, dragCol, key, setOriginColOrder)
                   }
                   className="border p-2 resize-x overflow-hidden select-none"
-                  style={{
-                    resize: "horizontal",
-                    width: ORIGIN_COL_WIDTH[key],
-                    minWidth: ORIGIN_COL_WIDTH[key],
-                  }}
+                  style={{ resize: "horizontal", ...cellStyle }}
                 >
                   {
                     {
@@ -501,7 +486,11 @@ export default function VoucherListPage() {
                     switch (col) {
                       case "select":
                         return (
-                          <td key={col} className="border p-2 text-center">
+                          <td
+                            key={col}
+                            style={cellStyle}
+                            className="border p-2 text-center"
+                          >
                             <input
                               type="checkbox"
                               checked={selectedIds.includes(v._id)}
@@ -512,13 +501,21 @@ export default function VoucherListPage() {
 
                       case "stt":
                         return (
-                          <td key={col} className="border p-2">
+                          <td
+                            key={col}
+                            style={cellStyle}
+                            className="border p-2"
+                          >
                             {idx + 1}
                           </td>
                         );
                       case "date":
                         return (
-                          <td key={col} className="border p-2">
+                          <td
+                            key={col}
+                            style={cellStyle}
+                            className="border p-2"
+                          >
                             {new Date(v.dateCreated).toLocaleDateString(
                               "vi-VN"
                             )}
@@ -526,44 +523,72 @@ export default function VoucherListPage() {
                         );
                       case "code":
                         return (
-                          <td key={col} className="border p-2">
+                          <td
+                            key={col}
+                            style={cellStyle}
+                            className="border p-2"
+                          >
                             {v.voucherCode}
                           </td>
                         );
                       case "source":
                         return (
-                          <td key={col} className="border p-2">
+                          <td
+                            key={col}
+                            style={cellStyle}
+                            className="border p-2"
+                          >
                             {PAYMENT_SOURCE_LABEL[v.paymentSource] ||
                               v.paymentSource}
                           </td>
                         );
                       case "receiver":
                         return (
-                          <td key={col} className="border p-2">
+                          <td
+                            key={col}
+                            style={cellStyle}
+                            className="border p-2"
+                          >
                             {v.receiverName}
                           </td>
                         );
                       case "company":
                         return (
-                          <td key={col} className="border p-2">
+                          <td
+                            key={col}
+                            style={cellStyle}
+                            className="border p-2"
+                          >
                             {v.receiverCompany}
                           </td>
                         );
                       case "content":
                         return (
-                          <td key={col} className="border p-2">
+                          <td
+                            key={col}
+                            style={cellStyle}
+                            className="border p-2"
+                          >
                             {v.transferContent}
                           </td>
                         );
                       case "reason":
                         return (
-                          <td key={col} className="border p-2">
+                          <td
+                            key={col}
+                            style={cellStyle}
+                            className="border p-2"
+                          >
                             {v.reason}
                           </td>
                         );
                       case "transferDate":
                         return (
-                          <td key={col} className="border p-2 text-center">
+                          <td
+                            key={col}
+                            style={cellStyle}
+                            className="border p-2 text-center"
+                          >
                             {v.transferDate
                               ? new Date(v.transferDate).toLocaleDateString(
                                   "vi-VN"
@@ -574,7 +599,11 @@ export default function VoucherListPage() {
 
                       case "amount":
                         return (
-                          <td key={col} className="border p-2 text-right">
+                          <td
+                            key={col}
+                            style={cellStyle}
+                            className="border p-2 text-right"
+                          >
                             {v.amount?.toLocaleString()}
                           </td>
                         );
@@ -582,6 +611,7 @@ export default function VoucherListPage() {
                         return (
                           <td
                             key={col}
+                            style={cellStyle}
                             className="border p-2 text-center font-semibold"
                           >
                             {v.status === "waiting_check" && (
@@ -601,7 +631,11 @@ export default function VoucherListPage() {
                         );
                       case "action":
                         return (
-                          <td key={col} className="border p-2">
+                          <td
+                            key={col}
+                            style={cellStyle}
+                            className="border p-2"
+                          >
                             <div className="flex justify-center gap-2">
                               <button
                                 className="text-blue-600"
@@ -634,7 +668,13 @@ export default function VoucherListPage() {
       {/* Bảng phiếu điều chỉnh */}
       <h2 className="font-bold mb-2">Phiếu điều chỉnh</h2>
       <div className="overflow-auto max-h-[600px] border min-w-0">
-        <table className="w-max text-xs">
+        <table style={{
+            tableLayout: "fixed",
+            width: "max-content",
+            maxWidth: "max-content",
+            borderCollapse: "separate", // important: avoid collapse seams
+            borderSpacing: 0,
+          }}>
           <thead className="bg-gray-100 sticky top-0 z-10">
             <tr>
               {adjustColOrder.map((key) => (
@@ -649,19 +689,20 @@ export default function VoucherListPage() {
                   className="border p-2 resize-x overflow-hidden select-none"
                   style={{
                     resize: "horizontal",
-                    width: ADJUST_COL_WIDTH[key],
-                    minWidth: ADJUST_COL_WIDTH[key],
+                    ...cellStyle
                   }}
                 >
                   {
                     {
                       stt: "STT",
                       date: "Ngày",
+                      code: "Mã phiếu chi",
                       source: "Tài khoản chi",
                       receiver: "Người nhận",
                       company: "Tên công ty",
                       content: "Nội dung",
                       reason: "Lý do chi",
+                      transferDate: "Ngày chuyển tiền",
                       amount: "Số tiền",
                       orig: "Phiếu gốc",
                       status: "Trạng thái",
@@ -695,7 +736,11 @@ export default function VoucherListPage() {
                       switch (col) {
                         case "stt":
                           return (
-                            <td key={col} className="border p-2">
+                            <td
+                              key={col}
+                              style={cellStyle}
+                              className="border p-2"
+                            >
                               {idx + 1}
                             </td>
                           );
@@ -703,6 +748,7 @@ export default function VoucherListPage() {
                           return (
                             <td
                               key={col}
+                              style={cellStyle}
                               className={`border p-2 ${
                                 v.dateCreated !== orig?.dateCreated
                                   ? "text-red-600"
@@ -714,10 +760,21 @@ export default function VoucherListPage() {
                               )}
                             </td>
                           );
+                        case "code":
+                          return (
+                            <td
+                              key={col}
+                              style={cellStyle}
+                              className="border p-2"
+                            >
+                              {v.voucherCode}
+                            </td>
+                          );
                         case "source":
                           return (
                             <td
                               key={col}
+                              style={cellStyle}
                               className={`border p-2 ${
                                 v.paymentSource !== orig?.paymentSource
                                   ? "text-red-600"
@@ -732,6 +789,7 @@ export default function VoucherListPage() {
                           return (
                             <td
                               key={col}
+                              style={cellStyle}
                               className={`border p-2 ${
                                 v.receiverName !== orig?.receiverName
                                   ? "text-red-600"
@@ -745,6 +803,7 @@ export default function VoucherListPage() {
                           return (
                             <td
                               key={col}
+                              style={cellStyle}
                               className={`border p-2 ${
                                 v.receiverCompany !== orig?.receiverCompany
                                   ? "text-red-600"
@@ -758,6 +817,7 @@ export default function VoucherListPage() {
                           return (
                             <td
                               key={col}
+                              style={cellStyle}
                               className={`border p-2 ${
                                 v.transferContent !== orig?.transferContent
                                   ? "text-red-600"
@@ -771,6 +831,7 @@ export default function VoucherListPage() {
                           return (
                             <td
                               key={col}
+                              style={cellStyle}
                               className={`border p-2 ${
                                 v.reason !== orig?.reason ? "text-red-600" : ""
                               }`}
@@ -778,10 +839,25 @@ export default function VoucherListPage() {
                               {v.reason}
                             </td>
                           );
+                        case "transferDate":
+                          return (
+                            <td
+                              key={col}
+                              style={cellStyle}
+                              className="border p-2 text-center"
+                            >
+                              {v.transferDate
+                                ? new Date(v.transferDate).toLocaleDateString(
+                                    "vi-VN"
+                                  )
+                                : "-"}
+                            </td>
+                          );
                         case "amount":
                           return (
                             <td
                               key={col}
+                              style={cellStyle}
                               className={`border p-2 text-right ${
                                 v.amount !== orig?.amount ? "text-red-600" : ""
                               }`}
@@ -791,7 +867,11 @@ export default function VoucherListPage() {
                           );
                         case "orig":
                           return (
-                            <td key={col} className="border p-2">
+                            <td
+                              key={col}
+                              style={cellStyle}
+                              className="border p-2"
+                            >
                               {v.origVoucherCode ? (
                                 <button
                                   className="text-blue-600 underline"
@@ -814,11 +894,18 @@ export default function VoucherListPage() {
                                   Đang chờ duyệt
                                 </span>
                               )}
+                              {v.status === "approved" && (
+                                <span className="text-green-600">Đã duyệt</span>
+                              )}
                             </td>
                           );
                         case "action":
                           return (
-                            <td key={col} className="border p-2">
+                            <td
+                              key={col}
+                              style={cellStyle}
+                              className="border p-2"
+                            >
                               <div className="flex justify-center gap-2">
                                 <button
                                   className="text-blue-600"
@@ -839,6 +926,16 @@ export default function VoucherListPage() {
                                       Duyệt
                                     </button>
                                   )}
+                                {v.status === "approved" && (
+                                  <button
+                                    className="text-red-600"
+                                    onClick={() =>
+                                      window.open(`/voucher/${v._id}/print`)
+                                    }
+                                  >
+                                    In phiếu
+                                  </button>
+                                )}
                               </div>
                             </td>
                           );
@@ -871,7 +968,6 @@ export default function VoucherListPage() {
           customers={customers}
           onClose={() => {
             setDetailId(null);
-            load();
           }}
         />
       )}

@@ -78,6 +78,10 @@ const KeToanPage = () => {
     navigate("/tcb-person", { state: { user } });
   };
 
+  const handleGoToAddress = () => {
+    navigate("/address", { state: { user } });
+  };
+
   const handleExport = async () => {
     if (!selectedDate) return alert("Vui lòng chọn ngày.");
     try {
@@ -309,8 +313,14 @@ const KeToanPage = () => {
         >
           TCB cá nhân
         </button>
+        <button
+          onClick={handleGoToAddress}
+          className="bg-purple-500 text-white px-3 py-1 rounded"
+        >
+          Địa chỉ
+        </button>
 
-                <button
+        <button
           onClick={handleGoToCostManagement}
           className="ml-auto bg-blue-500 text-white px-3 py-1 rounded"
         >
