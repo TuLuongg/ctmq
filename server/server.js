@@ -55,6 +55,8 @@ app.use("/api/trip-payment-kt", require("./routes/tripPaymentKT.routes"));
 app.use("/api/transportation-contract", require("./routes/transportationContract.routes"));
 app.use("/api/tcb-person", require("./routes/TCBperson.routes"));
 
+app.use("/api/address", require("./routes/address.routes"));
+
 app.get('/', (req, res) => {
   res.send('Server hoạt động!');
 });
