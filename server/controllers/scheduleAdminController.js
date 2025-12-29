@@ -7,7 +7,12 @@ const path = require("path");
 const mongoose = require("mongoose");
 
 const calcHoaHong = async (schedule) => {
-  if (!schedule?.maKH) return;
+  if (!schedule?.maKH) {
+    schedule.percentHH = 0;
+    schedule.moneyHH = 0;
+    schedule.moneyConLai = 0;
+    return;
+  }
 
   const customer = await Customer.findOne({ code: schedule.maKH }).lean();
   const percentHH = Number(customer?.percentHH || 0);
@@ -18,12 +23,17 @@ const calcHoaHong = async (schedule) => {
   const themDiem = toNum(schedule.themDiem);
   const hangVeBS = toNum(schedule.hangVeBS);
 
+  // ✅ TỔNG TIỀN CHỊU HOA HỒNG
   const baseHH = cuocPhiBS + themDiem + hangVeBS;
 
+  const moneyHH = Math.round((baseHH * percentHH) / 100);
+  const moneyConLai = baseHH - moneyHH;
+
   schedule.percentHH = percentHH;
-  schedule.moneyHH = Math.round((baseHH * percentHH) / 100);
-  schedule.moneyConLai = cuocPhiBS - schedule.moneyHH;
+  schedule.moneyHH = moneyHH;
+  schedule.moneyConLai = moneyConLai;
 };
+
 
 // 🆕 Tạo chuyến mới
 const createScheduleAdmin = async (req, res) => {
@@ -76,7 +86,6 @@ const createScheduleAdmin = async (req, res) => {
 
     // 🔥 AUTO TÍNH HOA HỒNG
     await calcHoaHong(newSchedule);
-
     await newSchedule.save();
     res.status(201).json(newSchedule);
   } catch (err) {
@@ -193,7 +202,6 @@ const updateScheduleAdmin = async (req, res) => {
 
     // 🔥 AUTO RECALC HOA HỒNG
     await calcHoaHong(schedule);
-
     await schedule.save();
 
     res.json(schedule);

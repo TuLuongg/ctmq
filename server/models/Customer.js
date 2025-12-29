@@ -55,7 +55,7 @@ customerSchema.pre("findOneAndUpdate", async function (next) {
 
       sch.percentHH = Number(newPercent) || 0;
       sch.moneyHH = Math.round((baseHH * sch.percentHH) / 100);
-      sch.moneyConLai = cuocPhiBS - sch.moneyHH;
+      sch.moneyConLai = baseHH - sch.moneyHH;
 
       await sch.save();
     }

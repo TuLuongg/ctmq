@@ -36,7 +36,10 @@ exports.createVoucher = async (req, res) => {
         nextNum = parseInt(parts[parts.length - 1], 10) + 1;
       }
 
-      voucherCode = `PC.${monthStr}.${yearStr}.${String(nextNum).padStart(3, "0")}`;
+      voucherCode = `PC.${monthStr}.${yearStr}.${String(nextNum).padStart(
+        3,
+        "0"
+      )}`;
 
       try {
         const v = new Voucher({
@@ -61,14 +64,11 @@ exports.createVoucher = async (req, res) => {
     return res.status(409).json({
       error: "Không thể sinh mã phiếu, vui lòng thử lại",
     });
-
   } catch (err) {
     console.error("❌ Lỗi tạo phiếu:", err);
     res.status(500).json({ error: err.message });
   }
 };
-
-
 
 // =========================
 //  LẤY DANH SÁCH
@@ -82,15 +82,13 @@ exports.getAllVouchers = async (req, res) => {
     // Nếu có truyền month + year thì tạo khoảng ngày
     if (month && year) {
       const start = new Date(year, month - 1, 1, 0, 0, 0);
-      const end = new Date(year, month, 0, 23, 59, 59); 
+      const end = new Date(year, month, 0, 23, 59, 59);
       // month,0 là ngày cuối của tháng
 
       filter.dateCreated = { $gte: start, $lte: end };
     }
 
-    const list = await Voucher.find(filter)
-      .sort({ dateCreated: -1 })
-      .lean(); // chuyển thành object thường để sửa thêm
+    const list = await Voucher.find(filter).sort({ dateCreated: -1 }).lean(); // chuyển thành object thường để sửa thêm
 
     // Thêm voucherCode của phiếu gốc nếu có
     const listWithOrig = await Promise.all(
@@ -109,9 +107,6 @@ exports.getAllVouchers = async (req, res) => {
   }
 };
 
-
-
-
 // =========================
 //  LẤY THEO ID
 // =========================
@@ -121,12 +116,10 @@ exports.getVoucherById = async (req, res) => {
     if (!v) return res.status(404).json({ error: "Không tìm thấy phiếu" });
 
     res.json(v);
-
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
-
 
 // =========================
 //  CẬP NHẬT PHIẾU
@@ -145,12 +138,10 @@ exports.updateVoucher = async (req, res) => {
 
     const saved = await v.save();
     res.json(saved);
-
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
-
 
 // =========================
 //  XOÁ PHIẾU
@@ -165,12 +156,10 @@ exports.deleteVoucher = async (req, res) => {
 
     await v.deleteOne();
     res.json({ success: true });
-
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
-
 
 // =========================
 //  DUYỆT PHIẾU
@@ -181,18 +170,18 @@ exports.approveVoucher = async (req, res) => {
 
     if (!v) return res.status(404).json({ error: "Không tìm thấy phiếu" });
     if (v.status !== "waiting_check")
-      return res.status(400).json({ error: "Phiếu không ở trạng thái chờ duyệt" });
+      return res
+        .status(400)
+        .json({ error: "Phiếu không ở trạng thái chờ duyệt" });
 
     v.status = "approved";
 
     const saved = await v.save();
     res.json(saved);
-
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
-
 
 // =========================
 //  TẠO PHIẾU ĐIỀU CHỈNH
@@ -200,35 +189,48 @@ exports.approveVoucher = async (req, res) => {
 exports.adjustVoucher = async (req, res) => {
   try {
     const orig = await Voucher.findById(req.params.id);
-    if (!orig)
+    if (!orig) {
       return res.status(404).json({ error: "Phiếu gốc không tồn tại" });
+    }
 
     const data = req.body;
 
-    // 🔹 sinh mã phiếu mới cho phiếu điều chỉnh
-    const voucherCode = await generateVoucherCode(
-      data.dateCreated || new Date()
-    );
+    // 🔹 Tìm phiếu điều chỉnh mới nhất của phiếu gốc
+    const lastAdjust = await Voucher.findOne({
+      adjustedFrom: orig._id,
+    })
+      .sort({ voucherCode: -1 })
+      .lean();
+
+    let nextIndex = 1;
+
+    if (lastAdjust?.voucherCode) {
+      // VD: PC.09.25.012.02
+      const parts = lastAdjust.voucherCode.split(".");
+      nextIndex = parseInt(parts[parts.length - 1], 10) + 1;
+    }
+
+    const voucherCode = `${orig.voucherCode}.${String(nextIndex).padStart(
+      2,
+      "0"
+    )}`;
 
     const newVoucher = new Voucher({
       ...data,
-      voucherCode,                 // ✅ BẮT BUỘC
-      adjustedFrom: orig._id,       // liên kết phiếu gốc
-      origVoucherCode: orig.voucherCode, //lưu voucherCode của phiếu gốc
-      dateCreated: data.dateCreated
-        ? new Date(data.dateCreated)
-        : new Date(),
+      voucherCode, // ✅ PC.xx.yy.zzz.01
+      adjustedFrom: orig._id,
+      origVoucherCode: orig.voucherCode,
+      dateCreated: data.dateCreated ? new Date(data.dateCreated) : new Date(),
       status: "waiting_check",
     });
 
     const saved = await newVoucher.save();
     res.json(saved);
-
   } catch (err) {
+    console.error("adjustVoucher error:", err);
     res.status(500).json({ error: err.message });
   }
 };
-
 
 // =========================
 //  IN PHIẾU
@@ -257,7 +259,6 @@ exports.printVoucher = async (req, res) => {
     };
 
     res.json({ success: true, data: formatted });
-
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -269,56 +270,44 @@ exports.printVoucher = async (req, res) => {
 exports.approveAdjustedVoucher = async (req, res) => {
   try {
     const adj = await Voucher.findById(req.params.id);
-    if (!adj) return res.status(404).json({ error: "Không tìm thấy phiếu điều chỉnh" });
+    if (!adj)
+      return res.status(404).json({ error: "Không tìm thấy phiếu điều chỉnh" });
 
     if (adj.status !== "waiting_check")
-      return res.status(400).json({ error: "Phiếu điều chỉnh không ở trạng thái chờ duyệt" });
+      return res.status(400).json({
+        error: "Phiếu điều chỉnh không ở trạng thái chờ duyệt",
+      });
 
     if (!adj.adjustedFrom)
-      return res.status(400).json({ error: "Phiếu này không phải phiếu điều chỉnh" });
+      return res.status(400).json({
+        error: "Phiếu này không phải phiếu điều chỉnh",
+      });
 
-    const orig = await Voucher.findById(adj.adjustedFrom);
-    if (!orig) return res.status(404).json({ error: "Phiếu gốc không tồn tại" });
+    // 1️⃣ Duyệt phiếu điều chỉnh
+    await Voucher.updateOne({ _id: adj._id }, { $set: { status: "approved" } });
 
-    // 🔁 ĐÈ DỮ LIỆU (GIỮ LẠI voucherCode)
-    const fieldsToOverwrite = [
-      "paymentSource",
-      "receiverName",
-      "receiverCompany",
-      "receiverBankAccount",
-      "transferContent",
-      "reason",
-      "expenseType",
-      "amount",
-      "amountInWords",
-      "note"
-    ];
-
-    fieldsToOverwrite.forEach(f => {
-      if (adj[f] !== undefined) {
-        orig[f] = adj[f];
-      }
-    });
-
-    orig.status = "approved";   // vẫn là phiếu hợp lệ
-    await orig.save();
-
-    // 🔥 ĐÁNH DẤU PHIẾU GỐC ĐÃ BỊ ĐIỀU CHỈNH (LỊCH SỬ)
-    await Voucher.updateOne(
-      { _id: orig._id },
+    // 2️⃣ ĐÁNH DẤU PHIẾU GỐC ĐÃ ĐIỀU CHỈNH (QUAN TRỌNG)
+    const result = await Voucher.updateOne(
+      { _id: adj.adjustedFrom },
       { $set: { status: "adjusted" } }
     );
 
-    // ❌ XOÁ PHIẾU ĐIỀU CHỈNH
-    await adj.deleteOne();
+    // debug chắc chắn
+    if (result.modifiedCount === 0) {
+      return res.status(500).json({
+        error: "Không cập nhật được trạng thái phiếu gốc",
+      });
+    }
+
+    const updatedOrig = await Voucher.findById(adj.adjustedFrom);
 
     res.json({
       success: true,
-      message: "Đã duyệt điều chỉnh, phiếu gốc được cập nhật",
-      voucher: orig
+      message: "Đã duyệt phiếu điều chỉnh, phiếu gốc đã chuyển trạng thái",
+      originalVoucher: updatedOrig,
     });
-
   } catch (err) {
+    console.error("approveAdjustedVoucher error:", err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -330,13 +319,13 @@ exports.updateTransferDateBulk = async (req, res) => {
 
     if (!Array.isArray(voucherIds) || voucherIds.length === 0) {
       return res.status(400).json({
-        message: "voucherIds phải là mảng và không được rỗng"
+        message: "voucherIds phải là mảng và không được rỗng",
       });
     }
 
     if (!transferDate) {
       return res.status(400).json({
-        message: "Thiếu transferDate"
+        message: "Thiếu transferDate",
       });
     }
 
@@ -344,15 +333,15 @@ exports.updateTransferDateBulk = async (req, res) => {
       { _id: { $in: voucherIds } },
       {
         $set: {
-          transferDate: new Date(transferDate)
-        }
+          transferDate: new Date(transferDate),
+        },
       }
     );
 
     return res.json({
       success: true,
       matched: result.matchedCount,
-      modified: result.modifiedCount
+      modified: result.modifiedCount,
     });
   } catch (err) {
     console.error("updateTransferDateBulk error:", err);
