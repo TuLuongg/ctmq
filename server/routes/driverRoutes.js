@@ -12,6 +12,7 @@ const {
   listDriverNames,
   toggleWarning,
   deleteAllDrivers,
+  exportDrivers
 } = require("../controllers/driverController");
 
 const cloudinary = require("../config/cloudinary");
@@ -88,6 +89,7 @@ async function handleImageUpload(req, res, next) {
 // Routes
 // --------------------------
 router.get("/", listDrivers);
+router.get("/export-excel", exportDrivers);
 router.get("/:id", getDriver);
 
 // CREATE

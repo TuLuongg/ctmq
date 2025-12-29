@@ -57,6 +57,7 @@ const createCustomer = async (req, res) => {
       accountant: body.accountant,
       code: body.code,
       accUsername: body.accUsername,
+      percentHH: body.percentHH,
       createdBy: req.user?.username || body.createdBy || "",
     });
     res.status(201).json(saved);
@@ -74,22 +75,27 @@ const updateCustomer = async (req, res) => {
     const { id } = req.params;
     if (!mongoose.isValidObjectId(id))
       return res.status(400).json({ error: "ID không hợp lệ" });
-    const customer = await Customer.findById(id);
+
+    const body = req.body || {};
+
+    const customer = await Customer.findOneAndUpdate(
+      { _id: id },
+      {
+        name: body.name,
+        nameHoaDon: body.nameHoaDon,
+        mstCCCD: body.mstCCCD,
+        address: body.address,
+        accountant: body.accountant,
+        code: body.code,
+        accUsername: body.accUsername,
+        percentHH: body.percentHH, // 🔥 TRIGGER RECALC
+      },
+      { new: true }
+    );
+
     if (!customer)
       return res.status(404).json({ error: "Không tìm thấy khách hàng" });
 
-    const body = req.body || {};
-    Object.assign(customer, {
-      name: body.name || customer.name,
-      nameHoaDon: body.nameHoaDon || customer.nameHoaDon,
-      mstCCCD: body.mstCCCD || customer.mstCCCD,
-      address: body.address || customer.address,
-      accountant: body.accountant || customer.accountant,
-      code: body.code || customer.code,
-      accUsername: body.accUsername || customer.accUsername,
-    });
-
-    await customer.save();
     res.json(customer);
   } catch (err) {
     console.error("Lỗi khi cập nhật khách hàng:", err);
@@ -152,7 +158,8 @@ const importCustomersFromExcel = async (req, res) => {
           nameHoaDon: row["TÊN KHÁCH HÀNG TRÊN HÓA ĐƠN"] || "",
           mstCCCD: row["MST/CCCD CHỦ HỘ"] || "",
           address: row["ĐỊA CHỈ"] || "",
-          accountant: row["TÊN NGƯỜI ĐẢM NHẬN/PHỤ TRÁCH"] || "",
+          accountant: row["GHI CHÚ"] || "",
+          percentHH: row["%HH"] || 0,
           code: code,
           accUsername: row["User"] || "",
         };
@@ -166,7 +173,11 @@ const importCustomersFromExcel = async (req, res) => {
           imported++;
         } else if (mode === "overwrite") {
           // ghi đè nếu mode=overwrite
-          await Customer.updateOne({ code }, data);
+          await Customer.findOneAndUpdate(
+            { code },
+            { $set: data },
+            { new: true }
+          );
           updated++;
         } else {
           // nếu mode=add thì bỏ qua khách trùng code
@@ -242,7 +253,6 @@ function getRowSchema(sheet, sourceRowNumber) {
 
   return schema;
 }
-
 
 const exportTripsByCustomer = async (req, res) => {
   try {
@@ -386,6 +396,80 @@ const deleteAllCustomers = async (req, res) => {
   }
 };
 
+// ==============================
+// EXPORT DS KHÁCH HÀNG (FORM MẪU)
+// ==============================
+const exportCustomers = async (req, res) => {
+  try {
+    const includePercentHH = req.query.includePercentHH === "true";
+
+    // 1️⃣ LẤY DATA
+    const customers = await Customer.find({}).sort({ createdAt: 1 });
+
+    if (!customers.length) {
+      return res.status(400).json({ message: "Không có dữ liệu khách hàng" });
+    }
+
+    // 2️⃣ LOAD FORM MẪU
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(
+      path.join(__dirname, "../templates/DS_KHACH_HANG.xlsx")
+    );
+
+    const sheet = workbook.getWorksheet("DSKH");
+    if (!sheet) {
+      return res.status(500).json({ message: "Không tìm thấy sheet DSKH" });
+    }
+
+    // 3️⃣ GHI DATA
+    const startRow = 2;
+
+    customers.forEach((c, index) => {
+      const row = sheet.getRow(startRow + index);
+
+      if (includePercentHH) {
+        // CÓ %HH
+        row.getCell("A").value = c.code ?? "";
+        row.getCell("B").value = c.name ?? "";
+        row.getCell("C").value = c.nameHoaDon ?? "";
+        row.getCell("D").value = c.mstCCCD ?? "";
+        row.getCell("E").value = c.address ?? "";
+        row.getCell("F").value = c.percentHH ?? 0;
+        row.getCell("G").value = c.accountant ?? "";
+        row.getCell("H").value = c.accUsername ?? "";
+      } else {
+        // ❌ KHÔNG %HH → DỒN CỘT
+        row.getCell("A").value = c.code ?? "";
+        row.getCell("B").value = c.name ?? "";
+        row.getCell("C").value = c.nameHoaDon ?? "";
+        row.getCell("D").value = c.mstCCCD ?? "";
+        row.getCell("E").value = c.address ?? "";
+        row.getCell("G").value = c.accountant ?? "";
+        row.getCell("H").value = c.accUsername ?? "";
+      }
+
+      row.commit();
+    });
+
+    // 4️⃣ TRẢ FILE
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=DANH_SACH_KHACH_HANG.xlsx"
+    );
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error("❌ Export customers error:", err);
+    res.status(500).json({ message: "Lỗi xuất danh sách khách hàng" });
+  }
+};
+
+
 module.exports = {
   listCustomers,
   getCustomer,
@@ -396,4 +480,5 @@ module.exports = {
   toggleWarning,
   exportTripsByCustomer,
   deleteAllCustomers,
+  exportCustomers
 };

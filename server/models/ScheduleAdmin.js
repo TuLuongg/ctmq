@@ -48,6 +48,13 @@ const scheduleAdminSchema = new mongoose.Schema(
     cpKhacBS: { type: String, default: "" }, // CHI PHÍ KHÁC BỔ SUNG
     warning: { type: Boolean, default: false },
 
+    percentHH: { type: Number, default: 0 }, //%HH
+    moneyHH: { type: Number, default: 0 }, //Tiền HH
+    moneyConLai: { type: Number, default: 0 }, //Tiền còn lại
+
+    tongTien: { type: Number, default: 0 }, // tổng tiền chuyến
+    conLai: { type: Number, default: 0 }, // còn lại = tongTien - daThanhToan
+
     // ⚙️ Trạng thái chuyến
     trangThai: {
       type: String,

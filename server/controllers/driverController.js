@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const fs = require("fs");
 const path = require("path");
 const XLSX = require("xlsx");
+const ExcelJS = require("exceljs");
 
 // ==============================
 // LẤY DANH SÁCH
@@ -421,6 +422,101 @@ const deleteAllDrivers = async (req, res) => {
   }
 };
 
+// ==============================
+// EXPORT DS LÁI XE (FORM MẪU)
+// ==============================
+const exportDrivers = async (req, res) => {
+  try {
+    // 1️⃣ LẤY DATA
+    const drivers = await Driver.find({}).sort({
+      createdAt: 1,
+    });
+
+    if (!drivers.length) {
+      return res.status(400).json({ message: "Không có dữ liệu lái xe" });
+    }
+
+    // 2️⃣ LOAD FORM MẪU
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(
+      path.join(__dirname, "../templates/DS_LAI_XE.xlsx")
+    );
+
+    const sheet = workbook.getWorksheet("DS LÁI XE");
+    if (!sheet) {
+      return res
+        .status(500)
+        .json({ message: "Không tìm thấy sheet DS LÁI XE" });
+    }
+
+    // 3️⃣ BẮT ĐẦU GHI DATA (SAU HEADER)
+    const startRow = 2;
+
+    drivers.forEach((d, index) => {
+      const row = sheet.getRow(startRow + index);
+
+      row.getCell("A").value = index + 1; // STT
+      row.getCell("B").value = d.name || ""; // HỌ TÊN
+      row.getCell("C").value = d.nameZalo || "";
+      row.getCell("D").value = d.birthYear || "";
+      row.getCell("E").value = d.company || "";
+      row.getCell("F").value = d.bsx || "";
+      row.getCell("G").value = d.phone || "";
+      row.getCell("H").value = d.hometown || "";
+      row.getCell("I").value = d.resHometown || "";
+      row.getCell("J").value = d.address || "";
+      row.getCell("K").value = d.cccd || "";
+
+      row.getCell("L").value = d.cccdIssuedAt ? new Date(d.cccdIssuedAt) : null;
+
+      row.getCell("M").value = d.cccdExpiryAt ? new Date(d.cccdExpiryAt) : null;
+
+      row.getCell("N").value = Array.isArray(d.licenseImageCCCD)
+        ? d.licenseImageCCCD.join(", ")
+        : "";
+
+      row.getCell("O").value = d.numberClass || "";
+      row.getCell("P").value = d.licenseClass || "";
+
+      row.getCell("Q").value = d.licenseIssuedAt
+        ? new Date(d.licenseIssuedAt)
+        : null;
+
+      row.getCell("R").value = d.licenseExpiryAt
+        ? new Date(d.licenseExpiryAt)
+        : null;
+
+      row.getCell("S").value = Array.isArray(d.licenseImage)
+        ? d.licenseImage.join(", ")
+        : "";
+
+      row.getCell("T").value = d.numberHDLD || "";
+
+      row.getCell("U").value = d.dayStartWork ? new Date(d.dayStartWork) : null;
+
+      row.getCell("V").value = d.dayEndWork ? new Date(d.dayEndWork) : null;
+
+      row.commit();
+    });
+
+    // 4️⃣ TRẢ FILE
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=DANH_SACH_LAI_XE.xlsx`
+    );
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error("❌ Export drivers error:", err);
+    res.status(500).json({ message: "Lỗi xuất danh sách lái xe" });
+  }
+};
+
 module.exports = {
   listDrivers,
   getDriver,
@@ -431,4 +527,5 @@ module.exports = {
   listDriverNames,
   toggleWarning,
   deleteAllDrivers,
+  exportDrivers,
 };

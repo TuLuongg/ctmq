@@ -1,8 +1,10 @@
 const TripPayment = require("../models/TripPayment");
 const CustomerDebtPeriod = require("../models/CustomerDebtPeriod");
 const PaymentReceipt = require("../models/PaymentReceipt");
-
+const Customer = require("../models/Customer");
 const ScheduleAdmin = require("../models/ScheduleAdmin");
+const path = require("path");
+const ExcelJS = require("exceljs");
 
 // Map trường chuẩn → (base, bổ sung)
 const fieldMap = {
@@ -12,6 +14,7 @@ const fieldMap = {
   ve: { base: "ve", bs: "veBS" },
   hangVe: { base: "hangVe", bs: "hangVeBS" },
   luuCa: { base: "luuCa", bs: "luuCaBS" },
+  themDiem: { base: "themDiem", bs: "themDiem" },
 };
 
 const pickBaseOnly = (obj, field) => {
@@ -35,7 +38,8 @@ const calcTripCostOddCustomer = (trip) => {
     pickBaseOnly(trip, "ve") +
     pickBaseOnly(trip, "hangVe") +
     pickBaseOnly(trip, "luuCa") +
-    pickBaseOnly(trip, "chiPhiKhac")
+    pickBaseOnly(trip, "chiPhiKhac") +
+    pickBaseOnly(trip, "themDiem")
   );
 };
 
@@ -46,7 +50,8 @@ const calcTripCostSharedCustomer = (trip) => {
     pickBsOnly(trip, "ve") +
     pickBsOnly(trip, "hangVe") +
     pickBsOnly(trip, "luuCa") +
-    pickBsOnly(trip, "chiPhiKhac")
+    pickBsOnly(trip, "chiPhiKhac") +
+    pickBsOnly(trip, "themDiem")
   );
 };
 
@@ -114,7 +119,7 @@ const calcPeriodMoneyFromTrips = (trips, vatPercent = 0) => {
     vatAmount,
     totalAmount,
     paidAmount,
-    remainAmount: remainAmount < 0 ? 0 : remainAmount,
+    remainAmount, // ✅ giữ nguyên âm nếu có
   };
 };
 
@@ -1016,7 +1021,7 @@ exports.deleteDebtPeriod = async (req, res) => {
 // =====================================================
 exports.getDebtForCustomer26 = async (req, res) => {
   try {
-    let { startDate, endDate, page = 1, limit = 100 } = req.query;
+    let { startDate, endDate, page = 1, limit = 100, sync = 0 } = req.query;
 
     page = Number(page);
     limit = Number(limit);
@@ -1027,16 +1032,52 @@ exports.getDebtForCustomer26 = async (req, res) => {
 
     const start = new Date(startDate);
     const end = new Date(endDate);
-    end.setDate(end.getDate() + 1); // <= endDate
+    end.setDate(end.getDate() + 1);
 
     const condition = {
       maKH: "26",
       ngayGiaoHang: { $gte: start, $lt: end },
     };
 
+    /**
+     * ==============================
+     * 🔥 STEP 1: SYNC LẠI TỔNG TIỀN + CÒN LẠI (NẾU CẦN)
+     * ==============================
+     * gọi ?sync=1 khi muốn cập nhật
+     */
+    if (Number(sync) === 1) {
+      const allTripsToSync = await ScheduleAdmin.find(condition).lean();
+
+      const bulkOps = allTripsToSync.map((t) => {
+        const tongTien = Number(calcTripCostOddCustomer(t)) || 0;
+        const daThanhToan = Number(t.daThanhToan) || 0;
+        const conLai = tongTien - daThanhToan;
+
+        return {
+          updateOne: {
+            filter: { _id: t._id },
+            update: {
+              $set: {
+                tongTien,
+                conLai,
+              },
+            },
+          },
+        };
+      });
+
+      if (bulkOps.length) {
+        await ScheduleAdmin.bulkWrite(bulkOps);
+      }
+    }
+
+    /**
+     * ==============================
+     * 🔥 STEP 2: PAGINATION
+     * ==============================
+     */
     const skip = (page - 1) * limit;
 
-    // 🔥 LẤY SONG SONG: tổng chuyến + dữ liệu trang
     const [totalTrips, trips] = await Promise.all([
       ScheduleAdmin.countDocuments(condition),
       ScheduleAdmin.find(condition)
@@ -1046,12 +1087,28 @@ exports.getDebtForCustomer26 = async (req, res) => {
         .lean(),
     ]);
 
-    // 🔥 map chi tiết (chỉ 100 chuyến → rất nhanh)
+    /**
+     * ==============================
+     * 🔥 STEP 3: MAP DỮ LIỆU (KHÔNG TÍNH LẠI)
+     * ==============================
+     */
     const list = await Promise.all(
       trips.map(async (t) => {
-        const tongTien = calcTripCostOddCustomer(t);
-        const daThanhToan = parseFloat(t.daThanhToan) || 0;
-        const conLai = tongTien - daThanhToan;
+        const tongTien = Number.isFinite(calcTripCostOddCustomer(t))
+          ? Number(calcTripCostOddCustomer(t))
+          : 0;
+
+        const daThanhToan = Number.isFinite(Number(t.daThanhToan))
+          ? Number(t.daThanhToan)
+          : 0;
+
+        const conLai = tongTien - daThanhToan; // ✅ CHO PHÉP ÂM
+
+        let status = "CHUA_TRA";
+        if (conLai === 0) status = "HOAN_TAT";
+        else if (conLai < 0) status = "TRA_DU";
+        else if (tongTien !== 0 && conLai / tongTien <= 0.2)
+          status = "TRA_MOT_PHAN";
 
         const latestPayment = await TripPayment.findOne({
           maChuyenCode: t.maChuyen,
@@ -1066,6 +1123,7 @@ exports.getDebtForCustomer26 = async (req, res) => {
           tongTien,
           daThanhToan,
           conLai,
+          status,
           ngayCK: latestPayment?.createdAt || null,
           taiKhoanCK: latestPayment?.method || "",
           noiDungCK: latestPayment?.note || "",
@@ -1073,42 +1131,35 @@ exports.getDebtForCustomer26 = async (req, res) => {
       })
     );
 
-    // 🔥 TÍNH TỔNG TIỀN TOÀN BỘ (NHẸ)
+    /**
+     * ==============================
+     * 🔥 STEP 4: TỔNG (DÙNG FIELD ĐÃ LƯU)
+     * ==============================
+     */
     const allTrips = await ScheduleAdmin.find(condition).lean();
 
-    const tongCuoc = allTrips.reduce(
-      (s, t) => s + calcTripCostOddCustomer(t),
-      0
-    );
+    const tongCuoc = allTrips.reduce((s, t) => s + (t.tongTien || 0), 0);
     const tongDaTT = allTrips.reduce(
-      (s, t) => s + (parseFloat(t.daThanhToan) || 0),
+      (s, t) => s + (Number(t.daThanhToan) || 0),
       0
     );
     const tongConLai = tongCuoc - tongDaTT;
 
-    let trangThai = "green";
-    if (tongConLai > 0) {
-      const tiLe = tongCuoc === 0 ? 0 : tongConLai / tongCuoc;
-      trangThai = tiLe <= 0.2 ? "yellow" : "red";
-    }
-
     res.json({
       maKH: "26",
-      soChuyen: totalTrips, // ✅ TỔNG TOÀN BỘ
+      soChuyen: totalTrips,
       page,
       limit,
       tongCuoc,
       daThanhToan: tongDaTT,
       tongConLai,
-      trangThai,
-      chiTietChuyen: list, // ✅ CHỈ 100 CHUYẾN
+      chiTietChuyen: list,
     });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Lỗi KH 26" });
   }
 };
-
 
 // =====================================================
 // 📌 LỊCH SỬ THANH TOÁN THEO CHUYẾN
@@ -1306,5 +1357,127 @@ exports.updateTripNoteOdd = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Không thể cập nhật noteOdd" });
+  }
+};
+
+// =====================================================
+// XUẤT FILE CÔNG NỢ THEO THÁNG
+// =====================================================
+const formatDateVN = (date) => {
+  if (!date) return "";
+  const d = new Date(date);
+  return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+};
+
+const STATUS_LABEL = {
+  CHUA_TRA: "Chưa trả",
+  TRA_MOT_PHAN: "Còn ít",
+  HOAN_TAT: "Hoàn tất",
+};
+
+exports.exportCustomerDebtByMonth = async (req, res) => {
+  try {
+    const { fromMonth, toMonth } = req.query;
+    // FE gửi: 2025-01 → 2025-03
+
+    if (!fromMonth || !toMonth) {
+      return res.status(400).json({ message: "Thiếu fromMonth / toMonth" });
+    }
+
+    // ==============================
+    // 🔧 CONVERT YYYY-MM → MM/YYYY
+    // ==============================
+    const convertMonth = (m) => {
+      const [year, month] = m.split("-");
+      return `${month}/${year}`;
+    };
+
+    const from = convertMonth(fromMonth);
+    const to = convertMonth(toMonth);
+
+    // ==============================
+    // 1️⃣ LẤY DATA CÔNG NỢ
+    // ==============================
+    const debts = await CustomerDebtPeriod.find({
+      manageMonth: { $gte: from, $lte: to },
+    }).sort({ manageMonth: 1 });
+
+    if (!debts.length) {
+      return res.status(400).json({ message: "Không có dữ liệu công nợ" });
+    }
+
+    // ==============================
+    // 2️⃣ MAP CUSTOMER CODE → NAME
+    // ==============================
+    const customerCodes = [...new Set(debts.map((d) => d.customerCode))];
+
+    const customers = await Customer.find({
+      code: { $in: customerCodes },
+    });
+
+    const customerMap = {};
+    customers.forEach((c) => {
+      customerMap[c.code] = c.name;
+    });
+
+    // ==============================
+    // 3️⃣ LOAD FILE MẪU
+    // ==============================
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(
+      path.join(__dirname, "../templates/CONG_NO_KHACH_HANG.xlsx")
+    );
+
+    const sheet = workbook.getWorksheet("Sheet1");
+    if (!sheet) {
+      return res.status(500).json({ message: "Không tìm thấy sheet Sheet1" });
+    }
+
+    // ==============================
+    // 4️⃣ GHI DATA (TỪ DÒNG 2)
+    // ==============================
+    const startRow = 2;
+
+    debts.forEach((d, index) => {
+      const row = sheet.getRow(startRow + index);
+
+      const fromDate = formatDateVN(d.fromDate);
+      const toDate = formatDateVN(d.toDate);
+
+      row.getCell("A").value = d.customerCode ?? "";
+      row.getCell("B").value = customerMap[d.customerCode] ?? "";
+      row.getCell("C").value = d.debtCode ?? "";
+      row.getCell("D").value =
+        fromDate && toDate ? `${fromDate}-${toDate}` : "";
+      row.getCell("E").value = d.totalAmountInvoice ?? 0;
+      row.getCell("F").value = d.vatPercent ?? 0;
+      row.getCell("G").value = d.totalAmountCash ?? 0;
+      row.getCell("H").value = d.totalOther ?? 0;
+      row.getCell("I").value = d.totalAmount ?? 0;
+      row.getCell("J").value = d.paidAmount ?? 0;
+      row.getCell("K").value = d.remainAmount ?? 0;
+      row.getCell("L").value = STATUS_LABEL[d.status] ?? "";
+      row.getCell("M").value = d.note ?? "";
+
+      row.commit();
+    });
+
+    // ==============================
+    // 5️⃣ TRẢ FILE
+    // ==============================
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=CONG_NO_${from}_DEN_${to}.xlsx`
+    );
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error("❌ Export debt error:", err);
+    res.status(500).json({ message: "Lỗi xuất file công nợ" });
   }
 };

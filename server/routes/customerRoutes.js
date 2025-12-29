@@ -11,7 +11,8 @@ const {
   importCustomersFromExcel,
   toggleWarning,
   exportTripsByCustomer,
-  deleteAllCustomers
+  deleteAllCustomers,
+  exportCustomers
 } = require("../controllers/customerController");
 
 // --------------------------
@@ -24,6 +25,7 @@ const excelUpload = multer({ storage: excelStorage });
 // Routes
 // --------------------------
 router.get("/", listCustomers);
+router.get("/export-excel", exportCustomers);
 router.get("/:id", getCustomer);
 router.post("/", createCustomer);
 router.put("/:id", updateCustomer);

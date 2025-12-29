@@ -14,6 +14,7 @@ const {
   removeTripFromDebtPeriod,
   addTripToDebtPeriod,
   getCustomerDebtPeriodsByYear,
+  exportCustomerDebtByMonth,
 
   // ===== PHIẾU THU CÔNG NỢ =====
   addPaymentReceipt,
@@ -37,6 +38,10 @@ const {
 // GET /api/payment/debt?month=11&year=2025
 router.get("/debt", getCustomerDebt);
 router.get("/customer/:customerCode/debt-periods-by-year", getCustomerDebtPeriodsByYear);
+
+// Xuất excel công nợ theo tháng
+// GET /api/payment/debt-period/export?month=11&year=2025
+router.get("/debt-period/export", exportCustomerDebtByMonth);
 
 
 // Tạo kỳ công nợ

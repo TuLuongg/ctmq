@@ -6,6 +6,25 @@ const ExcelJS = require("exceljs");
 const path = require("path");
 const mongoose = require("mongoose");
 
+const calcHoaHong = async (schedule) => {
+  if (!schedule?.maKH) return;
+
+  const customer = await Customer.findOne({ code: schedule.maKH }).lean();
+  const percentHH = Number(customer?.percentHH || 0);
+
+  const toNum = (v) => Number(String(v || 0).replace(/[.,]/g, "")) || 0;
+
+  const cuocPhiBS = toNum(schedule.cuocPhiBS);
+  const themDiem = toNum(schedule.themDiem);
+  const hangVeBS = toNum(schedule.hangVeBS);
+
+  const baseHH = cuocPhiBS + themDiem + hangVeBS;
+
+  schedule.percentHH = percentHH;
+  schedule.moneyHH = Math.round((baseHH * percentHH) / 100);
+  schedule.moneyConLai = cuocPhiBS - schedule.moneyHH;
+};
+
 // 🆕 Tạo chuyến mới
 const createScheduleAdmin = async (req, res) => {
   try {
@@ -54,6 +73,9 @@ const createScheduleAdmin = async (req, res) => {
       ngayGiaoHang,
       ...data,
     });
+
+    // 🔥 AUTO TÍNH HOA HỒNG
+    await calcHoaHong(newSchedule);
 
     await newSchedule.save();
     res.status(201).json(newSchedule);
@@ -168,6 +190,10 @@ const updateScheduleAdmin = async (req, res) => {
 
     // Cập nhật dữ liệu bình thường
     Object.assign(schedule, req.body);
+
+    // 🔥 AUTO RECALC HOA HỒNG
+    await calcHoaHong(schedule);
+
     await schedule.save();
 
     res.json(schedule);
@@ -845,6 +871,7 @@ const addBoSung = async (req, res) => {
         schedule.luuCaBS = u.luuCaBS?.toString() || "";
         schedule.cpKhacBS = u.cpKhacBS?.toString() || "";
         schedule.themDiem = u.themDiem?.toString() || "";
+        await calcHoaHong(schedule);
         await schedule.save();
       }
     }
@@ -890,7 +917,7 @@ const addBoSungSingle = async (req, res) => {
     schedule.cpKhacBS = cpKhacBS?.toString() || "";
 
     schedule.themDiem = themDiem?.toString() || "";
-
+    await calcHoaHong(schedule);
     await schedule.save();
 
     res.json({
@@ -903,7 +930,6 @@ const addBoSungSingle = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
 
 const importSchedulesFromExcel = async (req, res) => {
   try {
@@ -1006,9 +1032,16 @@ const importSchedulesFromExcel = async (req, res) => {
         if (existed) {
           // ===== MODE: OVERWRITE =====
           await ScheduleAdmin.updateOne({ maChuyen }, { $set: data });
+
+          // 🔥 RECALC SAU UPDATE
+          const sch = await ScheduleAdmin.findOne({ maChuyen });
+          await calcHoaHong(sch);
+          await sch.save();
           console.log(`🔁 Ghi đè chuyến ${maChuyen}`);
         } else {
           await ScheduleAdmin.create(data);
+          await calcHoaHong(sch);
+          await sch.save();
           console.log(`➕ Thêm mới chuyến ${maChuyen}`);
         }
 
@@ -1228,10 +1261,10 @@ const exportTripsByDateRangeBS = async (req, res) => {
     // ======================
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(
-      path.join(__dirname, "../templates/DANH_SACH_CHUYEN.xlsx")
+      path.join(__dirname, "../templates/DSC_BS.xlsm")
     );
 
-    const sheet = workbook.getWorksheet("Thang 11"); // ⚠️ đúng tên sheet mẫu
+    const sheet = workbook.getWorksheet("Thang 10"); // ⚠️ đúng tên sheet mẫu
 
     // ======================
     // SCHEMA
@@ -1285,6 +1318,9 @@ const exportTripsByDateRangeBS = async (req, res) => {
       row.getCell("V").value = trip.ghiChu || "";
       row.getCell("W").value = trip.maChuyen || "";
       row.getCell("X").value = trip.accountUsername || "";
+      row.getCell("Y").value = trip.percentHH || "0";
+      row.getCell("Z").value = trip.moneyHH || "0";
+      row.getCell("AA").value = trip.moneyConLai || "0";
 
       row.commit();
     });
@@ -1329,5 +1365,5 @@ module.exports = {
   getAllScheduleFilterOptions,
   exportTripsByDateRange,
   exportTripsByDateRangeBS,
-  addBoSungSingle
+  addBoSungSingle,
 };
