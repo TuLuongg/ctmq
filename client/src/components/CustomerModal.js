@@ -16,6 +16,7 @@ export default function CustomerModal({
     accountant: "",
     code: "",
     accUsername: "",
+    percentHH: "",
     createdBy: "",
   });
 
@@ -29,6 +30,7 @@ export default function CustomerModal({
         accountant: initialData.accountant || "",
         code: initialData.code || "",
         accUsername: initialData.accUsername || "",
+        percentHH: initialData.percentHH || "",
         createdBy: initialData.createdBy || "",
         warning: initialData.warning || false,
       });
@@ -41,6 +43,7 @@ export default function CustomerModal({
         accountant: "",
         code: "",
         accUsername: "",
+        percentHH: "",
         createdBy: "",
         warning: false,
       });
@@ -55,19 +58,33 @@ export default function CustomerModal({
     }));
   };
 
-  const submit = async (e) => {
-    if (!form.accUsername.trim()) {
-  alert("Vui lòng nhập Tên đăng nhập!");
-  return;
-}
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const submit = async (e) => {
     e.preventDefault();
+
+    // 🔒 chặn double click
+    if (isSubmitting) return;
+
+    if (!form.accUsername.trim()) {
+      alert("Vui lòng nhập Tên đăng nhập!");
+      return;
+    }
+
     try {
+      setIsSubmitting(true); // 🔒 khóa nút
+
       let res;
       if (initialData && initialData._id) {
-        res = await axios.put(`${apiBase}/${initialData._id}`, form);
+        res = await axios.put(`${apiBase}/${initialData._id}`, {
+          ...form,
+          percentHH: Number(form.percentHH) || 0, // ⚠️ ép số
+        });
       } else {
-        res = await axios.post(apiBase, form);
+        res = await axios.post(apiBase, {
+          ...form,
+          percentHH: Number(form.percentHH) || 0,
+        });
       }
 
       onSave(res.data);
@@ -75,6 +92,8 @@ export default function CustomerModal({
     } catch (err) {
       console.error("Lỗi lưu khách hàng:", err.response?.data || err.message);
       alert("Không lưu được: " + (err.response?.data?.error || err.message));
+    } finally {
+      setIsSubmitting(false); // 🔓 mở lại nếu lỗi
     }
   };
 
@@ -86,7 +105,6 @@ export default function CustomerModal({
         </h2>
 
         <form onSubmit={submit} className="grid gap-3">
-
           {/* Tên khách hàng */}
           <div>
             <label className="block text-sm font-medium">Tên KH</label>
@@ -101,7 +119,9 @@ export default function CustomerModal({
 
           {/* Tên trên hóa đơn */}
           <div>
-            <label className="block text-sm font-medium">Tên trên hóa đơn</label>
+            <label className="block text-sm font-medium">
+              Tên trên hóa đơn
+            </label>
             <input
               name="nameHoaDon"
               value={form.nameHoaDon}
@@ -134,9 +154,7 @@ export default function CustomerModal({
 
           {/* Kế toán phụ trách */}
           <div>
-            <label className="block text-sm font-medium">
-              Ghi chú
-            </label>
+            <label className="block text-sm font-medium">Ghi chú</label>
             <input
               name="accountant"
               value={form.accountant}
@@ -156,9 +174,24 @@ export default function CustomerModal({
             />
           </div>
 
+          {/* Mã KH */}
+          <div>
+            <label className="block text-sm font-medium">
+              %HH (nhập số phần trăm là được)
+            </label>
+            <input
+              name="percentHH"
+              value={form.percentHH}
+              onChange={handleChange}
+              className="border p-2 w-full rounded"
+            />
+          </div>
+
           {/* Tên đăng nhập */}
           <div>
-            <label className="block text-sm font-medium">Tên đăng nhập của kế toán</label>
+            <label className="block text-sm font-medium">
+              Tên đăng nhập của kế toán
+            </label>
             <input
               name="accUsername"
               value={form.accUsername}
@@ -182,9 +215,12 @@ export default function CustomerModal({
             </button>
             <button
               type="submit"
-              className="bg-blue-600 text-white px-4 py-2 rounded"
+              disabled={isSubmitting}
+              className={`px-4 py-2 rounded text-white ${
+                isSubmitting ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600"
+              }`}
             >
-              {initialData ? "Cập nhật" : "Lưu"}
+              {isSubmitting ? "Đang lưu..." : initialData ? "Cập nhật" : "Lưu"}
             </button>
           </div>
         </form>

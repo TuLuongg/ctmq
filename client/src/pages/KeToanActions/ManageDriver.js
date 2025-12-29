@@ -424,40 +424,28 @@ export default function ManageDriver() {
     }
   };
 
-  const exportExcel = () => {
-    if (!drivers.length) return alert("Không có dữ liệu để xuất");
-    const headers = allColumns
-      .filter((c) => visibleColumns.includes(c.key))
-      .map((c) => c.label);
-    const data = drivers.map((d) => {
-      const row = {};
-      allColumns.forEach((c) => {
-        if (!visibleColumns.includes(c.key)) return;
-        if (
-          c.key.endsWith("At") ||
-          c.key === "dayStartWork" ||
-          c.key === "dayEndWork" ||
-          c.key === "birthYear"
-        ) {
-          row[c.label] = formatDateSafe(d[c.key]) || "";
-        } else if (c.key === "licenseImage" || c.key === "licenseImageCCCD") {
-          row[c.label] = d[c.key] || "";
-        } else if (c.key === "stt") {
-          // ignore stt for export
-        } else {
-          row[c.label] = d[c.key] || "";
+  const exportExcel = async () => {
+    try {
+      const res = await axios.get(
+        `${apiDrivers}/export-excel`,
+        {
+          responseType: "blob", // 🔥 BẮT BUỘC
+        },
+        {
+          headers: { Authorization: token ? `Bearer ${token}` : undefined },
         }
-      });
-      return row;
-    });
-    const ws = XLSX.utils.json_to_sheet(data, { header: headers });
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Drivers");
-    const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    saveAs(
-      new Blob([wbout], { type: "application/octet-stream" }),
-      `drivers_${formatDateFns(new Date(), "yyyyMMdd_HHmm")}.xlsx`
-    );
+      );
+
+      saveAs(
+        new Blob([res.data], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }),
+        "DANH_SACH_LAI_XE.xlsx"
+      );
+    } catch (err) {
+      console.error("Export drivers lỗi:", err);
+      alert(err.response?.data?.message || "Xuất danh sách lái xe thất bại");
+    }
   };
 
   const [warnings, setWarnings] = useState({});
@@ -996,7 +984,7 @@ export default function ManageDriver() {
                   })}
 
                   <td
-                    className="border p-1 flex gap-2 justify-center"
+                    className="border h-[38px]  flex gap-2 justify-center"
                     style={{ minWidth: 120, background: "#fff" }}
                     onClick={(e) => e.stopPropagation()}
                   >

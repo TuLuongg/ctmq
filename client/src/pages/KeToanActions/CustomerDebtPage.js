@@ -293,6 +293,7 @@ export default function CustomerDebtPage() {
   const [editFromDate, setEditFromDate] = useState("");
   const [editToDate, setEditToDate] = useState("");
   const [editVatPercent, setEditVatPercent] = useState(0);
+  const [editNote, setEditNote] = useState("");
 
   const handleUpdateDebtPeriod = async () => {
     if (!editFromDate || !editToDate) {
@@ -307,6 +308,7 @@ export default function CustomerDebtPage() {
           fromDate: editFromDate,
           toDate: editToDate,
           vatPercent: editVatPercent,
+          note: editNote,
           updatedBy: user?.name,
         },
         { headers: { Authorization: `Bearer ${token}` } }
@@ -367,6 +369,40 @@ export default function CustomerDebtPage() {
     acc[item.maKH].periods.push(item);
     return acc;
   }, {});
+
+  // ====================== EXPORT EXCEL ======================
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportFromMonth, setExportFromMonth] = useState("");
+  const [exportToMonth, setExportToMonth] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
+  const handleExportExcel = async () => {
+    if (isExporting) return;
+
+    if (!exportFromMonth || !exportToMonth) {
+      alert("Vui lòng chọn đủ khoảng tháng");
+      return;
+    }
+
+    if (exportFromMonth > exportToMonth) {
+      alert("Tháng bắt đầu không được lớn hơn tháng kết thúc");
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const url = `${API}/payment-history/debt-period/export?fromMonth=${exportFromMonth}&toMonth=${exportToMonth}`;
+
+      // mở download
+      window.open(url, "_blank");
+
+      setShowExportModal(false);
+    } catch (err) {
+      alert("Lỗi xuất Excel");
+    } finally {
+      // ⏱️ delay nhẹ để tránh spam click
+      setTimeout(() => setIsExporting(false), 2000);
+    }
+  };
 
   // ====================== RENDER ======================
   return (
@@ -513,6 +549,17 @@ export default function CustomerDebtPage() {
             ✕
           </button>
         )}
+
+        {/* 🆕 XUẤT EXCEL */}
+        <button
+          disabled={isExporting}
+          onClick={() => setShowExportModal(true)}
+          className={`px-4 py-2 rounded text-white ${
+            isExporting ? "bg-gray-400 cursor-not-allowed" : "bg-emerald-600"
+          }`}
+        >
+          {isExporting ? "Đang xuất..." : "XUẤT EXCEL"}
+        </button>
       </div>
 
       {/* Bảng công nợ */}
@@ -1019,6 +1066,14 @@ export default function CustomerDebtPage() {
                 onChange={(e) => setEditVatPercent(Number(e.target.value) || 0)}
                 className="border p-2"
               />
+
+              <label className="text-xs">Ghi chú</label>
+              <input
+                type="text"
+                value={editNote}
+                onChange={(e) => setEditNote(e.target.value)}
+                className="border p-2"
+              />
             </div>
 
             <div className="flex justify-end gap-2 mt-4">
@@ -1047,6 +1102,59 @@ export default function CustomerDebtPage() {
           token={token}
           onClose={() => setShowDebtYearModal(false)}
         />
+      )}
+
+      {showExportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50">
+          <div className="bg-white p-4 rounded w-[360px]">
+            <h2 className="text-lg font-bold mb-3">
+              Xuất công nợ theo khoảng tháng
+            </h2>
+
+            <div className="flex flex-col gap-3">
+              <div>
+                <label className="text-xs block mb-1">Từ tháng</label>
+                <input
+                  type="month"
+                  value={exportFromMonth}
+                  onChange={(e) => setExportFromMonth(e.target.value)}
+                  onClick={(e) => e.target.showPicker()}
+                  className="border p-2 w-full cursor-pointer"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs block mb-1">Đến tháng</label>
+                <input
+                  type="month"
+                  value={exportToMonth}
+                  onChange={(e) => setExportToMonth(e.target.value)}
+                  onClick={(e) => e.target.showPicker()}
+                  className="border p-2 w-full cursor-pointer"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => setShowExportModal(false)}
+                className="px-3 py-1 bg-gray-400 text-white rounded"
+              >
+                Huỷ
+              </button>
+
+              <button
+                disabled={isExporting}
+                onClick={handleExportExcel}
+                className={`px-3 py-1 rounded text-white ${
+                  isExporting ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600"
+                }`}
+              >
+                {isExporting ? "Đang xuất..." : "Xuất"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

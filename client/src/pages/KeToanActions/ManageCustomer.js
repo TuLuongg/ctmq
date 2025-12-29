@@ -17,6 +17,7 @@ export const allColumns = [
   { key: "mstCCCD", label: "MST/CCCD CHỦ HỘ" },
   { key: "address", label: "ĐỊA CHỈ" },
   { key: "accountant", label: "GHI CHÚ" },
+  { key: "percentHH", label: "%HH" },
   { key: "accUsername", label: "User" },
 ];
 
@@ -41,6 +42,14 @@ export default function ManageCustomer() {
   const userId = user?._id || "guest";
   const permissions = user?.permissions || [];
   const canEditCustomer = permissions.includes("edit_customer");
+
+  const canViewPercentHH = (customer) => {
+    // có quyền edit_customer → xem full
+    if (canEditCustomer) return true;
+
+    // không có quyền → chỉ xem KH của mình
+    return customer?.accUsername === user?.username;
+  };
 
   const isActive = (path) => location.pathname === path;
 
@@ -258,17 +267,11 @@ export default function ManageCustomer() {
   };
 
   // ---------- helpers ----------
-  const formatCellValue = (cKey, value, idx) => {
-    if (
-      cKey === "name" ||
-      cKey === "nameHoaDon" ||
-      cKey === "accountant" ||
-      cKey === "code" ||
-      cKey === "accUsername" ||
-      cKey === "mstCCCD" ||
-      cKey === "address"
-    )
-      return value;
+  const formatCellValue = (cKey, value, idx, customer) => {
+    if (cKey === "percentHH") {
+      return canViewPercentHH(customer) ? value ?? 0 : "NULL";
+    }
+
     return value;
   };
 
@@ -371,27 +374,28 @@ export default function ManageCustomer() {
     }
   };
 
-  const exportExcel = () => {
-    if (!customers.length) return alert("Không có dữ liệu để xuất");
-    const headers = allColumns
-      .filter((c) => visibleColumns.includes(c.key))
-      .map((c) => c.label);
-    const data = customers.map((d, idx) => {
-      const row = {};
-      allColumns.forEach((c) => {
-        if (!visibleColumns.includes(c.key)) return;
-        else row[c.label] = d[c.key] || "";
+  const exportExcel = async () => {
+    try {
+      const res = await axios.get(`${apiCustomers}/export-excel`, {
+        params: {
+          includePercentHH: canEditCustomer, // ✅ có quyền → xuất %HH
+        },
+        responseType: "blob",
+        headers: {
+          Authorization: token ? `Bearer ${token}` : undefined,
+        },
       });
-      return row;
-    });
-    const ws = XLSX.utils.json_to_sheet(data, { header: headers });
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Customers");
-    const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    saveAs(
-      new Blob([wbout], { type: "application/octet-stream" }),
-      `customers_${formatDateFns(new Date(), "yyyyMMdd_HHmm")}.xlsx`
-    );
+
+      saveAs(
+        new Blob([res.data], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }),
+        "DSKH.xlsx"
+      );
+    } catch (err) {
+      console.error("Export customers lỗi:", err);
+      alert(err.response?.data?.message || "Xuất danh sách KH thất bại");
+    }
   };
 
   // toggle warning per customer
@@ -410,44 +414,45 @@ export default function ManageCustomer() {
     }
   };
 
-// Modal chọn khoảng ngày để tải bảng kê
-const [showDateModal, setShowDateModal] = useState(false);
-const [selectedCustomer, setSelectedCustomer] = useState(null);
-const [fromDate, setFromDate] = useState("");
-const [toDate, setToDate] = useState("");
+  // Modal chọn khoảng ngày để tải bảng kê
+  const [showDateModal, setShowDateModal] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
 
-const openDateModal = (customer) => {
-  setSelectedCustomer(customer);
-  setShowDateModal(true);
-};
+  const openDateModal = (customer) => {
+    setSelectedCustomer(customer);
+    setShowDateModal(true);
+  };
 
-const handleExportBangKe = async () => {
-  if (!fromDate || !toDate) return alert("Vui lòng chọn đầy đủ khoảng ngày!");
+  const handleExportBangKe = async () => {
+    if (!fromDate || !toDate) return alert("Vui lòng chọn đầy đủ khoảng ngày!");
 
-  try {
-    const url = `${apiCustomers}/export-trips-customer/${selectedCustomer.code}?from=${fromDate}&to=${toDate}`;
+    try {
+      const url = `${apiCustomers}/export-trips-customer/${selectedCustomer.code}?from=${fromDate}&to=${toDate}`;
 
-    const response = await axios.get(url, {
-      responseType: "blob",
-      headers: { Authorization: `Bearer ${token}` },
-    });
+      const response = await axios.get(url, {
+        responseType: "blob",
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-    const blob = new Blob([response.data], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
+      const blob = new Blob([response.data], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
 
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `BANG_KE_${selectedCustomer.code}_${fromDate}_den_${toDate}.xlsx`;
-    link.click();
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `BANG_KE_${selectedCustomer.code}_${fromDate}_den_${toDate}.xlsx`;
+      link.click();
 
-    setShowDateModal(false);
-  } catch (err) {
-    console.error(err);
-    alert("Không xuất được bảng kê!");
-  }
-};
+      setShowDateModal(false);
+    } catch (err) {
+      console.error(err);
+      alert("Không xuất được bảng kê!");
+    }
+  };
 
+  const [showColumnBox, setShowColumnBox] = useState(false);
 
   return (
     <div className="p-4 bg-gray-50 min-h-screen text-xs">
@@ -530,7 +535,7 @@ const handleExportBangKe = async () => {
         >
           Sổ phiếu chi
         </button>
-                <button
+        <button
           onClick={handleGoToContract}
           className={`px-3 py-1 rounded text-white ${
             isActive("/contract") ? "bg-green-600" : "bg-blue-500"
@@ -615,23 +620,50 @@ const handleExportBangKe = async () => {
       </div>
 
       {/* Choose visible columns UI */}
-      <div className="mb-3 flex flex-wrap gap-2">
-        {allColumns.map((c) => (
-          <label key={c.key} className="flex items-center gap-1 text-sm">
-            <input
-              type="checkbox"
-              checked={visibleColumns.includes(c.key)}
-              onChange={() =>
-                setVisibleColumns((prev) =>
-                  prev.includes(c.key)
-                    ? prev.filter((k) => k !== c.key)
-                    : [...prev, c.key]
-                )
-              }
-            />
-            {c.label}
-          </label>
-        ))}
+      <div className="relative mb-2">
+        <button
+          onClick={() => setShowColumnBox(!showColumnBox)}
+          className="px-3 py-1 bg-gray-700 text-white rounded"
+        >
+          Ẩn/Hiện Cột
+        </button>
+
+        {showColumnBox && (
+          <div
+            className="absolute left-0 mt-2 bg-white border rounded shadow-lg p-3 z-[60]"
+            style={{ width: 260, maxHeight: 300, overflowY: "auto" }}
+          >
+            <div className="flex justify-between mb-2">
+              <strong>Chọn cột hiển thị</strong>
+              <button
+                className="text-red-500"
+                onClick={() => setShowColumnBox(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            {allColumns.map((c) => (
+              <label
+                key={c.key}
+                className="flex items-center gap-2 text-xs py-1 cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={visibleColumns.includes(c.key)}
+                  onChange={() =>
+                    setVisibleColumns((prev) =>
+                      prev.includes(c.key)
+                        ? prev.filter((k) => k !== c.key)
+                        : [...prev, c.key]
+                    )
+                  }
+                />
+                {c.label}
+              </label>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Table */}
@@ -853,13 +885,13 @@ const handleExportBangKe = async () => {
                           ...cellWidthStyle,
                         }}
                       >
-                        {formatCellValue(cKey, c[cKey], idx)}
+                        {formatCellValue(cKey, c[cKey], idx, c)}
                       </td>
                     );
                   })}
 
                   <td
-                    className="border p-1 flex gap-2 justify-center"
+                    className="border p-2 flex gap-2 justify-center"
                     style={{ minWidth: 120, background: "#fff" }}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -889,19 +921,20 @@ const handleExportBangKe = async () => {
                     style={{ minWidth: 120, background: "#fff" }}
                     onClick={(e) => e.stopPropagation()}
                   >
-<button
-  onClick={() => {
-    if (c.accUsername !== user?.username) {
-      alert("Bạn không có quyền in bảng kê của khách hàng này!");
-      return;
-    }
-    openDateModal(c);
-  }}
-  className="text-green-600 underline"
->
-  Tải xuống
-</button>
-
+                    <button
+                      onClick={() => {
+                        if (c.accUsername !== user?.username) {
+                          alert(
+                            "Bạn không có quyền in bảng kê của khách hàng này!"
+                          );
+                          return;
+                        }
+                        openDateModal(c);
+                      }}
+                      className="text-green-600 underline"
+                    >
+                      Tải xuống
+                    </button>
                   </td>
                 </tr>
               );
@@ -978,48 +1011,46 @@ const handleExportBangKe = async () => {
       )}
 
       {showDateModal && (
-  <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-    <div className="bg-white p-5 rounded shadow-lg w-80">
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white p-5 rounded shadow-lg w-80">
+            <h2 className="text-lg font-bold mb-3 text-center">
+              Chọn khoảng ngày giao hàng
+            </h2>
 
-      <h2 className="text-lg font-bold mb-3 text-center">
-        Chọn khoảng ngày giao hàng
-      </h2>
+            <label className="block mb-2 text-sm">Từ ngày:</label>
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="border p-2 w-full mb-3 rounded"
+            />
 
-      <label className="block mb-2 text-sm">Từ ngày:</label>
-      <input
-        type="date"
-        value={fromDate}
-        onChange={(e) => setFromDate(e.target.value)}
-        className="border p-2 w-full mb-3 rounded"
-      />
+            <label className="block mb-2 text-sm">Đến ngày:</label>
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="border p-2 w-full mb-3 rounded"
+            />
 
-      <label className="block mb-2 text-sm">Đến ngày:</label>
-      <input
-        type="date"
-        value={toDate}
-        onChange={(e) => setToDate(e.target.value)}
-        className="border p-2 w-full mb-3 rounded"
-      />
+            <div className="flex justify-end gap-2 mt-3">
+              <button
+                onClick={() => setShowDateModal(false)}
+                className="px-4 py-1 bg-gray-300 rounded"
+              >
+                Hủy
+              </button>
 
-      <div className="flex justify-end gap-2 mt-3">
-        <button
-          onClick={() => setShowDateModal(false)}
-          className="px-4 py-1 bg-gray-300 rounded"
-        >
-          Hủy
-        </button>
-
-        <button
-          onClick={handleExportBangKe}
-          className="px-4 py-1 bg-green-600 text-white rounded"
-        >
-          Xuất
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-
+              <button
+                onClick={handleExportBangKe}
+                className="px-4 py-1 bg-green-600 text-white rounded"
+              >
+                Xuất
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

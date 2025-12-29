@@ -162,15 +162,14 @@ export default function VoucherDetailModal({
           {/* ============================== */}
           {/* Khi ĐÃ duyệt → chỉ hiện Tạo điều chỉnh */}
           {/* ============================== */}
-          {v.status === "approved" ||
-            (v.status === "adjusted" && (
+          {v.status === "approved" && (
               <button
                 onClick={() => setShowAdjust(true)}
                 className="px-3 py-1 bg-purple-600 text-white rounded"
               >
                 Tạo điều chỉnh
               </button>
-            ))}
+            )}
 
           {/* Nút đóng */}
           <button

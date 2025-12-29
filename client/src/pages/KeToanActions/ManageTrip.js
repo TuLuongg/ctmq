@@ -180,6 +180,9 @@ export default function ManageTrip({ user, onLogout }) {
     { key: "luuCa", label: "LƯU CA BĐ" },
     { key: "luatChiPhiKhac", label: "LUẬT CP KHÁC BĐ" },
     { key: "ghiChu", label: "GHI CHÚ" },
+    { key: "percentHH", label: "%HH" },
+    { key: "moneyHH", label: "TIỀN HH" },
+    { key: "moneyConLai", label: "TIỀN CÒN LẠI" },
     { key: "dieuVan", label: "ĐIỀU VẬN" },
     { key: "createdBy", label: "NGƯỜI NHẬP" },
     { key: "ngayBoc", label: "NGÀY NHẬP" },
@@ -347,6 +350,8 @@ export default function ManageTrip({ user, onLogout }) {
     "hangVeBS",
     "luuCaBS",
     "cpKhacBS",
+    "moneyHH",
+    "moneyConLai",
   ];
   const [moneyFilter, setMoneyFilter] = useState({});
 
@@ -875,6 +880,7 @@ export default function ManageTrip({ user, onLogout }) {
   };
 
   const [showColumnBox, setShowColumnBox] = useState(false);
+  const [showActionColumn, setShowActionColumn] = useState(true);
   const boxRef = useRef(null);
 
   // tắt dropdown khi click ra ngoài
@@ -975,6 +981,8 @@ export default function ManageTrip({ user, onLogout }) {
     "laiXeThuCuoc",
     "daThanhToan",
     "themDiem",
+    "moneyHH",
+    "moneyConLai",
   ];
 
   const formatNumber = (n) => {
@@ -1361,6 +1369,14 @@ export default function ManageTrip({ user, onLogout }) {
 
               {/* Danh sách cột */}
               <div className="max-h-64 overflow-y-auto pr-1 space-y-1">
+                <label className="flex items-center gap-2 text-[11px] cursor-pointer hover:bg-gray-100 px-1 py-1 rounded">
+                  <input
+                    type="checkbox"
+                    checked={showActionColumn}
+                    onChange={() => setShowActionColumn((p) => !p)}
+                  />
+                  HÀNH ĐỘNG
+                </label>
                 {columnGroups.map((g) => (
                   <label
                     key={g.label}
@@ -1456,17 +1472,21 @@ export default function ManageTrip({ user, onLogout }) {
           <thead className="bg-blue-600 text-white">
             <tr>
               {/* CỘT 1: SỬA */}
-              <th
-                className="border bg-blue-600 text-white"
-                style={{
-                  position: "sticky",
-                  top: 0,
-                  zIndex: 60,
-                  width: 80,
-                  textAlign: "center",
-                  background: "#2563eb",
-                }}
-              ></th>
+              {showActionColumn && (
+                <th
+                  className="border bg-blue-600 text-white"
+                  style={{
+                    position: "sticky",
+                    top: 0,
+                    zIndex: 60,
+                    width: 80,
+                    textAlign: "center",
+                    background: "#2563eb",
+                  }}
+                >
+                  HÀNH ĐỘNG
+                </th>
+              )}
 
               {/* CỘT 2: CHECKBOX HEADER */}
               <th
@@ -2268,65 +2288,67 @@ export default function ManageTrip({ user, onLogout }) {
                 onClick={() => toggleRowHighlight(r._id)}
               >
                 {/* CỘT 1: HÀNH ĐỘNG */}
-                <td
-                  className="border p-1 bg-white"
-                  style={{
-                    position: "sticky",
-                    zIndex: 50,
-                    background: "#fff",
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="flex items-center gap-2">
-                    {/* Nút sửa */}
-                    <button
-                      onClick={() => openEditRide(r)}
-                      className="p-1.5 bg-yellow-400 text-white rounded-lg shadow-sm hover:bg-yellow-500 hover:shadow-md transition"
-                      title="Sửa chuyến"
-                    >
-                      <FaEdit className="w-2 h-2" />
-                    </button>
-
-                    {/* Nút cảnh báo */}
-                    <button
-                      onClick={() => toggleWarning(r._id)}
-                      className={`p-1.5 rounded-lg shadow-sm transition ${
-                        warnings[r._id]
-                          ? "bg-red-50 text-red-600 hover:bg-red-100"
-                          : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                      }`}
-                      title="Đánh dấu cảnh báo"
-                    >
-                      <FaExclamationTriangle className="w-2 h-2" />
-                    </button>
-
-                    {/* Lịch sử chỉnh sửa */}
-                    {editCounts[r._id] > 0 ? (
+                {showActionColumn && (
+                  <td
+                    className="border p-1 bg-white"
+                    style={{
+                      position: "sticky",
+                      zIndex: 50,
+                      background: "#fff",
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center gap-2">
+                      {/* Nút sửa */}
                       <button
-                        onClick={() => handleViewHistory(r)}
-                        className="relative p-1.5 bg-green-50 rounded-lg shadow-sm hover:bg-green-100 transition"
-                        title="Lịch sử chỉnh sửa"
+                        onClick={() => openEditRide(r)}
+                        className="p-1.5 bg-yellow-400 text-white rounded-lg shadow-sm hover:bg-yellow-500 hover:shadow-md transition"
+                        title="Sửa chuyến"
                       >
-                        <FaHistory className="text-green-600 w-2 h-2" />
-
-                        {/* Badge số lần */}
-                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-2 h-2 flex items-center justify-center rounded-full shadow">
-                          {editCounts[r._id]}
-                        </span>
+                        <FaEdit className="w-2 h-2" />
                       </button>
-                    ) : (
-                      <span className="text-gray-400 text-xs">null</span>
-                    )}
 
-                    <button
-                      onClick={() => handleCopyRide(r)}
-                      className="p-1.5 bg-gray-400 text-white rounded-lg shadow-sm hover:bg-green-500 hover:shadow-md transition"
-                      title="Nhân bản"
-                    >
-                      <FaCopy className="w-2 h-2" />
-                    </button>
-                  </div>
-                </td>
+                      {/* Nút cảnh báo */}
+                      <button
+                        onClick={() => toggleWarning(r._id)}
+                        className={`p-1.5 rounded-lg shadow-sm transition ${
+                          warnings[r._id]
+                            ? "bg-red-50 text-red-600 hover:bg-red-100"
+                            : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                        }`}
+                        title="Đánh dấu cảnh báo"
+                      >
+                        <FaExclamationTriangle className="w-2 h-2" />
+                      </button>
+
+                      {/* Lịch sử chỉnh sửa */}
+                      {editCounts[r._id] > 0 ? (
+                        <button
+                          onClick={() => handleViewHistory(r)}
+                          className="relative p-1.5 bg-green-50 rounded-lg shadow-sm hover:bg-green-100 transition"
+                          title="Lịch sử chỉnh sửa"
+                        >
+                          <FaHistory className="text-green-600 w-2 h-2" />
+
+                          {/* Badge số lần */}
+                          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-2 h-2 flex items-center justify-center rounded-full shadow">
+                            {editCounts[r._id]}
+                          </span>
+                        </button>
+                      ) : (
+                        <span className="text-gray-400 text-xs">null</span>
+                      )}
+
+                      <button
+                        onClick={() => handleCopyRide(r)}
+                        className="p-1.5 bg-gray-400 text-white rounded-lg shadow-sm hover:bg-green-500 hover:shadow-md transition"
+                        title="Nhân bản"
+                      >
+                        <FaCopy className="w-2 h-2" />
+                      </button>
+                    </div>
+                  </td>
+                )}
 
                 {/* CỘT 2: CHECKBOX */}
                 <td

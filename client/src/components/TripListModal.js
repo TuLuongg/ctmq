@@ -164,6 +164,31 @@ export default function TripListModal({
     }
   };
 
+  const totalAll = trips.reduce((acc, t) => {
+    const tongTien =
+      pick(t.cuocPhiBS) +
+      pick(t.bocXepBS) +
+      pick(t.veBS) +
+      pick(t.hangVeBS) +
+      pick(t.luuCaBS) +
+      pick(t.cpKhacBS) +
+      pick(t.themDiem);
+    return acc + tongTien;
+  }, 0);
+
+  const remainAll = trips.reduce((acc, t) => {
+    const tongTien =
+      pick(t.cuocPhiBS) +
+      pick(t.bocXepBS) +
+      pick(t.veBS) +
+      pick(t.hangVeBS) +
+      pick(t.luuCaBS) +
+      pick(t.cpKhacBS) +
+      pick(t.themDiem);
+    const paid = parseFloat(t.daThanhToan) || 0;
+    return acc + (tongTien - paid);
+  }, 0);
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 text-[10px]">
       <div className="bg-white rounded-xl w-[95vw] max-w-[1400px] max-h-[90vh] p-5 flex flex-col">
@@ -273,9 +298,10 @@ export default function TripListModal({
                     pick(t.veBS) +
                     pick(t.hangVeBS) +
                     pick(t.luuCaBS) +
-                    pick(t.cpKhacBS);
+                    pick(t.cpKhacBS) +
+                    pick(t.themDiem);
 
-                  const paid = parseFloat(t.daThanhToan || 0);
+                  const paid = parseFloat(t.daThanhToan);
                   const remain = tongTien - paid;
 
                   return (
@@ -357,6 +383,17 @@ export default function TripListModal({
               </tbody>
             </table>
           )}
+        </div>
+
+        <div className="mt-2 font-semibold text-sm flex justify-end gap-4">
+          <div>
+            Tổng tất cả:{" "}
+            <span className="text-blue-600">{totalAll.toLocaleString()}</span>
+          </div>
+          <div>
+            Tổng nợ:{" "}
+            <span className="text-red-600">{remainAll.toLocaleString()}</span>
+          </div>
         </div>
       </div>
     </div>

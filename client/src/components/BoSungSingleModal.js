@@ -17,15 +17,20 @@ const LABELS = {
 
 const formatMoney = (value) => {
   if (value === null || value === undefined || value === "") return "";
-  const num = Number(value.toString().replace(/\D/g, ""));
+  // Giữ lại dấu âm ở đầu
+  const isNegative = /^-/.test(value);
+  const num = Number(value.toString().replace(/[^0-9]/g, ""));
   if (isNaN(num)) return "";
-  return num.toLocaleString("vi-VN");
+  return (isNegative ? "-" : "") + num.toLocaleString("vi-VN");
 };
 
 const parseMoney = (value) => {
   if (!value) return 0;
-  return Number(value.toString().replace(/\D/g, ""));
+  const isNegative = /^-/.test(value);
+  const num = Number(value.toString().replace(/[^0-9]/g, ""));
+  return isNegative ? -num : num;
 };
+
 
 export default function BoSungSingleModal({
   open,
