@@ -149,6 +149,31 @@ export default function RideModal({
       .toLowerCase();
   };
 
+  const scoreAddressMatch = (keyword, address) => {
+    const k = removeVietnameseTones(keyword);
+    const a = removeVietnameseTones(address);
+
+    // 1️⃣ Trùng tuyệt đối
+    if (a === k) return 1000;
+
+    // 2️⃣ Bắt đầu bằng keyword
+    if (a.startsWith(k)) return 800;
+
+    // 3️⃣ Keyword là 1 cụm từ độc lập
+    if (a.includes(` ${k} `) || a.endsWith(` ${k}`)) return 600;
+
+    // 4️⃣ Match từng từ (logic cũ)
+    const words = k.split(/\s+/).filter(Boolean);
+    let score = 0;
+
+    words.forEach((w) => {
+      if (a.includes(w)) score += 50;
+      else if (a.split(/\s+/).some((t) => levenshtein(w, t) <= 1)) score += 20;
+    });
+
+    return score;
+  };
+
   useEffect(() => {
     if (!currentUser) return;
 
@@ -242,14 +267,19 @@ export default function RideModal({
         return;
       }
 
-      const words = removeVietnameseTones(keyword).split(/\s+/).filter(Boolean);
-
-      const filtered = (addresses || []).filter((a) => {
-        const addr = removeVietnameseTones(a.diaChi);
-        return words.every((w) => fuzzyIncludes(w, addr));
-      });
+      const filtered = (addresses || [])
+        .map((a) => ({
+          ...a,
+          __score: scoreAddressMatch(keyword, a.diaChi),
+        }))
+        .filter((a) => a.__score > 0)
+        .sort((a, b) => {
+          if (b.__score !== a.__score) return b.__score - a.__score;
+          return a.diaChi.length - b.diaChi.length;
+        });
 
       setPickupSuggestions(filtered.slice(0, 50));
+
       return;
     }
 
@@ -263,14 +293,19 @@ export default function RideModal({
         return;
       }
 
-      const words = removeVietnameseTones(keyword).split(/\s+/).filter(Boolean);
-
-      const filtered = (addresses || []).filter((a) => {
-        const addr = removeVietnameseTones(a.diaChi);
-        return words.every((w) => fuzzyIncludes(w, addr));
-      });
+      const filtered = (addresses || [])
+        .map((a) => ({
+          ...a,
+          __score: scoreAddressMatch(keyword, a.diaChi),
+        }))
+        .filter((a) => a.__score > 0)
+        .sort((a, b) => {
+          if (b.__score !== a.__score) return b.__score - a.__score;
+          return a.diaChi.length - b.diaChi.length;
+        });
 
       setDropSuggestions(filtered.slice(0, 50));
+
       return;
     }
 

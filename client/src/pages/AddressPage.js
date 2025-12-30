@@ -3,7 +3,6 @@ import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import API from "../api";
 
-const COLS = 4;
 const LIMIT = 200;
 
 export default function AddressPage() {
@@ -35,12 +34,6 @@ export default function AddressPage() {
       setLoading(false);
     }
   };
-
-  // chia 4 cột
-  const rows = [];
-  for (let i = 0; i < addresses.length; i += COLS) {
-    rows.push(addresses.slice(i, i + COLS));
-  }
 
   const handleImport = async () => {
     if (!file || importing) return;
@@ -128,30 +121,35 @@ export default function AddressPage() {
 
       {/* TABLE */}
       <div className="bg-white rounded shadow overflow-auto">
-        <table className="w-full table-fixed border-collapse">
+        <table className="w-full border-collapse text-xs">
+          <thead className="bg-gray-100">
+            <tr>
+              <th className="border px-3 py-2 text-center w-1/2">ĐỊA CHỈ CŨ</th>
+              <th className="border px-3 py-2 text-center w-1/2">ĐỊA CHỈ MỚI</th>
+            </tr>
+          </thead>
+
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={COLS} className="text-center py-8 text-gray-500">
+                <td colSpan={2} className="text-center py-8 text-gray-500">
                   Đang tải dữ liệu...
                 </td>
               </tr>
-            ) : rows.length ? (
-              rows.map((row, i) => (
-                <tr key={i} className="hover:bg-gray-50">
-                  {Array.from({ length: COLS }).map((_, j) => (
-                    <td
-                      key={j}
-                      className="border px-3 py-2 text-xs break-words"
-                    >
-                      {row[j]?.diaChi || ""}
-                    </td>
-                  ))}
+            ) : addresses.length ? (
+              addresses.map((item) => (
+                <tr key={item._id} className="hover:bg-gray-50">
+                  <td className="border px-3 py-2 break-words">
+                    {item.diaChi}
+                  </td>
+                  <td className="border px-3 py-2 break-words text-blue-700">
+                    {item.diaChiMoi || ""}
+                  </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={COLS} className="text-center py-8 text-gray-500">
+                <td colSpan={2} className="text-center py-8 text-gray-500">
                   Không có dữ liệu
                 </td>
               </tr>

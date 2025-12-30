@@ -91,7 +91,7 @@ export default function DieuVanPage({ user, onLogout }) {
         axios.get(`${API}/drivers/names/list`),
         axios.get(`${API}/customers`),
         axios.get(`${API}/vehicles/names/list`),
-        axios.get(`${API}/address`),
+        axios.get(`${API}/address/all`),
       ]);
       setDrivers(driverRes.data);
       setCustomers(customerRes.data);
