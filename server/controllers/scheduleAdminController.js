@@ -34,7 +34,6 @@ const calcHoaHong = async (schedule) => {
   schedule.moneyConLai = moneyConLai;
 };
 
-
 // 🆕 Tạo chuyến mới
 const createScheduleAdmin = async (req, res) => {
   try {
@@ -477,6 +476,8 @@ const getAllSchedulesAdmin = async (req, res) => {
       "giaoFrom",
       "giaoTo",
       "ngayGiaoHang",
+      "sortBy",
+      "sortOrder",
       ...Object.keys(arrayFilterMap),
       ...Object.keys(arrayFilterMap).map((k) => `${k}[]`),
     ];
@@ -520,12 +521,32 @@ const getAllSchedulesAdmin = async (req, res) => {
     }
 
     // ===============================
+    // 🔹 SORT (OPTIONAL – KHÔNG PHÁ LOGIC CŨ)
+    // ===============================
+    const { sortBy, sortOrder } = query;
+
+    // whitelist field được phép sort
+    const SORT_FIELDS = {
+      ngayBocHang: "ngayBocHang",
+      ngayGiaoHang: "ngayGiaoHang",
+      maChuyen: "maChuyen",
+    };
+
+    let sortOption = { createdAt: -1 }; // default cũ
+
+    if (sortBy && SORT_FIELDS[sortBy]) {
+      sortOption = {
+        [SORT_FIELDS[sortBy]]: sortOrder === "asc" ? 1 : -1,
+      };
+    }
+
+    // ===============================
     // 🔹 QUERY DB
     // ===============================
     const total = await ScheduleAdmin.countDocuments(filter);
 
     const schedules = await ScheduleAdmin.find(filter)
-      .sort({ createdAt: -1 })
+      .sort(sortOption)
       .skip(skip)
       .limit(limit);
 
