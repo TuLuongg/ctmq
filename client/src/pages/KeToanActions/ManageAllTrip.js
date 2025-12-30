@@ -392,9 +392,32 @@ export default function ManageTrip({ user, onLogout }) {
   const [searchDGiai, setSearchDGiai] = useState("");
   const [searchCuocPhiBD, setSearchCuocPhiBD] = useState("");
 
+  const [loading, setLoading] = useState(false);
+  const [sortBy, setSortBy] = useState(null); // 'ngayBocHang' | 'ngayGiaoHang' | 'maChuyen' | null
+  const [sortOrder, setSortOrder] = useState(null); // 'asc' | 'desc' | null
+
+  const toggleSort = (field) => {
+    if (sortBy !== field) {
+      // click cột mới
+      setSortBy(field);
+      setSortOrder("asc");
+    } else {
+      // click cùng cột
+      if (sortOrder === "asc") setSortOrder("desc");
+      else if (sortOrder === "desc") {
+        setSortBy(null);
+        setSortOrder(null);
+      } else {
+        setSortOrder("asc");
+      }
+    }
+  };
+
   // 🔹 Lấy tất cả chuyến (có filter)
   const fetchAllRides = async () => {
     try {
+      setLoading(true); // 🐱 bắt đầu load
+
       const q = new URLSearchParams();
       q.append("page", page);
       q.append("limit", limit);
@@ -406,19 +429,15 @@ export default function ManageTrip({ user, onLogout }) {
       if (excelSelected.khachHang.length > 0) {
         excelSelected.khachHang.forEach((v) => q.append("khachHang", v));
       }
-
       if (excelSelected.tenLaiXe.length > 0) {
         excelSelected.tenLaiXe.forEach((v) => q.append("tenLaiXe", v));
       }
-
       if (excelSelected.bienSoXe.length > 0) {
         excelSelected.bienSoXe.forEach((v) => q.append("bienSoXe", v));
       }
-
       if (excelSelected.dienGiai.length > 0) {
         excelSelected.dienGiai.forEach((v) => q.append("dienGiai", v));
       }
-
       if (excelSelected.cuocPhi.length > 0) {
         excelSelected.cuocPhi.forEach((v) => q.append("cuocPhi", v));
       }
@@ -440,15 +459,23 @@ export default function ManageTrip({ user, onLogout }) {
         q.append("date", format(new Date(date), "yyyy-MM-dd"));
       }
 
+      if (sortBy && sortOrder) {
+        q.append("sortBy", sortBy);
+        q.append("sortOrder", sortOrder);
+      }
+
       const res = await axios.get(`${API_URL}/all?${q.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      setRides(res.data.data || []);
+      const data = res.data.data || [];
+
+      setRides(data);
       setTotalPages(res.data.totalPages || 1);
       setTotalFromBE(res.data.total || 0);
+
       const w = {};
-      res.data.data.forEach((d) => {
+      data.forEach((d) => {
         if (d.warning === true) w[d._id] = true;
       });
       setWarnings(w);
@@ -458,6 +485,9 @@ export default function ManageTrip({ user, onLogout }) {
         err.response?.data || err.message
       );
       setRides([]);
+      setWarnings({});
+    } finally {
+      setLoading(false); // 🐱 load xong (dù thành công hay lỗi)
     }
   };
 
@@ -480,6 +510,8 @@ export default function ManageTrip({ user, onLogout }) {
     limit,
     giaoFrom,
     giaoTo,
+    sortBy,
+    sortOrder,
   ]);
 
   const [filterPos, setFilterPos] = useState({ x: 0, y: 0 });
@@ -984,6 +1016,47 @@ export default function ManageTrip({ user, onLogout }) {
 
   const [showActionColumn, setShowActionColumn] = useState(true);
 
+  const SORTABLE_COLUMNS = {
+    maChuyen: true,
+    ngayBocHang: true,
+    ngayGiaoHang: true,
+  };
+
+  const renderSortIcon = (field) => {
+    if (!SORTABLE_COLUMNS[field]) return null;
+
+    const active = sortBy === field;
+
+    return (
+      <span
+        className="flex flex-col ml-1 select-none"
+        onClick={(e) => {
+          e.stopPropagation(); // ❗ không mở filter
+          toggleSort(field);
+        }}
+        style={{ cursor: "pointer", lineHeight: "10px" }}
+      >
+        <span
+          style={{
+            fontSize: 9,
+            opacity: active && sortOrder === "asc" ? 1 : 0.3,
+          }}
+        >
+          ▲
+        </span>
+        <span
+          style={{
+            fontSize: 9,
+            marginTop: -2,
+            opacity: active && sortOrder === "desc" ? 1 : 0.3,
+          }}
+        >
+          ▼
+        </span>
+      </span>
+    );
+  };
+
   // ---------- Render ----------
   return (
     <div className="p-4 bg-gray-50 min-h-screen text-xs">
@@ -1485,17 +1558,17 @@ export default function ManageTrip({ user, onLogout }) {
                       style={{ cursor: "pointer" }}
                     >
                       <span
-                        className="text-center"
+                        className="flex items-center justify-center"
                         style={{
                           whiteSpace: "normal",
                           wordBreak: "break-word",
                           lineHeight: "14px",
-                          display: "block",
-                          maxHeight: "28px", // = 2 dòng
+                          maxHeight: "30px",
                           overflow: "hidden",
                         }}
                       >
                         {col.label}
+                        {renderSortIcon(col.key)}
                       </span>
                     </div>
 
@@ -2163,13 +2236,29 @@ export default function ManageTrip({ user, onLogout }) {
           </thead>
 
           <tbody>
-            {rides.length === 0 && (
+            {/* Đang load */}
+            {loading && (
               <tr>
                 <td
                   colSpan={visibleColumns.length + 2}
-                  className="p-20 text-center text-gray-500"
+                  className="p-6 text-center"
                 >
-                  Không có dữ liệu :33
+                  <div className="flex items-center justify-center gap-3 text-blue-500">
+                    <span className="text-3xl animate-pulse">🐈💨</span>
+                    <span className="italic">Mèo đang chạy lấy dữ liệu…</span>
+                  </div>
+                </td>
+              </tr>
+            )}
+
+            {/* Load xong nhưng rỗng */}
+            {!loading && rides.length === 0 && (
+              <tr>
+                <td
+                  colSpan={visibleColumns.length + 2}
+                  className="p-4 text-center text-gray-500"
+                >
+                  Không có dữ liệu
                 </td>
               </tr>
             )}

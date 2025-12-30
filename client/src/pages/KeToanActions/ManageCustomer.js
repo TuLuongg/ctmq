@@ -116,9 +116,13 @@ export default function ManageCustomer() {
     );
   };
 
+  const [loading, setLoading] = useState(false);
+
   // -------- fetch customers
   const fetch = async (search = "") => {
     try {
+      setLoading(true); // 🐱 bắt đầu chạy
+
       const url = search
         ? `${apiCustomers}?q=${encodeURIComponent(search)}`
         : apiCustomers;
@@ -133,7 +137,7 @@ export default function ManageCustomer() {
       const sorted = [...data].sort((a, b) => {
         const numA = Number(a.code || 0);
         const numB = Number(b.code || 0);
-        return numA - numB; // tăng dần
+        return numA - numB;
       });
 
       setCustomers(sorted);
@@ -147,6 +151,9 @@ export default function ManageCustomer() {
     } catch (err) {
       console.error("Lỗi lấy danh sách KH:", err.response?.data || err.message);
       setCustomers([]);
+      setWarnings({});
+    } finally {
+      setLoading(false); //chạy xong
     }
   };
 
@@ -799,7 +806,23 @@ export default function ManageCustomer() {
           </thead>
 
           <tbody>
-            {customers.length === 0 && (
+            {/* Đang load */}
+            {loading && (
+              <tr>
+                <td
+                  colSpan={visibleColumns.length + 2}
+                  className="p-6 text-center"
+                >
+                  <div className="flex items-center justify-center gap-3 text-blue-500">
+                    <span className="text-3xl animate-pulse">🐈💨</span>
+                    <span className="italic">Mèo đang chạy lấy dữ liệu…</span>
+                  </div>
+                </td>
+              </tr>
+            )}
+
+            {/* Load xong nhưng rỗng */}
+            {!loading && customers.length === 0 && (
               <tr>
                 <td
                   colSpan={visibleColumns.length + 2}

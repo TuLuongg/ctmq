@@ -137,22 +137,31 @@ export default function ManageDriver() {
     }
   }, [columnWidths, visibleColumns, drivers]);
 
+  const [loading, setLoading] = useState(true);
+
   // fetch drivers
   const fetch = async (search = "") => {
     try {
+      setLoading(true); // 👈 bắt đầu loading
+
       const url = search
         ? `${apiDrivers}?q=${encodeURIComponent(search)}`
         : apiDrivers;
+
       const res = await axios.get(url, {
         headers: { Authorization: token ? `Bearer ${token}` : undefined },
       });
+
       let data = res.data || [];
+
       data = data.sort((a, b) => {
         const isA = a.company?.trim().toLowerCase() === "ct minh quân";
         const isB = b.company?.trim().toLowerCase() === "ct minh quân";
         return isA === isB ? 0 : isA ? -1 : 1;
       });
+
       setDrivers(data);
+
       const w = {};
       data.forEach((d) => {
         if (d.warning === true) w[d._id] = true;
@@ -161,6 +170,9 @@ export default function ManageDriver() {
     } catch (err) {
       console.error("Lỗi lấy drivers:", err.response?.data || err.message);
       setDrivers([]);
+      setWarnings({});
+    } finally {
+      setLoading(false); // 👈 kết thúc loading (dù thành công hay lỗi)
     }
   };
 
@@ -826,7 +838,23 @@ export default function ManageDriver() {
           </thead>
 
           <tbody>
-            {drivers.length === 0 && (
+            {/* Đang load */}
+            {loading && (
+              <tr>
+                <td
+                  colSpan={visibleColumns.length + 2}
+                  className="p-6 text-center"
+                >
+                  <div className="flex items-center justify-center gap-3 text-blue-500">
+                    <span className="text-3xl animate-pulse">🐈💨</span>
+                    <span className="italic">Mèo đang chạy lấy dữ liệu…</span>
+                  </div>
+                </td>
+              </tr>
+            )}
+
+            {/* Load xong nhưng rỗng */}
+            {!loading && drivers.length === 0 && (
               <tr>
                 <td
                   colSpan={visibleColumns.length + 2}

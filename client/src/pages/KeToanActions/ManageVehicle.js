@@ -116,34 +116,43 @@ export default function ManageVehicle() {
     );
   };
 
+  const [loadingVehicles, setLoadingVehicles] = useState(false);
+
   // -------- fetch vehicles (with plateNumber numeric sort asc)
   const fetch = async (search = "") => {
     try {
+      setLoadingVehicles(true); // 🐱 bắt đầu loading
+
       const url = search
         ? `${apiVehicles}?q=${encodeURIComponent(search)}`
         : apiVehicles;
+
       const res = await axios.get(url, {
         headers: { Authorization: token ? `Bearer ${token}` : undefined },
       });
+
       const data = res.data || [];
 
       // sort plateNumber as numeric if possible (strings of digits)
       const sorted = [...data].sort((a, b) => {
         const numA = Number((a.plateNumber || "").replace(/\D/g, "") || 0);
         const numB = Number((b.plateNumber || "").replace(/\D/g, "") || 0);
-        // keep Minh Quân priority after numeric? we'll prefer numerical first, then company priority
+
         if (numA !== numB) return numA - numB;
+
         // tiebreaker: Minh Quân first
         if (
           (a.company || "").trim() === "Minh Quân" &&
           (b.company || "").trim() !== "Minh Quân"
         )
           return -1;
+
         if (
           (a.company || "").trim() !== "Minh Quân" &&
           (b.company || "").trim() === "Minh Quân"
         )
           return 1;
+
         return 0;
       });
 
@@ -161,6 +170,9 @@ export default function ManageVehicle() {
         err.response?.data || err.message || err
       );
       setVehicles([]);
+      setWarnings({});
+    } finally {
+      setLoadingVehicles(false); // 🐱 kết thúc loading
     }
   };
 
@@ -820,7 +832,23 @@ export default function ManageVehicle() {
           </thead>
 
           <tbody>
-            {vehicles.length === 0 && (
+            {/* Đang load */}
+            {loadingVehicles && (
+              <tr>
+                <td
+                  colSpan={visibleColumns.length + 2}
+                  className="p-6 text-center"
+                >
+                  <div className="flex items-center justify-center gap-3 text-blue-500">
+                    <span className="text-3xl animate-pulse">🐈💨</span>
+                    <span className="italic">Mèo đang chạy lấy dữ liệu…</span>
+                  </div>
+                </td>
+              </tr>
+            )}
+
+            {/* Load xong nhưng rỗng */}
+            {!loadingVehicles && vehicles.length === 0 && (
               <tr>
                 <td
                   colSpan={visibleColumns.length + 2}

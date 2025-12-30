@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { format } from "date-fns";
+import { format, set } from "date-fns";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   FaEdit,
@@ -130,12 +130,13 @@ export default function ManageTrip({ user, onLogout }) {
   // 🔹 Lấy danh sách gợi ý
   useEffect(() => {
     const fetchData = async () => {
-      const [driverRes, customerRes, vehicleRes, addressRes] = await Promise.all([
-        axios.get(`${API}/drivers/names/list`),
-        axios.get(`${API}/customers`),
-        axios.get(`${API}/vehicles/names/list`),
-        axios.get(`${API}/address`),
-      ]);
+      const [driverRes, customerRes, vehicleRes, addressRes] =
+        await Promise.all([
+          axios.get(`${API}/drivers/names/list`),
+          axios.get(`${API}/customers`),
+          axios.get(`${API}/vehicles/names/list`),
+          axios.get(`${API}/address`),
+        ]);
       setDrivers(driverRes.data);
       setCustomers(customerRes.data);
       setVehicles(vehicleRes.data);
@@ -402,9 +403,13 @@ export default function ManageTrip({ user, onLogout }) {
   const [searchDGiai, setSearchDGiai] = useState("");
   const [searchCuocPhiBD, setSearchCuocPhiBD] = useState("");
 
+  const [loading, setLoading] = useState(false);
+
   // 🔹 Lấy tất cả chuyến (có filter)
   const fetchAllRides = async () => {
     try {
+      setLoading(true);
+
       const q = new URLSearchParams();
       q.append("page", page);
       q.append("limit", limit);
@@ -416,19 +421,15 @@ export default function ManageTrip({ user, onLogout }) {
       if (excelSelected.khachHang.length > 0) {
         excelSelected.khachHang.forEach((v) => q.append("khachHang", v));
       }
-
       if (excelSelected.tenLaiXe.length > 0) {
         excelSelected.tenLaiXe.forEach((v) => q.append("tenLaiXe", v));
       }
-
       if (excelSelected.bienSoXe.length > 0) {
         excelSelected.bienSoXe.forEach((v) => q.append("bienSoXe", v));
       }
-
       if (excelSelected.dienGiai.length > 0) {
         excelSelected.dienGiai.forEach((v) => q.append("dienGiai", v));
       }
-
       if (excelSelected.cuocPhi.length > 0) {
         excelSelected.cuocPhi.forEach((v) => q.append("cuocPhi", v));
       }
@@ -454,12 +455,14 @@ export default function ManageTrip({ user, onLogout }) {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      setRides(res.data.data || []);
+      const data = res.data.data || [];
+
+      setRides(data);
       setTotalPages(res.data.totalPages || 1);
       setTotalFromBE(res.data.total || 0);
 
       const w = {};
-      res.data.data.forEach((d) => {
+      data.forEach((d) => {
         if (d.warning === true) w[d._id] = true;
       });
       setWarnings(w);
@@ -469,6 +472,9 @@ export default function ManageTrip({ user, onLogout }) {
         err.response?.data || err.message
       );
       setRides([]);
+      setWarnings({});
+    } finally {
+      setLoading(false); // 🐱 load xong
     }
   };
 
@@ -2269,13 +2275,29 @@ export default function ManageTrip({ user, onLogout }) {
           </thead>
 
           <tbody>
-            {rides.length === 0 && (
+            {/* Đang load */}
+            {loading && (
               <tr>
                 <td
                   colSpan={visibleColumns.length + 2}
-                  className="p-20 text-center text-gray-500"
+                  className="p-6 text-center"
                 >
-                  Không có dữ liệu :33
+                  <div className="flex items-center justify-center gap-3 text-blue-500">
+                    <span className="text-3xl animate-pulse">🐈💨</span>
+                    <span className="italic">Mèo đang chạy lấy dữ liệu…</span>
+                  </div>
+                </td>
+              </tr>
+            )}
+
+            {/* Load xong nhưng rỗng */}
+            {!loading && rides.length === 0 && (
+              <tr>
+                <td
+                  colSpan={visibleColumns.length + 2}
+                  className="p-4 text-center text-gray-500"
+                >
+                  Không có dữ liệu
                 </td>
               </tr>
             )}
