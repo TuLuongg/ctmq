@@ -35,6 +35,26 @@ exports.getAddressesPaginated = async (req, res) => {
 
 /**
  * =========================
+ * GET ALL (NO PAGINATION)
+ * =========================
+ * GET /api/addresses/all
+ */
+exports.getAllAddresses = async (req, res) => {
+  try {
+    const data = await Address.find().sort({ diaChi: 1 }).lean();
+
+    res.json({
+      data,
+      total: data.length,
+    });
+  } catch (err) {
+    console.error("GET ALL ADDRESSES ERROR:", err);
+    res.status(500).json({ message: "Lỗi lấy toàn bộ địa chỉ" });
+  }
+};
+
+/**
+ * =========================
  * IMPORT EXCEL (KHÔNG XOÁ)
  * =========================
  * POST /api/addresses/import-excel
@@ -55,27 +75,40 @@ exports.importAddressExcel = async (req, res) => {
 
     const addresses = [];
 
-    // 👉 bắt đầu từ hàng 2, lấy cột 1 (A)
+    // CỘT A (1): diaChi (bắt buộc)
+    // CỘT B (2): diaChiMoi (có thể rỗng, có thể trùng)
     for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber++) {
       const row = worksheet.getRow(rowNumber);
-      const raw = row.getCell(1).value; // cột A
 
-      const diaChi = String(raw || "")
-        .trim()
-        .toLowerCase();
+      const rawDiaChi = row.getCell(1).value;
+      const rawDiaChiMoi = row.getCell(2).value;
 
-      if (diaChi) {
-        addresses.push({ diaChi });
-      }
+      // ❌ Không có diaChi thì bỏ dòng
+      if (!rawDiaChi) continue;
+
+      const diaChi = String(rawDiaChi).trim();
+
+      // diaChiMoi cho phép rỗng
+      const diaChiMoi = rawDiaChiMoi ? String(rawDiaChiMoi).trim() : "";
+
+      addresses.push({
+        diaChi,
+        diaChiMoi,
+      });
     }
 
     if (!addresses.length) {
       return res.status(400).json({ message: "Không có dữ liệu hợp lệ" });
     }
 
-    // loại trùng trong file
+    // 👉 loại trùng theo diaChi (KHÔNG quan tâm diaChiMoi)
     const map = new Map();
-    addresses.forEach((i) => map.set(i.diaChi, i));
+    addresses.forEach((item) => {
+      if (!map.has(item.diaChi)) {
+        map.set(item.diaChi, item);
+      }
+    });
+
     const uniqueAddresses = Array.from(map.values());
 
     await Address.insertMany(uniqueAddresses);
@@ -88,7 +121,7 @@ exports.importAddressExcel = async (req, res) => {
     console.error("IMPORT ADDRESS ERROR:", err);
 
     if (err.code === 11000) {
-      return res.status(400).json({ message: "Dữ liệu bị trùng" });
+      return res.status(400).json({ message: "Dữ liệu bị trùng diaChi" });
     }
 
     res.status(500).json({ message: "Lỗi import Excel" });

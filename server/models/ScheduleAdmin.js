@@ -48,6 +48,9 @@ const scheduleAdminSchema = new mongoose.Schema(
     cpKhacBS: { type: String, default: "" }, // CHI PHÍ KHÁC BỔ SUNG
     warning: { type: Boolean, default: false },
 
+    diemXepHangNew: { type: String, default: "" }, // ĐIỂM XẾP HÀNG MỚI
+    diemDoHangNew: { type: String, default: "" }, // ĐIỂM DỠ HÀNG MỚI
+
     percentHH: { type: Number, default: 0 }, //%HH
     moneyHH: { type: Number, default: 0 }, //Tiền HH
     moneyConLai: { type: Number, default: 0 }, //Tiền còn lại

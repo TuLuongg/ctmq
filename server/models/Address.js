@@ -7,6 +7,10 @@ const AddressSchema = new mongoose.Schema({
     unique: true,     // ❗ không trùng
     trim: true        // loại bỏ khoảng trắng đầu/cuối
   },
+    diaChiMoi: {
+    type: String,
+    default: ""
+  },
 });
 
 const Address = mongoose.model("Address", AddressSchema);
