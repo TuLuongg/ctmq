@@ -3,9 +3,13 @@ const router = express.Router();
 const voucherController = require("../controllers/voucherController");
 
 // Không phân quyền
-
 router.post("/", voucherController.createVoucher);
 router.get("/", voucherController.getAllVouchers);
+// ==========================
+// Xuất Excel theo khoảng tháng tùy chọn
+// FE gửi query: fromMonth=yyyy-MM, toMonth=yyyy-MM
+// ==========================
+router.get("/export", voucherController.exportVouchers);
 router.get("/:id", voucherController.getVoucherById);
 router.put("/:id", voucherController.updateVoucher);
 router.delete("/:id", voucherController.deleteVoucher);

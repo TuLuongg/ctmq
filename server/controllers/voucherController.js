@@ -1,4 +1,6 @@
 const Voucher = require("../models/Voucher");
+const ExcelJS = require("exceljs");
+const path = require("path");
 
 // =========================
 //  TẠO PHIẾU
@@ -346,5 +348,97 @@ exports.updateTransferDateBulk = async (req, res) => {
   } catch (err) {
     console.error("updateTransferDateBulk error:", err);
     res.status(500).json({ message: "Lỗi server" });
+  }
+};
+
+// ==============================
+// EXPORT DS PHIẾU (FORM MẪU)
+// ==============================
+exports.exportVouchers = async (req, res) => {
+  try {
+    const { fromMonth, toMonth } = req.query;
+    if (!fromMonth || !toMonth)
+      return res.status(400).json({ message: "Thiếu fromMonth hoặc toMonth" });
+
+    const [fromY, fromM] = fromMonth.split("-").map(Number);
+    const [toY, toM] = toMonth.split("-").map(Number);
+
+    const start = new Date(fromY, fromM - 1, 1);
+    const end = new Date(toY, toM, 0, 23, 59, 59, 999);
+
+    const vouchers = await Voucher.find({
+      dateCreated: { $gte: start, $lte: end },
+    })
+      .sort({ dateCreated: -1 })
+      .lean();
+
+    if (!vouchers.length)
+      return res
+        .status(400)
+        .json({ message: "Không có dữ liệu phiếu trong khoảng này" });
+
+    const templatePath = path.join(__dirname, "../templates/PHIEU_CHI.xlsx");
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(templatePath);
+
+    const sheet = workbook.getWorksheet("Sheet1");
+    if (!sheet)
+      return res.status(500).json({ message: "Không tìm thấy sheet 'Sheet1'" });
+
+    // Bản đồ enum sang tiếng Việt
+    const PAYMENT_SOURCE_LABEL = {
+      PERSONAL_VCB: "TK cá nhân - VCB",
+      PERSONAL_TCB: "TK cá nhân - TCB",
+      COMPANY_VCB: "VCB công ty",
+      COMPANY_TCB: "TCB công ty",
+      CASH: "Tiền mặt",
+      OTHER: "Khác",
+    };
+
+    const STATUS_LABEL = {
+      waiting_check: "Đang chờ duyệt",
+      approved: "Đã duyệt",
+      adjusted: "Đã điều chỉnh",
+    };
+    startRow = 2; // giả sử dữ liệu bắt đầu từ hàng 2
+    vouchers.forEach((v, i) => {
+      const row = sheet.getRow(startRow + i);
+
+      row.getCell("A").value = i + 1; // index
+      row.getCell("B").value = v.dateCreated ? new Date(v.dateCreated) : null;
+      row.getCell("C").value = v.voucherCode || null;
+
+      // ✅ chuyển enum sang tiếng Việt
+      row.getCell("D").value =
+        PAYMENT_SOURCE_LABEL[v.paymentSource] || v.paymentSource;
+      row.getCell("E").value = v.receiverName || null;
+      row.getCell("F").value = v.receiverCompany || null;
+      row.getCell("G").value = v.transferContent || null;
+      row.getCell("H").value = v.reason || null;
+      row.getCell("I").value = v.transferDate ? new Date(v.transferDate) : null;
+      row.getCell("J").value = v.amount != null ? v.amount : null;
+      row.getCell("K").value = v.expenseType || null;
+
+      // ✅ chuyển status sang tiếng Việt
+      row.getCell("L").value = STATUS_LABEL[v.status] || v.status;
+      row.getCell("M").value = v.receiverBankAccount || null;
+
+      row.commit();
+    });
+
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=PHIEU_${fromMonth}_to_${toMonth}.xlsx`
+    );
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error("❌ Export vouchers error:", err);
+    res.status(500).json({ message: "Lỗi xuất danh sách phiếu" });
   }
 };

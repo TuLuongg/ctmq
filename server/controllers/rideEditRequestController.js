@@ -2,7 +2,6 @@ const RideHistory = require("../models/RideHistory");
 const ScheduleAdmin = require("../models/ScheduleAdmin");
 const RideEditRequest = require("../models/RideEditRequest");
 
-
 // Chỉnh sửa chuyến và lưu lịch sử
 exports.editRide = async (req, res) => {
   try {
@@ -103,7 +102,9 @@ exports.deleteEditRideRequest = async (req, res) => {
     const request = await RideEditRequest.findById(requestID);
 
     if (!request) {
-      return res.status(404).json({ error: "Không tìm thấy yêu cầu chỉnh sửa" });
+      return res
+        .status(404)
+        .json({ error: "Không tìm thấy yêu cầu chỉnh sửa" });
     }
 
     // ❗ Chỉ cho xoá khi chưa xử lý
@@ -124,7 +125,6 @@ exports.deleteEditRideRequest = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
 
 //Phê duyệt hoặc từ chối
 exports.processEditRideRequest = async (req, res) => {
@@ -159,18 +159,32 @@ exports.processEditRideRequest = async (req, res) => {
     // Nếu là duyệt → cập nhật vào DB thật
     if (action === "approve") {
       const ride = await ScheduleAdmin.findById(request.rideID);
-
       if (!ride) {
         return res.status(404).json({ error: "Không tìm thấy chuyến" });
       }
 
       const previousData = ride.toObject();
+      const changedFields = {};
 
-      // Cập nhật chuyến
-      Object.assign(ride, request.changes);
+      // 🔑 TÍNH DIFF THẬT
+      for (const key of Object.keys(request.changes)) {
+        const oldVal = ride[key];
+        const newVal = request.changes[key];
+
+        if (String(oldVal ?? "") !== String(newVal ?? "")) {
+          changedFields[key] = {
+            old: oldVal,
+            new: newVal,
+          };
+        }
+
+        // cập nhật chuyến
+        ride[key] = newVal;
+      }
+
       await ride.save();
 
-      // Lưu lịch sử chỉnh sửa
+      // lưu lịch sử
       await RideHistory.create({
         rideID: ride._id,
         editedByID: request.requestedByID,
@@ -180,7 +194,10 @@ exports.processEditRideRequest = async (req, res) => {
         newData: ride.toObject(),
       });
 
+      // 🔥 LƯU DIFF VÀO REQUEST
       request.status = "approved";
+      request.changedFields = changedFields;
+
       await request.save();
 
       return res.json({
@@ -189,7 +206,9 @@ exports.processEditRideRequest = async (req, res) => {
       });
     }
 
-    return res.status(400).json({ error: "action không hợp lệ (approve|reject)" });
+    return res
+      .status(400)
+      .json({ error: "action không hợp lệ (approve|reject)" });
   } catch (err) {
     console.error("Lỗi xử lý yêu cầu:", err);
     res.status(500).json({ error: err.message });
@@ -199,12 +218,7 @@ exports.processEditRideRequest = async (req, res) => {
 // Lấy danh sách yêu cầu
 exports.getEditRequests = async (req, res) => {
   try {
-    const {
-      page = 1,
-      limit = 20,
-      status,
-      search,
-    } = req.query;
+    const { page = 1, limit = 20, status, search } = req.query;
 
     const skip = (page - 1) * limit;
 
@@ -221,9 +235,8 @@ exports.getEditRequests = async (req, res) => {
       ];
     }
 
-    const requests = await RideEditRequest
-      .find(filter)
-      .populate("rideID")               // ⬅ LẤY FULL THÔNG TIN CHUYẾN GỐC
+    const requests = await RideEditRequest.find(filter)
+      .populate("rideID") // ⬅ LẤY FULL THÔNG TIN CHUYẾN GỐC
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(Number(limit));
@@ -236,7 +249,6 @@ exports.getEditRequests = async (req, res) => {
       totalRecords: total,
       data: requests,
     });
-
   } catch (err) {
     console.error("Lỗi lấy danh sách yêu cầu chỉnh sửa:", err);
     res.status(500).json({ error: err.message });
@@ -255,18 +267,12 @@ exports.getPendingEditRequestCount = async (req, res) => {
   }
 };
 
-
 // Lấy danh sách yêu cầu theo từng user
 exports.getMyEditRequests = async (req, res) => {
   try {
     const userID = req.user.id;
 
-    const {
-      page = 1,
-      limit = 20,
-      status,
-      search,
-    } = req.query;
+    const { page = 1, limit = 20, status, search } = req.query;
 
     const skip = (page - 1) * limit;
 
@@ -283,9 +289,8 @@ exports.getMyEditRequests = async (req, res) => {
       ];
     }
 
-    const requests = await RideEditRequest
-      .find(filter)
-      .populate("rideID")                // ⬅ LẤY FULL OBJECT CHUYẾN GỐC
+    const requests = await RideEditRequest.find(filter)
+      .populate("rideID") // ⬅ LẤY FULL OBJECT CHUYẾN GỐC
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(Number(limit));
@@ -298,10 +303,8 @@ exports.getMyEditRequests = async (req, res) => {
       totalRecords: total,
       data: requests,
     });
-
   } catch (err) {
     console.error("Lỗi lấy yêu cầu của user:", err);
     res.status(500).json({ error: err.message });
   }
 };
-
