@@ -37,10 +37,40 @@ const levenshtein = (a, b) => {
   return dp[m][n];
 };
 
-const fuzzyIncludes = (word, text) => {
-  if (text.includes(word)) return true;
+const getDiaChiMoi = (address) => {
+  return address.diaChiMoi && address.diaChiMoi.trim()
+    ? address.diaChiMoi
+    : address.diaChi;
+};
 
-  return text.split(/\s+/).some((t) => levenshtein(word, t) <= 1);
+const appendAddress = (prevValue, newValue) => {
+  const { prefix } = splitAddressInput(prevValue || "");
+  return `${prefix}${newValue}; `;
+};
+
+const splitToArray = (str = "") =>
+  str
+    .split(";")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+const splitCompletedPoints = (str = "") => {
+  // chỉ lấy các đoạn KẾT THÚC bởi ;
+  return str
+    .split(";")
+    .slice(0, -1) // ❗ bỏ đoạn đang gõ dở
+    .map((s) => s.trim())
+    .filter(Boolean);
+};
+
+const getDiaChiMoiByDiaChi = (diaChi, addresses = []) => {
+  const found = addresses.find((a) => a.diaChi.trim() === diaChi.trim());
+
+  if (!found) return diaChi;
+
+  return found.diaChiMoi && found.diaChiMoi.trim()
+    ? found.diaChiMoi
+    : found.diaChi;
 };
 
 export default function RideModal({
@@ -259,7 +289,21 @@ export default function RideModal({
     }
     // ===== ĐIỂM ĐÓNG HÀNG =====
     if (name === "diemXepHang") {
-      setForm((prev) => ({ ...prev, diemXepHang: value }));
+      setForm((prev) => {
+        const next = value;
+
+        const completedList = splitCompletedPoints(next);
+
+        const newList = completedList.map((diaChi) =>
+          getDiaChiMoiByDiaChi(diaChi, addresses)
+        );
+
+        return {
+          ...prev,
+          diemXepHang: next,
+          diemXepHangNew: newList.join("; ") + (newList.length ? "; " : ""),
+        };
+      });
 
       const { keyword } = splitAddressInput(value);
       if (!keyword) {
@@ -285,7 +329,20 @@ export default function RideModal({
 
     // ===== ĐIỂM GIAO HÀNG =====
     if (name === "diemDoHang") {
-      setForm((prev) => ({ ...prev, diemDoHang: value }));
+      setForm((prev) => {
+        const next = value;
+        const completedList = splitCompletedPoints(next);
+
+        const newList = completedList.map((diaChi) =>
+          getDiaChiMoiByDiaChi(diaChi, addresses)
+        );
+
+        return {
+          ...prev,
+          diemDoHang: next,
+          diemDoHangNew: newList.join("; ") + (newList.length ? "; " : ""),
+        };
+      });
 
       const { keyword } = splitAddressInput(value);
       if (!keyword) {
@@ -520,6 +577,12 @@ export default function RideModal({
                     autoComplete="off"
                     spellCheck={false}
                   />
+                  {form.diemXepHangNew && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      Địa chỉ mới:{" "}
+                      <span className="italic">{form.diemXepHangNew}</span>
+                    </div>
+                  )}
 
                   {isPickupFocused && pickupSuggestions.length > 0 && (
                     <ul className="absolute z-50 bg-white border w-full max-h-48 overflow-y-auto mt-1 rounded shadow">
@@ -529,15 +592,18 @@ export default function RideModal({
                           className="p-2 cursor-pointer hover:bg-gray-200 text-sm"
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => {
-                            setForm((prev) => {
-                              const { prefix } = splitAddressInput(
-                                prev.diemXepHang || ""
-                              );
-                              return {
-                                ...prev,
-                                diemXepHang: `${prefix}${a.diaChi}; `,
-                              };
-                            });
+                            const diaChiMoi = getDiaChiMoi(a);
+                            setForm((prev) => ({
+                              ...prev,
+                              diemXepHang: appendAddress(
+                                prev.diemXepHang,
+                                a.diaChi
+                              ),
+                              diemXepHangNew: appendAddress(
+                                prev.diemXepHangNew,
+                                diaChiMoi
+                              ),
+                            }));
                             setPickupSuggestions([]);
                           }}
                         >
@@ -563,6 +629,12 @@ export default function RideModal({
                     autoComplete="off"
                     spellCheck={false}
                   />
+                  {form.diemDoHangNew && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      Địa chỉ mới:{" "}
+                      <span className="italic">{form.diemDoHangNew}</span>
+                    </div>
+                  )}
 
                   {isDropFocused && dropSuggestions.length > 0 && (
                     <ul className="absolute z-50 bg-white border w-full max-h-48 overflow-y-auto mt-1 rounded shadow">
@@ -572,15 +644,18 @@ export default function RideModal({
                           className="p-2 cursor-pointer hover:bg-gray-200 text-sm"
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => {
-                            setForm((prev) => {
-                              const { prefix } = splitAddressInput(
-                                prev.diemDoHang || ""
-                              );
-                              return {
-                                ...prev,
-                                diemDoHang: `${prefix}${a.diaChi}; `,
-                              };
-                            });
+                            const diaChiMoi = getDiaChiMoi(a);
+                            setForm((prev) => ({
+                              ...prev,
+                              diemDoHang: appendAddress(
+                                prev.diemDoHang,
+                                a.diaChi
+                              ),
+                              diemDoHangNew: appendAddress(
+                                prev.diemDoHangNew,
+                                diaChiMoi
+                              ),
+                            }));
                             setDropSuggestions([]);
                           }}
                         >

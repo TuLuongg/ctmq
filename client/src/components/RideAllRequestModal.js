@@ -37,9 +37,43 @@ const formatDate = (v) => {
   }
 };
 
-const isDifferent = (oldVal, newVal) => {
-  if (oldVal == null && newVal == null) return false;
+const sameDate = (a, b) => {
+  if (!a && !b) return true;
+  if (!a || !b) return false;
+
+  try {
+    return (
+      format(new Date(a), "yyyy-MM-dd") === format(new Date(b), "yyyy-MM-dd")
+    );
+  } catch {
+    return false;
+  }
+};
+
+const isDifferent = (oldVal, newVal, field) => {
+  if (field.isDate) {
+    return !sameDate(oldVal, newVal);
+  }
+
+  if (field.isMoney) {
+    const o = Number(String(oldVal ?? "").replace(/[^\d-]/g, ""));
+    const n = Number(String(newVal ?? "").replace(/[^\d-]/g, ""));
+    return o !== n;
+  }
+
   return String(oldVal ?? "").trim() !== String(newVal ?? "").trim();
+};
+
+const getApprovedChange = (req, field) => {
+  const cf = req.changedFields?.[field.key];
+  if (!cf) return null;
+
+  const { old, new: newVal } = cf;
+
+  // dùng lại logic so sánh cũ
+  if (!isDifferent(old, newVal, field)) return null;
+
+  return { old, newVal };
 };
 
 const formatMoney = (value) => {
@@ -70,6 +104,8 @@ export default function RideAllRequestModal({
   }, [page, requests]);
 
   if (!open) return null;
+
+  console.log("requests", requests);
 
   const handleProcess = async (req, action) => {
     if (action === "reject" && !noteMap[req._id]?.trim()) {
@@ -105,8 +141,14 @@ export default function RideAllRequestModal({
 
         {/* TABLE SCROLL */}
         <div className="overflow-auto border">
-          <table className="min-w-[2400px] border-collapse text-xs">
-            <thead className="sticky top-0 bg-gray-200 z-10">
+          <table
+            className="min-w-[2400px] text-xs"
+            style={{
+              borderCollapse: "separate",
+              borderSpacing: 0,
+            }}
+          >
+            <thead className="sticky top-0 bg-gray-200 z-20">
               <tr>
                 <th className="border p-2">Thời gian</th>
                 <th className="border p-2 sticky left-[0px] bg-gray-200 z-20">
@@ -142,11 +184,26 @@ export default function RideAllRequestModal({
 
                     <td className="border p-2">{req.requestedBy}</td>
                     <td className="border p-2">{req.reason || "—"}</td>
-
                     {FIELD_MAP.map((f) => {
-                      const oldVal = oldData[f.key];
-                      const newVal = newData[f.key];
-                      const changed = isDifferent(oldVal, newVal);
+                      let oldVal, newVal;
+                      let changed = false;
+
+                      if (req.status === "pending") {
+                        oldVal = oldData[f.key];
+                        newVal = newData[f.key];
+                        changed = isDifferent(oldVal, newVal, f);
+                      }
+
+                      if (req.status === "approved") {
+                        const approvedChange = getApprovedChange(req, f);
+                        if (approvedChange) {
+                          oldVal = approvedChange.old;
+                          newVal = approvedChange.newVal;
+                          changed = true;
+                        } else {
+                          oldVal = oldData[f.key];
+                        }
+                      }
 
                       return (
                         <td key={f.key} className="border p-2">
@@ -178,7 +235,7 @@ export default function RideAllRequestModal({
                     })}
 
                     {/* ACTION */}
-                    <td className="border p-2 sticky right-0 bg-white min-w-[160px]">
+                    <td className="border p-2 sticky right-0 bg-white min-w-[130px]">
                       {req.status !== "pending" ? (
                         <div className="text-center font-semibold">
                           {req.status === "approved" && (
@@ -193,13 +250,13 @@ export default function RideAllRequestModal({
                         <>
                           <div className="flex gap-1 justify-center">
                             <button
-                              className="flex-1 bg-green-600 text-white px-2 py-1 rounded"
+                              className="flex-1 bg-green-600 text-white px-1 py-1 rounded"
                               onClick={() => handleProcess(req, "approve")}
                             >
                               Duyệt
                             </button>
                             <button
-                              className="flex-1 bg-red-600 text-white px-2 py-1 rounded"
+                              className="flex-1 bg-red-600 text-white px-1 py-1 rounded"
                               onClick={() => handleProcess(req, "reject")}
                             >
                               Từ chối

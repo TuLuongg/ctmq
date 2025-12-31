@@ -44,6 +44,11 @@ const columnGroups = [
     label: "ĐIỂM ĐÓNG / GIAO",
     keys: ["diemXepHang", "diemDoHang"],
   },
+
+    {
+    label: "ĐIỂM ĐÓNG / GIAO MỚI",
+    keys: ["diemXepHangNew", "diemDoHangNew"],
+  },
   {
     label: "CHI PHÍ BỐ SUNG",
     keys: [
@@ -160,6 +165,8 @@ export default function ManageTrip({ user, onLogout }) {
     { key: "ngayGiaoHang", label: "NGÀY GIAO HÀNG" },
     { key: "diemXepHang", label: "ĐIỂM ĐÓNG HÀNG" },
     { key: "diemDoHang", label: "ĐIỂM GIAO HÀNG" },
+    { key: "diemXepHangNew", label: "ĐIỂM ĐÓNG MỚI" },
+    { key: "diemDoHangNew", label: "ĐIỂM GIAO MỚI" },
     { key: "soDiem", label: "SỐ ĐIỂM" },
     { key: "trongLuong", label: "TRỌNG LƯỢNG" },
     { key: "bienSoXe", label: "BIỂN SỐ XE" },

@@ -789,6 +789,8 @@ export default function ManageTrip({ user, onLogout }) {
     }
   };
 
+  console.log("All Requests:", allRequests);
+
   useEffect(() => {
     fetchAllRequests();
   }, []);

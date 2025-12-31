@@ -29,6 +29,8 @@ const mainColumns = [
   { key: "dienGiai", label: "DIỄN GIẢI" },
   { key: "diemXepHang", label: "ĐIỂM ĐÓNG HÀNG" },
   { key: "diemDoHang", label: "ĐIỂM GIAO HÀNG" },
+  { key: "diemXepHangNew", label: "ĐIỂM ĐÓNG MỚI" },
+  { key: "diemDoHangNew", label: "ĐIỂM GIAO MỚI" },
   { key: "ngayBocHang", label: "NGÀY ĐÓNG HÀNG" },
   { key: "ngayGiaoHang", label: "NGÀY GIAO HÀNG" },
   { key: "bienSoXe", label: "BIỂN SỐ XE" },
@@ -87,12 +89,13 @@ export default function DieuVanPage({ user, onLogout }) {
   // 🔹 Lấy danh sách gợi ý
   useEffect(() => {
     const fetchData = async () => {
-      const [driverRes, customerRes, vehicleRes, addressRes] = await Promise.all([
-        axios.get(`${API}/drivers/names/list`),
-        axios.get(`${API}/customers`),
-        axios.get(`${API}/vehicles/names/list`),
-        axios.get(`${API}/address/all`),
-      ]);
+      const [driverRes, customerRes, vehicleRes, addressRes] =
+        await Promise.all([
+          axios.get(`${API}/drivers/names/list`),
+          axios.get(`${API}/customers`),
+          axios.get(`${API}/vehicles/names/list`),
+          axios.get(`${API}/address/all`),
+        ]);
       setDrivers(driverRes.data);
       setCustomers(customerRes.data);
       setVehicles(vehicleRes.data);
@@ -100,7 +103,6 @@ export default function DieuVanPage({ user, onLogout }) {
     };
     fetchData();
   }, []);
-
 
   // 🟢 Lấy danh sách điều vận
   const fetchManagers = async () => {
@@ -281,6 +283,8 @@ export default function DieuVanPage({ user, onLogout }) {
     ngayGiaoHang: format(date, "yyyy-MM-dd"),
     diemXepHang: "",
     diemDoHang: "",
+    diemXepHangNew: "",
+    diemDoHangNew: "",
     soDiem: "",
     trongLuong: "",
     bienSoXe: "",
@@ -1615,7 +1619,7 @@ export default function DieuVanPage({ user, onLogout }) {
           drivers={drivers}
           customers={customers}
           vehicles={vehicles}
-          addresses={addressSuggestions}  // thêm địa chỉ gợi ý
+          addresses={addressSuggestions} // thêm địa chỉ gợi ý
         />
       )}
 
@@ -1639,7 +1643,7 @@ export default function DieuVanPage({ user, onLogout }) {
           drivers={drivers}
           customers={customers}
           vehicles={vehicles}
-          addresses={addressSuggestions}  // thêm địa chỉ gợi ý
+          addresses={addressSuggestions} // thêm địa chỉ gợi ý
           onClose={() => {
             setShowEditRequestModal(false);
             setEditRequestRide(null);
