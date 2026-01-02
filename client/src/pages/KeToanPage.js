@@ -82,6 +82,10 @@ const KeToanPage = () => {
     navigate("/address", { state: { user } });
   };
 
+  const handleGoToCustomer2 = () => {
+    navigate("/customer2", { state: { user } });
+  };
+
   const handleExport = async () => {
     if (!selectedDate) return alert("Vui lòng chọn ngày.");
     try {
@@ -318,6 +322,12 @@ const KeToanPage = () => {
           className="bg-purple-500 text-white px-3 py-1 rounded"
         >
           Địa chỉ
+        </button>
+        <button
+          onClick={handleGoToCustomer2}
+          className="bg-purple-500 text-white px-3 py-1 rounded"
+        >
+          KH điểm giao
         </button>
 
         <button

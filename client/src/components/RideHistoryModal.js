@@ -30,21 +30,19 @@ const extraColumns = [
   { key: "ghiChu", label: "GHI CHÚ" },
 ];
 
-
 // Tạo map key -> label
 const columnLabels = [...mainColumns, ...extraColumns].reduce((acc, col) => {
   acc[col.key] = col.label;
   return acc;
 }, {});
 
-
 export default function RideHistoryModal({ ride, historyData, onClose, role }) {
   if (!ride) return null;
 
   // Danh sách key cho phép xem nếu là điều vận
   const allowedKeys = [
-    ...mainColumns.map(c => c.key),
-    ...extraColumns.map(c => c.key)
+    ...mainColumns.map((c) => c.key),
+    ...extraColumns.map((c) => c.key),
   ];
 
   return (
@@ -67,16 +65,20 @@ export default function RideHistoryModal({ ride, historyData, onClose, role }) {
             <tbody>
               {historyData.map((h, idx) => (
                 <tr key={idx} className="hover:bg-gray-100">
-                  <td className="border p-2">{new Date(h.createdAt).toLocaleString()}</td>
+                  <td className="border p-2">
+                    {new Date(h.createdAt).toLocaleString()}
+                  </td>
                   <td className="border p-2">{h.editedBy}</td>
                   <td className="border p-2">{h.reason || "-"}</td>
-                  
+
                   <td className="border p-2 space-y-1 text-left">
                     {Object.keys(h.newData).map((key) => {
                       if (key === "updatedAt") return null;
+                      if (key === "debtCode") return null;
+                      if (key === "paymentType") return null;
                       // Nếu role là điều vận → chỉ cho xem trong main + extra
                       if (role === "dieuVan" && !allowedKeys.includes(key)) {
-                        return null; 
+                        return null;
                       }
 
                       const oldVal = h.previousData[key];
@@ -84,16 +86,22 @@ export default function RideHistoryModal({ ride, historyData, onClose, role }) {
                       if (oldVal !== newVal) {
                         return (
                           <div key={key}>
-                            <span className="font-semibold">{columnLabels[key] || key}:</span>{" "}
-                            <span className="text-red-500">{oldVal || "0"}</span> →{" "}
-                            <span className="text-green-600">{newVal || "0"}</span>
+                            <span className="font-semibold">
+                              {columnLabels[key] || key}:
+                            </span>{" "}
+                            <span className="text-red-500">
+                              {oldVal || "0"}
+                            </span>{" "}
+                            →{" "}
+                            <span className="text-green-600">
+                              {newVal || "0"}
+                            </span>
                           </div>
                         );
                       }
                       return null;
                     })}
                   </td>
-
                 </tr>
               ))}
             </tbody>
@@ -112,4 +120,3 @@ export default function RideHistoryModal({ ride, historyData, onClose, role }) {
     </div>
   );
 }
-

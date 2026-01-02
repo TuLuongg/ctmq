@@ -25,7 +25,8 @@ const formatPrice = (val) => {
 
 export const allColumns = [
   { key: "timePay", label: "THỜI GIAN", stickyIndex: 0 },
-  { key: "noiDungCK", label: "NỘI DUNG CK", stickyIndex: 1 },
+  { key: "maGD", label: "MÃ GD", stickyIndex: 1 },
+  { key: "noiDungCK", label: "NỘI DUNG CK" },
   { key: "soTien", label: "SỐ TIỀN" },
   { key: "soDu", label: "SỐ DƯ" },
   { key: "khachHang", label: "TÊN KHÁCH HÀNG CK" },
@@ -171,6 +172,7 @@ export default function ManageTCBperson() {
         headers: { Authorization: token ? `Bearer ${token}` : undefined },
       });
       setData(res.data.data || []);
+      console.log(res.data.data);
       setPage(res.data.page || p);
       setTotalPages(res.data.totalPages || 1);
       setTotalRows(res.data.total || 0);
@@ -380,6 +382,14 @@ export default function ManageTCBperson() {
       new Blob([wbout], { type: "application/octet-stream" }),
       `TCBperson_${formatDate(new Date())}.xlsx`
     );
+  };
+
+  const [insertAnchor, setInsertAnchor] = useState(null);
+  const handleInsert = (row) => {
+    if (!canEditTCB) return alert("Bạn chưa có quyền!");
+    setInsertAnchor(row); // dòng mốc
+    setEditItem(null); // modal rỗng
+    setShowModal(true);
   };
 
   const [showColFilter, setShowColFilter] = useState(null);
@@ -704,6 +714,12 @@ export default function ManageTCBperson() {
                     Sửa
                   </button>
                   <button
+                    onClick={() => handleInsert(v)}
+                    className="text-green-600 font-semibold"
+                  >
+                    Chèn
+                  </button>
+                  <button
                     onClick={() => handleDelete(v._id)}
                     className="text-red-600"
                   >
@@ -719,13 +735,14 @@ export default function ManageTCBperson() {
       {showModal && (
         <TCBModal
           initialData={editItem}
+          insertAnchor={insertAnchor}
           onClose={() => {
             setShowModal(false);
             setEditItem(null);
+            setInsertAnchor(null);
           }}
-          onSave={handleSave}
+          onSave={() => fetchData()} // ⚠️ reload full vì số dư thay đổi
           apiBase={apiTCB}
-          reload={fetchData}
         />
       )}
 

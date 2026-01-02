@@ -48,12 +48,6 @@ const appendAddress = (prevValue, newValue) => {
   return `${prefix}${newValue}; `;
 };
 
-const splitToArray = (str = "") =>
-  str
-    .split(";")
-    .map((s) => s.trim())
-    .filter(Boolean);
-
 const splitCompletedPoints = (str = "") => {
   // chỉ lấy các đoạn KẾT THÚC bởi ;
   return str
@@ -83,6 +77,7 @@ export default function RideModal({
   customers = [],
   vehicles = [],
   addresses = [],
+  customers2 = [],
 }) {
   const [form, setForm] = useState(initialData || {});
   const [checkedFees, setCheckedFees] = useState({
@@ -92,8 +87,6 @@ export default function RideModal({
     luuCa: false,
     luatChiPhiKhac: false,
   });
-
-  console.log("addresses:", addresses);
 
   const [customerSuggestions, setCustomerSuggestions] = useState([]);
   const [isCustomerFocused, setIsCustomerFocused] = useState(false);
@@ -109,6 +102,22 @@ export default function RideModal({
 
   const [isPickupFocused, setIsPickupFocused] = useState(false);
   const [isDropFocused, setIsDropFocused] = useState(false);
+
+  const [customer2Suggestions, setCustomer2Suggestions] = useState([]);
+  const [isCustomer2Focused, setIsCustomer2Focused] = useState(false);
+
+  const [customerIndex, setCustomerIndex] = useState(-1);
+  const [driverIndex, setDriverIndex] = useState(-1);
+  const [vehicleIndex, setVehicleIndex] = useState(-1);
+  const [pickupIndex, setPickupIndex] = useState(-1);
+  const [dropIndex, setDropIndex] = useState(-1);
+  const [customer2Index, setCustomer2Index] = useState(-1);
+  useEffect(() => setCustomerIndex(-1), [customerSuggestions]);
+  useEffect(() => setDriverIndex(-1), [driverSuggestions]);
+  useEffect(() => setVehicleIndex(-1), [vehicleSuggestions]);
+  useEffect(() => setPickupIndex(-1), [pickupSuggestions]);
+  useEffect(() => setDropIndex(-1), [dropSuggestions]);
+  useEffect(() => setCustomer2Index(-1), [customer2Suggestions]);
 
   const moneyFields = [
     "cuocPhi",
@@ -226,6 +235,10 @@ export default function RideModal({
       }
     }
   }, [currentUser, dieuVanList]);
+
+  useEffect(() => {
+    console.log("customers2 updated:", customers2);
+  }, [customers2]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -366,6 +379,18 @@ export default function RideModal({
       return;
     }
 
+    // ===== KH ĐIỂM GIAO (Customer2) =====
+    if (name === "nameCustomer") {
+      setForm((prev) => ({ ...prev, nameCustomer: value }));
+
+      const filtered = customers2.filter((c) =>
+        removeVietnameseTones(c.nameKH).includes(removeVietnameseTones(value))
+      );
+
+      setCustomer2Suggestions(filtered);
+      return;
+    }
+
     // ===== DEFAULT – CÁC FIELD CÒN LẠI =====
     setForm((prev) => ({
       ...prev,
@@ -463,27 +488,51 @@ export default function RideModal({
               name="tenLaiXe"
               value={form.tenLaiXe || ""}
               onChange={handleChange}
+              onKeyDown={(e) => {
+                if (!driverSuggestions.length) return;
+
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setDriverIndex((i) =>
+                    i < driverSuggestions.length - 1 ? i + 1 : 0
+                  );
+                }
+
+                if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setDriverIndex((i) =>
+                    i > 0 ? i - 1 : driverSuggestions.length - 1
+                  );
+                }
+
+                if (e.key === "Enter" && driverIndex >= 0) {
+                  e.preventDefault();
+                  setForm((prev) => ({
+                    ...prev,
+                    tenLaiXe: driverSuggestions[driverIndex].name,
+                  }));
+                  setDriverSuggestions([]);
+                }
+              }}
               onFocus={() => setIsDriverFocused(true)}
               onBlur={() => setTimeout(() => setIsDriverFocused(false), 150)}
               className="border p-2 w-full rounded"
-              placeholder="Nhập tên lái xe"
               autoComplete="off"
-              autoCorrect="off"
-              spellCheck={false}
             />
 
             {isDriverFocused && driverSuggestions.length > 0 && (
               <ul className="absolute z-50 bg-white border w-full max-h-40 overflow-y-auto mt-1 rounded shadow">
-                {driverSuggestions.map((d) => (
+                {driverSuggestions.map((d, index) => (
                   <li
                     key={d._id}
-                    className="p-2 cursor-pointer hover:bg-gray-200"
+                    className={`p-2 cursor-pointer ${
+                      index === driverIndex
+                        ? "bg-blue-100"
+                        : "hover:bg-gray-200"
+                    }`}
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => {
-                      setForm((prev) => ({
-                        ...prev,
-                        tenLaiXe: d.name,
-                      }));
+                      setForm((prev) => ({ ...prev, tenLaiXe: d.name }));
                       setDriverSuggestions([]);
                     }}
                   >
@@ -529,23 +578,51 @@ export default function RideModal({
                     name="bienSoXe"
                     value={form.bienSoXe || ""}
                     onChange={handleChange}
+                    onKeyDown={(e) => {
+                      if (!vehicleSuggestions.length) return;
+
+                      if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        setVehicleIndex((i) =>
+                          i < vehicleSuggestions.length - 1 ? i + 1 : 0
+                        );
+                      }
+
+                      if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        setVehicleIndex((i) =>
+                          i > 0 ? i - 1 : vehicleSuggestions.length - 1
+                        );
+                      }
+
+                      if (e.key === "Enter" && vehicleIndex >= 0) {
+                        e.preventDefault();
+                        setForm((prev) => ({
+                          ...prev,
+                          bienSoXe:
+                            vehicleSuggestions[vehicleIndex].plateNumber,
+                        }));
+                        setVehicleSuggestions([]);
+                      }
+                    }}
                     onFocus={() => setIsVehicleFocused(true)}
                     onBlur={() =>
                       setTimeout(() => setIsVehicleFocused(false), 150)
                     }
                     className="border p-2 w-full rounded"
-                    placeholder="Nhập biển số xe"
                     autoComplete="off"
-                    autoCorrect="off"
-                    spellCheck={false}
                   />
 
                   {isVehicleFocused && vehicleSuggestions.length > 0 && (
                     <ul className="absolute z-50 bg-white border w-full max-h-40 overflow-y-auto mt-1 rounded shadow">
-                      {vehicleSuggestions.map((v) => (
+                      {vehicleSuggestions.map((v, index) => (
                         <li
                           key={v._id}
-                          className="p-2 cursor-pointer hover:bg-gray-200"
+                          className={`p-2 cursor-pointer ${
+                            index === vehicleIndex
+                              ? "bg-blue-100"
+                              : "hover:bg-gray-200"
+                          }`}
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => {
                             setForm((prev) => ({
@@ -568,6 +645,47 @@ export default function RideModal({
                     name="diemXepHang"
                     value={form.diemXepHang || ""}
                     onChange={handleChange}
+                    onKeyDown={(e) => {
+                      if (!pickupSuggestions.length) return;
+
+                      if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        setPickupIndex((i) =>
+                          i < pickupSuggestions.length - 1 ? i + 1 : 0
+                        );
+                      }
+
+                      if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        setPickupIndex((i) =>
+                          i > 0 ? i - 1 : pickupSuggestions.length - 1
+                        );
+                      }
+
+                      if (e.key === "Enter" && pickupIndex >= 0) {
+                        e.preventDefault();
+                        const a = pickupSuggestions[pickupIndex];
+                        const diaChiMoi = getDiaChiMoi(a);
+
+                        setForm((prev) => ({
+                          ...prev,
+                          diemXepHang: appendAddress(
+                            prev.diemXepHang,
+                            a.diaChi
+                          ),
+                          diemXepHangNew: appendAddress(
+                            prev.diemXepHangNew,
+                            diaChiMoi
+                          ),
+                        }));
+
+                        setPickupSuggestions([]);
+                      }
+
+                      if (e.key === "Escape") {
+                        setPickupSuggestions([]);
+                      }
+                    }}
                     onFocus={() => setIsPickupFocused(true)}
                     onBlur={() =>
                       setTimeout(() => setIsPickupFocused(false), 150)
@@ -577,6 +695,7 @@ export default function RideModal({
                     autoComplete="off"
                     spellCheck={false}
                   />
+
                   {form.diemXepHangNew && (
                     <div className="text-xs text-gray-500 mt-1">
                       Địa chỉ mới:{" "}
@@ -586,10 +705,15 @@ export default function RideModal({
 
                   {isPickupFocused && pickupSuggestions.length > 0 && (
                     <ul className="absolute z-50 bg-white border w-full max-h-48 overflow-y-auto mt-1 rounded shadow">
-                      {pickupSuggestions.map((a) => (
+                      {pickupSuggestions.map((a, index) => (
                         <li
                           key={a._id}
-                          className="p-2 cursor-pointer hover:bg-gray-200 text-sm"
+                          className={`p-2 cursor-pointer text-sm
+                          ${
+                            index === pickupIndex
+                              ? "bg-blue-100"
+                              : "hover:bg-gray-200"
+                          }`}
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => {
                             const diaChiMoi = getDiaChiMoi(a);
@@ -620,14 +744,46 @@ export default function RideModal({
                     name="diemDoHang"
                     value={form.diemDoHang || ""}
                     onChange={handleChange}
+                    onKeyDown={(e) => {
+                      if (!dropSuggestions.length) return;
+
+                      if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        setDropIndex((i) =>
+                          i < dropSuggestions.length - 1 ? i + 1 : 0
+                        );
+                      }
+
+                      if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        setDropIndex((i) =>
+                          i > 0 ? i - 1 : dropSuggestions.length - 1
+                        );
+                      }
+
+                      if (e.key === "Enter" && dropIndex >= 0) {
+                        e.preventDefault();
+                        const a = dropSuggestions[dropIndex];
+                        const diaChiMoi = getDiaChiMoi(a);
+
+                        setForm((prev) => ({
+                          ...prev,
+                          diemDoHang: appendAddress(prev.diemDoHang, a.diaChi),
+                          diemDoHangNew: appendAddress(
+                            prev.diemDoHangNew,
+                            diaChiMoi
+                          ),
+                        }));
+                        setDropSuggestions([]);
+                      }
+                    }}
                     onFocus={() => setIsDropFocused(true)}
                     onBlur={() =>
                       setTimeout(() => setIsDropFocused(false), 150)
                     }
-                    className="border p-2 w-full rounded"
                     placeholder="Nhập điểm giao hàng (cách nhau bằng dấu ; )"
+                    className="border p-2 w-full rounded"
                     autoComplete="off"
-                    spellCheck={false}
                   />
                   {form.diemDoHangNew && (
                     <div className="text-xs text-gray-500 mt-1">
@@ -638,10 +794,14 @@ export default function RideModal({
 
                   {isDropFocused && dropSuggestions.length > 0 && (
                     <ul className="absolute z-50 bg-white border w-full max-h-48 overflow-y-auto mt-1 rounded shadow">
-                      {dropSuggestions.map((a) => (
+                      {dropSuggestions.map((a, index) => (
                         <li
                           key={a._id}
-                          className="p-2 cursor-pointer hover:bg-gray-200 text-sm"
+                          className={`p-2 cursor-pointer text-sm ${
+                            index === dropIndex
+                              ? "bg-blue-100"
+                              : "hover:bg-gray-200"
+                          }`}
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => {
                             const diaChiMoi = getDiaChiMoi(a);
@@ -676,6 +836,46 @@ export default function RideModal({
                       : form[f.name] || ""
                   }
                   onChange={handleChange}
+                  onKeyDown={
+                    f.name === "khachHang"
+                      ? (e) => {
+                          if (!customerSuggestions.length) return;
+
+                          if (e.key === "ArrowDown") {
+                            e.preventDefault();
+                            setCustomerIndex((i) =>
+                              i < customerSuggestions.length - 1 ? i + 1 : 0
+                            );
+                          }
+
+                          if (e.key === "ArrowUp") {
+                            e.preventDefault();
+                            setCustomerIndex((i) =>
+                              i > 0 ? i - 1 : customerSuggestions.length - 1
+                            );
+                          }
+
+                          if (e.key === "Enter" && customerIndex >= 0) {
+                            e.preventDefault();
+                            const c = customerSuggestions[customerIndex];
+
+                            setForm((prev) => ({
+                              ...prev,
+                              khachHang: c.tenKhachHang || c.name,
+                              maKH: c.code,
+                              keToanPhuTrach: c.accountant || "",
+                              accountUsername: c.accUsername || "",
+                            }));
+
+                            setCustomerSuggestions([]);
+                          }
+
+                          if (e.key === "Escape") {
+                            setCustomerSuggestions([]);
+                          }
+                        }
+                      : undefined
+                  }
                   className={`border p-2 w-full rounded ${f.className || ""}`}
                   {...(f.name === "khachHang"
                     ? {
@@ -693,10 +893,11 @@ export default function RideModal({
                 isCustomerFocused &&
                 customerSuggestions.length > 0 && (
                   <ul className="absolute z-50 bg-white border w-full max-h-40 overflow-y-auto mt-1 rounded shadow">
-                    {customerSuggestions.map((c) => (
+                    {customerSuggestions.map((c, index) => (
                       <li
                         key={c._id}
-                        className="p-2 cursor-pointer hover:bg-gray-200"
+                        className={`p-2 cursor-pointer
+            ${index === customerIndex ? "bg-blue-100" : "hover:bg-gray-200"}`}
                         onMouseDown={(e) => e.preventDefault()}
                         onClick={() => {
                           setForm((prev) => ({
@@ -716,6 +917,78 @@ export default function RideModal({
                 )}
             </div>
           ))}
+
+          {/* ===== KH ĐIỂM GIAO ===== */}
+          <div className="relative col-span-2">
+            <label className="block text-sm font-medium mb-1">
+              KH điểm giao
+            </label>
+
+            <input
+              type="text"
+              name="nameCustomer"
+              value={form.nameCustomer || ""}
+              onChange={handleChange}
+              onKeyDown={(e) => {
+                if (!customer2Suggestions.length) return;
+
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setCustomer2Index((i) =>
+                    i < customer2Suggestions.length - 1 ? i + 1 : 0
+                  );
+                }
+
+                if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setCustomer2Index((i) =>
+                    i > 0 ? i - 1 : customer2Suggestions.length - 1
+                  );
+                }
+
+                if (e.key === "Enter" && customer2Index >= 0) {
+                  e.preventDefault();
+                  setForm((prev) => ({
+                    ...prev,
+                    nameCustomer: customer2Suggestions[customer2Index].nameKH,
+                  }));
+                  setCustomer2Suggestions([]);
+                }
+
+                if (e.key === "Escape") {
+                  setCustomer2Suggestions([]);
+                }
+              }}
+              onFocus={() => setIsCustomer2Focused(true)}
+              onBlur={() => setTimeout(() => setIsCustomer2Focused(false), 150)}
+              className="border p-2 w-1/2 rounded"
+              placeholder="Nhập tên KH điểm giao"
+              autoComplete="off"
+              spellCheck={false}
+            />
+
+            {isCustomer2Focused && customer2Suggestions.length > 0 && (
+              <ul className="absolute z-50 bg-white border w-1/2 max-h-40 overflow-y-auto mt-1 rounded shadow">
+                {customer2Suggestions.map((c, index) => (
+                  <li
+                    key={c._id}
+                    className={`p-2 cursor-pointer
+    ${index === customer2Index ? "bg-blue-100" : "hover:bg-gray-200"}`}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      setForm((prev) => ({
+                        ...prev,
+                        nameCustomer: c.nameKH,
+                      }));
+                      setCustomer2Suggestions([]);
+                    }}
+                  >
+                    {c.nameKH}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
 
           {/* Cước phí và chi phí phụ */}
           <div className="col-span-2 flex items-start gap-10">

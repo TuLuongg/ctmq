@@ -47,6 +47,29 @@ const fuzzyIncludes = (word, text) => {
   return text.split(/\s+/).some((t) => levenshtein(word, t) <= 1);
 };
 
+const splitCompletedPoints = (str = "") => {
+  return str
+    .split(";")
+    .slice(0, -1)
+    .map((s) => s.trim())
+    .filter(Boolean);
+};
+
+const getDiaChiMoiByDiaChi = (diaChi, addresses = []) => {
+  const found = addresses.find((a) => a.diaChi.trim() === diaChi.trim());
+
+  if (!found) return diaChi;
+
+  return found.diaChiMoi && found.diaChiMoi.trim()
+    ? found.diaChiMoi
+    : found.diaChi;
+};
+
+const appendAddress = (prevValue, newValue) => {
+  const { prefix } = splitAddressInput(prevValue || "");
+  return `${prefix}${newValue}; `;
+};
+
 export default function RideEditRequestModal({
   ride,
   onClose,
@@ -57,6 +80,7 @@ export default function RideEditRequestModal({
   customers = [],
   vehicles = [],
   addresses = [],
+  customers2 = [],
 }) {
   const [form, setForm] = useState(ride || {});
   const [reason, setReason] = useState("");
@@ -204,6 +228,10 @@ export default function RideEditRequestModal({
 
   const [pickupSuggestions, setPickupSuggestions] = useState([]);
   const [dropSuggestions, setDropSuggestions] = useState([]);
+
+  const [customer2Suggestions, setCustomer2Suggestions] = useState([]);
+  const [isCustomer2Focused, setIsCustomer2Focused] = useState(false);
+
   const [isPickupFocused, setIsPickupFocused] = useState(false);
   const [isDropFocused, setIsDropFocused] = useState(false);
 
@@ -269,7 +297,20 @@ export default function RideEditRequestModal({
     }
 
     if (name === "diemXepHang") {
-      setForm((prev) => ({ ...prev, diemXepHang: value }));
+      setForm((prev) => {
+        const next = value;
+
+        const completedList = splitCompletedPoints(next);
+        const newList = completedList.map((diaChi) =>
+          getDiaChiMoiByDiaChi(diaChi, addresses)
+        );
+
+        return {
+          ...prev,
+          diemXepHang: next,
+          diemXepHangNew: newList.join("; ") + (newList.length ? "; " : ""),
+        };
+      });
 
       const { keyword } = splitAddressInput(value);
       if (!keyword) {
@@ -287,8 +328,22 @@ export default function RideEditRequestModal({
       setPickupSuggestions(filtered.slice(0, 50));
       return;
     }
+
     if (name === "diemDoHang") {
-      setForm((prev) => ({ ...prev, diemDoHang: value }));
+      setForm((prev) => {
+        const next = value;
+
+        const completedList = splitCompletedPoints(next);
+        const newList = completedList.map((diaChi) =>
+          getDiaChiMoiByDiaChi(diaChi, addresses)
+        );
+
+        return {
+          ...prev,
+          diemDoHang: next,
+          diemDoHangNew: newList.join("; ") + (newList.length ? "; " : ""),
+        };
+      });
 
       const { keyword } = splitAddressInput(value);
       if (!keyword) {
@@ -304,6 +359,20 @@ export default function RideEditRequestModal({
       });
 
       setDropSuggestions(filtered.slice(0, 50));
+      return;
+    }
+
+    // ===== KH ĐIỂM GIAO (nameCustomer) =====
+    if (name === "nameCustomer") {
+      setForm((prev) => ({ ...prev, nameCustomer: value }));
+
+      const keyword = removeVietnameseTones(value);
+
+      const filtered = (customers2 || []).filter((c) =>
+        removeVietnameseTones(c.nameKH).includes(keyword)
+      );
+
+      setCustomer2Suggestions(filtered);
       return;
     }
 
@@ -542,6 +611,11 @@ export default function RideEditRequestModal({
                       autoComplete="off"
                       spellCheck={false}
                     />
+                    {form.diemXepHangNew && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        Địa chỉ mới: <i>{form.diemXepHangNew}</i>
+                      </div>
+                    )}
 
                     {isPickupFocused && pickupSuggestions.length > 0 && (
                       <ul className="absolute z-50 bg-white border w-full max-h-48 overflow-y-auto mt-1 rounded shadow">
@@ -551,15 +625,23 @@ export default function RideEditRequestModal({
                             className="p-2 cursor-pointer hover:bg-gray-200 text-sm"
                             onMouseDown={(e) => e.preventDefault()}
                             onClick={() => {
-                              setForm((prev) => {
-                                const { prefix } = splitAddressInput(
-                                  prev.diemXepHang || ""
-                                );
-                                return {
-                                  ...prev,
-                                  diemXepHang: `${prefix}${a.diaChi}; `,
-                                };
-                              });
+                              const diaChiMoi = getDiaChiMoiByDiaChi(
+                                a.diaChi,
+                                addresses
+                              );
+
+                              setForm((prev) => ({
+                                ...prev,
+                                diemXepHang: appendAddress(
+                                  prev.diemXepHang,
+                                  a.diaChi
+                                ),
+                                diemXepHangNew: appendAddress(
+                                  prev.diemXepHangNew,
+                                  diaChiMoi
+                                ),
+                              }));
+
                               setPickupSuggestions([]);
                             }}
                           >
@@ -585,6 +667,11 @@ export default function RideEditRequestModal({
                       autoComplete="off"
                       spellCheck={false}
                     />
+                    {form.diemXepHangNew && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        Địa chỉ mới: <i>{form.diemDoHangNew}</i>
+                      </div>
+                    )}
 
                     {isDropFocused && dropSuggestions.length > 0 && (
                       <ul className="absolute z-50 bg-white border w-full max-h-48 overflow-y-auto mt-1 rounded shadow">
@@ -594,15 +681,23 @@ export default function RideEditRequestModal({
                             className="p-2 cursor-pointer hover:bg-gray-200 text-sm"
                             onMouseDown={(e) => e.preventDefault()}
                             onClick={() => {
-                              setForm((prev) => {
-                                const { prefix } = splitAddressInput(
-                                  prev.diemDoHang || ""
-                                );
-                                return {
-                                  ...prev,
-                                  diemDoHang: `${prefix}${a.diaChi}; `,
-                                };
-                              });
+                              const diaChiMoi = getDiaChiMoiByDiaChi(
+                                a.diaChi,
+                                addresses
+                              );
+
+                              setForm((prev) => ({
+                                ...prev,
+                                diemDoHang: appendAddress(
+                                  prev.diemDoHang,
+                                  a.diaChi
+                                ),
+                                diemDoHangNew: appendAddress(
+                                  prev.diemDoHangNew,
+                                  diaChiMoi
+                                ),
+                              }));
+
                               setDropSuggestions([]);
                             }}
                           >
@@ -663,6 +758,48 @@ export default function RideEditRequestModal({
                   )}
               </div>
             ))}
+
+            <div className="relative">
+              <label className="block text-sm font-medium mb-1">
+                KH điểm giao
+              </label>
+
+              <input
+                type="text"
+                name="nameCustomer"
+                value={form.nameCustomer || ""}
+                onChange={handleChange}
+                onFocus={() => setIsCustomer2Focused(true)}
+                onBlur={() =>
+                  setTimeout(() => setIsCustomer2Focused(false), 150)
+                }
+                className="border p-2 w-full rounded"
+                placeholder="Nhập tên KH điểm giao"
+                autoComplete="off"
+                spellCheck={false}
+              />
+
+              {isCustomer2Focused && customer2Suggestions.length > 0 && (
+                <ul className="absolute z-50 bg-white border w-full max-h-40 overflow-y-auto mt-1 rounded shadow">
+                  {customer2Suggestions.map((c) => (
+                    <li
+                      key={c._id}
+                      className="p-2 cursor-pointer hover:bg-blue-50 text-blue-700"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setForm((prev) => ({
+                          ...prev,
+                          nameCustomer: c.nameKH,
+                        }));
+                        setCustomer2Suggestions([]);
+                      }}
+                    >
+                      {c.nameKH}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
 
             {/* Cước phí + chi phí phụ */}
             <div className="col-span-2 flex items-start gap-10">

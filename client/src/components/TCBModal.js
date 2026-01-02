@@ -1,17 +1,24 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 
-export default function TCBModal({ initialData, onClose, onSave, apiBase, reload }) {
+export default function TCBModal({
+  initialData,
+  insertAnchor,
+  onClose,
+  onSave,
+  apiBase,
+  reload,
+}) {
   const [formData, setFormData] = useState({
     timePay: "",
     noiDungCK: "",
     soTien: "",
-    soDu: "",
     khachHang: "",
     keToan: "",
     ghiChu: "",
-    maChuyen: ""
+    maChuyen: "",
   });
+
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -21,8 +28,7 @@ export default function TCBModal({ initialData, onClose, onSave, apiBase, reload
           ? new Date(initialData.timePay).toISOString().substring(0, 10)
           : "",
         noiDungCK: initialData.noiDungCK || "",
-        soTien: initialData.soTien || "",
-        soDu: initialData.soDu || "",
+        soTien: initialData.soTien ?? "",
         khachHang: initialData.khachHang || "",
         keToan: initialData.keToan || "",
         ghiChu: initialData.ghiChu || "",
@@ -41,33 +47,67 @@ export default function TCBModal({ initialData, onClose, onSave, apiBase, reload
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+
     try {
-      let res;
       const payload = {
         ...formData,
         soTien: Number(formData.soTien) || 0,
-        soDu: Number(formData.soDu) || 0,
         timePay: formData.timePay ? new Date(formData.timePay) : null,
       };
 
+      let res;
+
+      /** =========================
+       * 1. UPDATE
+       ========================= */
       if (initialData?._id) {
-        // edit
         res = await axios.put(`${apiBase}/${initialData._id}`, payload, {
           headers: { Authorization: token ? `Bearer ${token}` : undefined },
         });
+      } else if (insertAnchor?._id) {
+        /** =========================
+       * 2. INSERT (CHÈN)
+       ========================= */
+        // ===== CHECK CÙNG THÁNG =====
+        if (!payload.timePay) {
+          alert("Chèn bắt buộc phải có ngày");
+          return;
+        }
+
+        const insertMonth =
+          payload.timePay.getMonth() + 1 + "-" + payload.timePay.getFullYear();
+
+        const anchorDate = new Date(insertAnchor.timePay);
+        const anchorMonth =
+          anchorDate.getMonth() + 1 + "-" + anchorDate.getFullYear();
+
+        if (insertMonth !== anchorMonth) {
+          alert("❌ Ngày chèn PHẢI nằm trong cùng tháng với giao dịch mốc");
+          return;
+        }
+
+        res = await axios.post(
+          `${apiBase}/insert-after/${insertAnchor._id}`,
+          payload,
+          {
+            headers: { Authorization: token ? `Bearer ${token}` : undefined },
+          }
+        );
       } else {
-        // add
+        /** =========================
+       * 3. CREATE (THÊM MỚI)
+       ========================= */
         res = await axios.post(apiBase, payload, {
           headers: { Authorization: token ? `Bearer ${token}` : undefined },
         });
       }
 
-      onSave(res.data);
-      reload()
+      onSave?.(res.data);
+      reload?.();
       onClose();
     } catch (err) {
       console.error(err);
-      alert("Lưu thất bại: " + (err.response?.data?.error || err.message));
+      alert("Lưu thất bại: " + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
     }
@@ -77,18 +117,22 @@ export default function TCBModal({ initialData, onClose, onSave, apiBase, reload
     <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50">
       <div className="bg-white p-4 rounded shadow w-[500px] max-w-full">
         <h2 className="text-lg font-bold mb-4">
-          {initialData ? "Sửa chuyển khoản" : "Thêm chuyển khoản"}
+          {initialData
+            ? "Sửa chuyển khoản"
+            : insertAnchor
+            ? `Chèn sau mã ${insertAnchor.maGD}`
+            : "Thêm chuyển khoản"}
         </h2>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-2">
           <label>
-            Thời gian thanh toán
+            Thời gian thanh toán:
             <input
               type="date"
               name="timePay"
               value={formData.timePay}
               onChange={handleChange}
-              className="border p-1 w-full rounded"
+              className="border p-1 w-1/3 rounded ml-1"
             />
           </label>
 
@@ -112,17 +156,7 @@ export default function TCBModal({ initialData, onClose, onSave, apiBase, reload
               value={formData.soTien}
               onChange={handleChange}
               className="border p-1 w-full rounded"
-            />
-          </label>
-
-          <label>
-            Số dư
-            <input
-              type="number"
-              name="soDu"
-              value={formData.soDu}
-              onChange={handleChange}
-              className="border p-1 w-full rounded"
+              required
             />
           </label>
 
@@ -134,7 +168,6 @@ export default function TCBModal({ initialData, onClose, onSave, apiBase, reload
               value={formData.khachHang}
               onChange={handleChange}
               className="border p-1 w-full rounded"
-              required
             />
           </label>
 

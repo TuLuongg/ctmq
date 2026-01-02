@@ -33,6 +33,7 @@ const mainColumns = [
   { key: "diemDoHangNew", label: "ĐIỂM GIAO MỚI" },
   { key: "ngayBocHang", label: "NGÀY ĐÓNG HÀNG" },
   { key: "ngayGiaoHang", label: "NGÀY GIAO HÀNG" },
+  { key: "nameCustomer", label: "KH ĐIỂM GIAO" },
   { key: "bienSoXe", label: "BIỂN SỐ XE" },
   { key: "maChuyen", label: "MÃ CHUYẾN" },
 ];
@@ -85,24 +86,29 @@ export default function DieuVanPage({ user, onLogout }) {
   const [customers, setCustomers] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [addressSuggestions, setAddressSuggestions] = useState([]);
+  const [customers2, setCustomers2] = useState([]);
 
   // 🔹 Lấy danh sách gợi ý
   useEffect(() => {
     const fetchData = async () => {
-      const [driverRes, customerRes, vehicleRes, addressRes] =
+      const [driverRes, customerRes, vehicleRes, addressRes, customer2Res] =
         await Promise.all([
           axios.get(`${API}/drivers/names/list`),
           axios.get(`${API}/customers`),
           axios.get(`${API}/vehicles/names/list`),
           axios.get(`${API}/address/all`),
+          axios.get(`${API}/customer2/all`),
         ]);
       setDrivers(driverRes.data);
       setCustomers(customerRes.data);
       setVehicles(vehicleRes.data);
       setAddressSuggestions(addressRes.data.data || []);
+      setCustomers2(customer2Res.data.data || []);
     };
     fetchData();
   }, []);
+
+  console.log(customers2);
 
   // 🟢 Lấy danh sách điều vận
   const fetchManagers = async () => {
@@ -301,6 +307,7 @@ export default function DieuVanPage({ user, onLogout }) {
     keToanPhuTrach: "",
     accountUsername: "",
     cuocPhiBoSung: "",
+    nameCustomer: "",
   };
 
   const [rideDraft, setRideDraft] = useState(null);
@@ -1620,6 +1627,7 @@ export default function DieuVanPage({ user, onLogout }) {
           customers={customers}
           vehicles={vehicles}
           addresses={addressSuggestions} // thêm địa chỉ gợi ý
+          customers2={customers2}
         />
       )}
 
@@ -1644,6 +1652,7 @@ export default function DieuVanPage({ user, onLogout }) {
           customers={customers}
           vehicles={vehicles}
           addresses={addressSuggestions} // thêm địa chỉ gợi ý
+          customers2={customers2}
           onClose={() => {
             setShowEditRequestModal(false);
             setEditRequestRide(null);

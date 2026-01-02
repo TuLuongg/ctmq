@@ -38,6 +38,7 @@ import ManageContract from "./pages/KeToanActions/ManageContract";
 import ManageTCBperson from "./pages/KeToanActions/ManageTCBperson";
 
 import AddressPage from "./pages/AddressPage";
+import Customer2Page from "./pages/Customer2Page";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -150,6 +151,15 @@ function App() {
           element={
             <PrivateRoute roles={["keToan", "admin"]}>
               <AddressPage user={user} onLogout={handleLogout} />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/customer2"
+          element={
+            <PrivateRoute roles={["keToan", "admin"]}>
+              <Customer2Page user={user} onLogout={handleLogout} />
             </PrivateRoute>
           }
         />
