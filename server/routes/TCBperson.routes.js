@@ -11,6 +11,12 @@ const TCBController = require("../controllers/TCBperson.controller");
 router.post("/", TCBController.create);
 
 // ============================
+// Chèn giao dịch sau 1 giao dịch (rebuild số dư + đẩy STT)
+// POST /tcbperson/insert-after/:anchorId
+// ============================
+router.post("/insert-after/:anchorId", TCBController.insertAfter);
+
+// ============================
 // Sửa theo ID
 // PUT /tcbperson/:id
 // ============================
