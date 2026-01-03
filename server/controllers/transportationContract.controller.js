@@ -23,7 +23,9 @@ exports.getAll = async (req, res) => {
       }
     }
 
-    const data = await TransportationContract.find(filter).sort({ timeStart: -1 });
+    const data = await TransportationContract.find(filter).sort({
+      timeStart: -1,
+    });
     res.json(data);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -63,7 +65,9 @@ exports.create = async (req, res) => {
 exports.update = async (req, res) => {
   try {
     const { id } = req.params;
-    const data = await TransportationContract.findByIdAndUpdate(id, req.body, { new: true });
+    const data = await TransportationContract.findByIdAndUpdate(id, req.body, {
+      new: true,
+    });
     res.json(data);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -88,13 +92,13 @@ exports.remove = async (req, res) => {
 exports.removeAll = async (req, res) => {
   try {
     const result = await TransportationContract.deleteMany({
-      isLocked: { $ne: true } // ❌ bỏ qua hợp đồng đã khoá
+      isLocked: { $ne: true }, // ❌ bỏ qua hợp đồng đã khoá
     });
 
     res.json({
       success: true,
       deletedCount: result.deletedCount,
-      message: `Đã xoá ${result.deletedCount} hợp đồng (bỏ qua hợp đồng đã khoá)`
+      message: `Đã xoá ${result.deletedCount} hợp đồng (bỏ qua hợp đồng đã khoá)`,
     });
   } catch (err) {
     console.error("❌ Lỗi xoá tất cả hợp đồng:", err);
@@ -164,7 +168,7 @@ exports.importExcel = async (req, res) => {
         typeTrans: row.getCell(4)?.value || "",
         timeStart: parseExcelDate(row.getCell(5)?.value),
         timeEnd: parseExcelDate(row.getCell(6)?.value),
-        timePay: parseExcelDate(row.getCell(7)?.value),
+        timePay: row.getCell(7)?.value || "",
         yesOrNo: row.getCell(8)?.value || "",
         dayRequest: parseExcelDate(row.getCell(9)?.value),
         dayUse: parseExcelDate(row.getCell(10)?.value),
@@ -187,7 +191,6 @@ exports.importExcel = async (req, res) => {
   }
 };
 
-
 // 🔁 Toggle khoá / mở
 exports.toggleLockContract = async (req, res) => {
   try {
@@ -202,9 +205,7 @@ exports.toggleLockContract = async (req, res) => {
     await contract.save();
 
     res.json({
-      message: contract.isLocked
-        ? "Đã khoá hợp đồng"
-        : "Đã mở khoá hợp đồng",
+      message: contract.isLocked ? "Đã khoá hợp đồng" : "Đã mở khoá hợp đồng",
       isLocked: contract.isLocked,
     });
   } catch (err) {
