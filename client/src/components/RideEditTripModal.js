@@ -124,33 +124,46 @@ export default function RideEditTripModal({
               />
             </div>
 
-            {canEditFinancial && (
-              <div className="grid grid-cols-2 gap-3">
-                <input
-                  className="border rounded p-2"
-                  placeholder="Cước phí"
-                  value={formatMoney(formData.cuocPhi)}
-                  onChange={(e) => handleChange("cuocPhi", e.target.value)}
-                />
-                <input
-                  className="border rounded p-2"
-                  placeholder="Đã thanh toán"
-                  value={formatMoney(formData.daThanhToan)}
-                  onChange={(e) => handleChange("daThanhToan", e.target.value)}
-                />
-              </div>
-            )}
+            <div className="grid grid-cols-2 gap-3">
+              <input
+                className="border rounded p-2"
+                placeholder="Cước phí"
+                value={formatMoney(formData.cuocPhi)}
+                onChange={(e) => handleChange("cuocPhi", e.target.value)}
+              />
+              <input
+                className="border rounded p-2"
+                placeholder="Đã thanh toán"
+                value={formatMoney(formData.daThanhToan)}
+                onChange={(e) => handleChange("daThanhToan", e.target.value)}
+              />
+            </div>
           </div>
 
           {/* ================== PHẢI ================== */}
           <div className="border rounded p-4">
-            <label className="font-semibold">Tên lái xe</label>
-            <input
-              className="border rounded p-2 w-full mb-3"
-              value={formData.tenLaiXe || ""}
-              onChange={(e) => handleChange("tenLaiXe", e.target.value)}
-            />
+            {/* ===== BSX + TÊN LÁI XE (1 DÒNG) ===== */}
+            <div className="flex gap-3 mb-3 items-end">
+              <div className="w-1/3">
+                <label className="font-semibold block mb-1">Biển số xe</label>
+                <input
+                  className="border rounded p-2 w-full"
+                  value={formData.bienSoXe || ""}
+                  onChange={(e) => handleChange("bienSoXe", e.target.value)}
+                />
+              </div>
 
+              <div className="flex-1">
+                <label className="font-semibold block mb-1">Tên lái xe</label>
+                <input
+                  className="border rounded p-2 w-full"
+                  value={formData.tenLaiXe || ""}
+                  onChange={(e) => handleChange("tenLaiXe", e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* ===== DIỄN GIẢI ===== */}
             <label className="font-semibold">Diễn giải</label>
             <input
               className="border rounded p-2 w-full mb-3"
@@ -174,65 +187,63 @@ export default function RideEditTripModal({
             </div>
 
             {/* ===== CƯỚC PHÍ PHỤ GỐC (BĐ) ===== */}
-            {canEditFinancial && (
-              <div className="mb-4">
-                <label className="font-semibold">Cước phí phụ (BĐ)</label>
+            <div className="mb-4">
+              <label className="font-semibold">Cước phí phụ (BĐ)</label>
 
-                {/* Dòng 1 */}
-                <div className="grid grid-cols-2 gap-3 mt-2">
-                  <div>
-                    <label className="text-sm">Bốc xếp</label>
-                    <input
-                      className="border rounded p-2 w-full"
-                      value={formatMoney(formData.bocXep)}
-                      onChange={(e) => handleChange("bocXep", e.target.value)}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-sm">Hàng về</label>
-                    <input
-                      className="border rounded p-2 w-full"
-                      value={formatMoney(formData.hangVe)}
-                      onChange={(e) => handleChange("hangVe", e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                {/* Dòng 2 */}
-                <div className="grid grid-cols-2 gap-3 mt-3">
-                  <div>
-                    <label className="text-sm">Vé</label>
-                    <input
-                      className="border rounded p-2 w-full"
-                      value={formatMoney(formData.ve)}
-                      onChange={(e) => handleChange("ve", e.target.value)}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-sm">Lưu ca</label>
-                    <input
-                      className="border rounded p-2 w-full"
-                      value={formatMoney(formData.luuCa)}
-                      onChange={(e) => handleChange("luuCa", e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                {/* Dòng 3 – full width */}
-                <div className="mt-3">
-                  <label className="text-sm">Luật chi phí khác</label>
+              {/* Dòng 1 */}
+              <div className="grid grid-cols-2 gap-3 mt-2">
+                <div>
+                  <label className="text-sm">Bốc xếp</label>
                   <input
                     className="border rounded p-2 w-full"
-                    value={formatMoney(formData.luatChiPhiKhac)}
-                    onChange={(e) =>
-                      handleChange("luatChiPhiKhac", e.target.value)
-                    }
+                    value={formatMoney(formData.bocXep)}
+                    onChange={(e) => handleChange("bocXep", e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm">Hàng về</label>
+                  <input
+                    className="border rounded p-2 w-full"
+                    value={formatMoney(formData.hangVe)}
+                    onChange={(e) => handleChange("hangVe", e.target.value)}
                   />
                 </div>
               </div>
-            )}
+
+              {/* Dòng 2 */}
+              <div className="grid grid-cols-2 gap-3 mt-3">
+                <div>
+                  <label className="text-sm">Vé</label>
+                  <input
+                    className="border rounded p-2 w-full"
+                    value={formatMoney(formData.ve)}
+                    onChange={(e) => handleChange("ve", e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm">Lưu ca</label>
+                  <input
+                    className="border rounded p-2 w-full"
+                    value={formatMoney(formData.luuCa)}
+                    onChange={(e) => handleChange("luuCa", e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Dòng 3 – full width */}
+              <div className="mt-3">
+                <label className="text-sm">Luật chi phí khác</label>
+                <input
+                  className="border rounded p-2 w-full"
+                  value={formatMoney(formData.luatChiPhiKhac)}
+                  onChange={(e) =>
+                    handleChange("luatChiPhiKhac", e.target.value)
+                  }
+                />
+              </div>
+            </div>
           </div>
         </div>
 

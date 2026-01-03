@@ -56,9 +56,6 @@ export default function ContractModal({
         timeEnd: initialData.timeEnd
           ? new Date(initialData.timeEnd).toISOString().slice(0, 10)
           : "",
-        timePay: initialData.timePay
-          ? new Date(initialData.timePay).toISOString().slice(0, 10)
-          : "",
         dayRequest: initialData.dayRequest
           ? new Date(initialData.dayRequest).toISOString().slice(0, 10)
           : "",
@@ -214,11 +211,10 @@ export default function ContractModal({
             Thời hạn thanh toán
             <input
               name="timePay"
-              type="date"
+              type="text"
               value={formData.timePay}
               onChange={handleChange}
-              onClick={(e) => e.target.showPicker()}
-              className="border p-1 rounded mt-1 cursor-pointer"
+              className="border p-1 rounded mt-1"
             />
           </label>
 

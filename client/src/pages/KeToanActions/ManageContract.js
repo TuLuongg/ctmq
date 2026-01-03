@@ -725,7 +725,6 @@ export default function ManageContract() {
                         : [
                             "timeStart",
                             "timeEnd",
-                            "timePay",
                             "dayRequest",
                             "dayUse",
                           ].includes(cKey)

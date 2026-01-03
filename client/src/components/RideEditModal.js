@@ -205,13 +205,25 @@ export default function RideEditModal({ ride, onSubmit, onClose }) {
 
           {/* ========================= BÊN PHẢI ========================= */}
           <div className="border rounded p-4">
-            <div className="mb-3">
-              <label className="font-semibold">Tên lái xe</label>
-              <input
-                className="border rounded w-full p-2 mt-1"
-                value={formData.tenLaiXe || ""}
-                onChange={(e) => handleChange("tenLaiXe", e.target.value)}
-              />
+            {/* ===== BSX + TÊN LÁI XE (1 DÒNG) ===== */}
+            <div className="flex gap-3 mb-3 items-end">
+              <div className="w-1/3">
+                <label className="font-semibold block mb-1">Biển số xe</label>
+                <input
+                  className="border rounded p-2 w-full"
+                  value={formData.bienSoXe || ""}
+                  onChange={(e) => handleChange("bienSoXe", e.target.value)}
+                />
+              </div>
+
+              <div className="flex-1">
+                <label className="font-semibold block mb-1">Tên lái xe</label>
+                <input
+                  className="border rounded p-2 w-full"
+                  value={formData.tenLaiXe || ""}
+                  onChange={(e) => handleChange("tenLaiXe", e.target.value)}
+                />
+              </div>
             </div>
 
             <div className="mb-3">
