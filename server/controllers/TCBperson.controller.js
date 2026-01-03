@@ -1,4 +1,5 @@
 const TCBperson = require("../models/TCBperson");
+const path = require("path");
 const ExcelJS = require("exceljs");
 
 // Helper parse ngày từ Excel
@@ -373,6 +374,19 @@ exports.getAccountants = async (req, res) => {
 };
 
 // ===================
+// Lấy danh sách mã chuyển duy nhất
+// ===================
+exports.getMaChuyen = async (req, res) => {
+  try {
+    const maChuyen = await TCBperson.distinct("maChuyen");
+    res.json({ success: true, data: maChuyen });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// ===================
 // Lấy tất cả data với lọc
 // ===================
 exports.getAll = async (req, res) => {
@@ -385,7 +399,8 @@ exports.getAll = async (req, res) => {
       // ===== STRING (LỌC ĐƠN) =====
       noiDungCK,
       ghiChu,
-      maChuyen,
+      maGD,
+      maChuyen = [],
 
       // ===== NUMBER (LỌC ĐƠN) =====
       soTien,
@@ -397,6 +412,7 @@ exports.getAll = async (req, res) => {
 
       // ===== PAGINATION =====
       page = 1,
+      sortOrder,
     } = req.body;
 
     const filter = {};
@@ -410,6 +426,10 @@ exports.getAll = async (req, res) => {
       filter.keToan = { $in: keToan };
     }
 
+    if (maChuyen.length) {
+      filter.maChuyen = { $in: maChuyen };
+    }
+
     // ---------- STRING (đơn) ----------
     if (noiDungCK) {
       filter.noiDungCK = { $regex: noiDungCK, $options: "i" };
@@ -419,8 +439,8 @@ exports.getAll = async (req, res) => {
       filter.ghiChu = { $regex: ghiChu, $options: "i" };
     }
 
-    if (maChuyen) {
-      filter.maChuyen = { $regex: maChuyen, $options: "i" };
+    if (maGD) {
+      filter.maGD = { $regex: maGD, $options: "i" };
     }
 
     // ---------- NUMBER (đơn) ----------
@@ -445,8 +465,13 @@ exports.getAll = async (req, res) => {
 
     const total = await TCBperson.countDocuments(filter);
 
+    // ---------- SORT ----------
+    const sort = {
+      timePay: sortOrder === "asc" ? 1 : -1, // mặc định desc
+    };
+
     const data = await TCBperson.find(filter)
-      .sort({ timePay: 1 })
+      .sort(sort)
       .skip(skip)
       .limit(pageSize);
 
@@ -509,7 +534,7 @@ exports.importExcel = async (req, res) => {
       const ghiChu = row.getCell(8)?.value?.toString().trim() || "";
       const maChuyen = row.getCell(9)?.value?.toString().trim() || "";
 
-      if (!timePay || !noiDungCK || !khachHang) continue;
+      if (!timePay || !noiDungCK) continue;
 
       const prefix = buildPrefix(timePay);
 
@@ -559,5 +584,78 @@ exports.importExcel = async (req, res) => {
     res.status(500).json({ message: err.message });
   } finally {
     session.endSession();
+  }
+};
+
+// ==============================
+// EXPORT SAO KÊ TCB (FORM MẪU)
+// ==============================
+exports.exportExcel = async (req, res) => {
+  try {
+    const { from, to } = req.query;
+
+    // 1️⃣ LẤY DATA
+    const filter = {};
+
+    if (from || to) {
+      filter.timePay = {};
+      if (from) filter.timePay.$gte = new Date(from);
+      if (to) filter.timePay.$lte = new Date(to);
+    }
+
+    const records = await TCBperson.find(filter).sort({ maGD: 1 });
+
+    if (!records.length) {
+      return res
+        .status(400)
+        .json({ message: "Không có dữ liệu để xuất Excel" });
+    }
+
+    // 2️⃣ LOAD FORM MẪU
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(
+      path.join(__dirname, "../templates/SAO_KE_TCB.xlsx")
+    );
+
+    const sheet = workbook.getWorksheet("Tech CN");
+    if (!sheet) {
+      return res.status(500).json({ message: "Không tìm thấy sheet" });
+    }
+
+    // 3️⃣ GHI DATA (SAU HEADER)
+    const startRow = 2;
+
+    records.forEach((r, index) => {
+      const row = sheet.getRow(startRow + index);
+
+      row.getCell("A").value = index + 1; // STT
+      row.getCell("B").value = r.timePay ? new Date(r.timePay) : null; // Ngày
+      row.getCell("C").value = r.noiDungCK || ""; // Nội dung CK
+      row.getCell("D").value = r.soTien || 0; // Số tiền
+      row.getCell("E").value = r.soDu || 0; // Số dư
+      row.getCell("F").value = r.khachHang || ""; // Khách hàng
+      row.getCell("G").value = r.keToan || ""; // Kế toán
+      row.getCell("H").value = r.ghiChu || ""; // Ghi chú
+      row.getCell("I").value = r.maChuyen || ""; // Mã chuyến
+      row.getCell("J").value = r.maGD || ""; // Mã GD
+
+      row.commit();
+    });
+
+    // 4️⃣ TRẢ FILE
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=SAO_KE_TCB.xlsx"
+    );
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+
+    // QUAN TRỌNG
+    await workbook.xlsx.write(res);
+  } catch (err) {
+    console.error("❌ Export TCB error:", err);
+    res.status(500).json({ message: "Lỗi xuất file sao kê TCB" });
   }
 };

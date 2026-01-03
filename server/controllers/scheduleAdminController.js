@@ -138,7 +138,18 @@ const updateScheduleAdmin = async (req, res) => {
       "luuCa",
       "luatChiPhiKhac",
     ];
-    const ignoredFields = ["ltState", "onlState", "offState"];
+    const ignoredFields = [
+      "ltState",
+      "onlState",
+      "offState",
+      "tenLaiXe",
+      "khachHang",
+      "dienGiai",
+      "maKH",
+      "bienSoXe",
+      "nameCustomer"
+    ];
+
     const ignoreCompareFields = ["createdAt", "updatedAt"];
 
     // Lấy các trường thực sự thay đổi
@@ -883,6 +894,76 @@ const addHoaDonToSchedules = async (req, res) => {
   }
 };
 
+// 🆕 Xoá mã hoá đơn khỏi nhiều chuyến (set về rỗng)
+const removeHoaDonFromSchedules = async (req, res) => {
+  try {
+    const { maChuyenList } = req.body;
+
+    if (!Array.isArray(maChuyenList) || maChuyenList.length === 0) {
+      return res.status(400).json({ error: "Thiếu maChuyenList" });
+    }
+
+    const result = await ScheduleAdmin.updateMany(
+      { maChuyen: { $in: maChuyenList } },
+      { $set: { maHoaDon: "" } }
+    );
+
+    return res.json({
+      success: true,
+      message: `Đã xoá mã hoá đơn của ${result.modifiedCount} chuyến`,
+      maChuyenList,
+    });
+  } catch (err) {
+    console.error("❌ removeHoaDonFromSchedules error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// 🆕 Import mã hoá đơn từ file (check theo maChuyen)
+const importHoaDonFromExcel = async (req, res) => {
+  try {
+    const { records } = req.body;
+
+    if (!Array.isArray(records) || records.length === 0) {
+      return res.status(400).json({ error: "Không có dữ liệu import" });
+    }
+
+    let updated = 0;
+    let skipped = 0;
+
+    for (const r of records) {
+      const maChuyen = r.maChuyen?.toString().trim();
+      const maHoaDon = r.maHoaDon?.toString().trim();
+
+      if (!maChuyen || !maHoaDon) {
+        skipped++;
+        continue;
+      }
+
+      const schedule = await ScheduleAdmin.findOne({ maChuyen });
+      if (!schedule) {
+        skipped++;
+        continue;
+      }
+
+      schedule.maHoaDon = maHoaDon;
+      await schedule.save();
+      updated++;
+    }
+
+    return res.json({
+      success: true,
+      message: `Import hoá đơn thành công ${updated} chuyến, bỏ qua ${skipped} dòng`,
+      updated,
+      skipped,
+    });
+  } catch (err) {
+    console.error("❌ importHoaDonFromExcel error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
 const addBoSung = async (req, res) => {
   try {
     const { updates } = req.body; // [{ maChuyen, cuocPhiBoSung }, ...]
@@ -1207,8 +1288,8 @@ const exportTripsByDateRange = async (req, res) => {
         trip.ngayGiaoHang.toISOString().slice(0, 10)
       );
 
-      row.getCell("J").value = trip.diemDoHang || "";
-      row.getCell("K").value = trip.diemXepHang || "";
+      row.getCell("J").value = trip.diemXepHang || "";
+      row.getCell("K").value = trip.diemDoHang || "";
       row.getCell("L").value = trip.soDiem || "";
       row.getCell("M").value = trip.trongLuong || "";
       row.getCell("N").value = trip.bienSoXe || "";
@@ -1323,8 +1404,8 @@ const exportTripsByDateRangeBS = async (req, res) => {
         trip.ngayGiaoHang.toISOString().slice(0, 10)
       );
 
-      row.getCell("J").value = trip.diemDoHang || "";
-      row.getCell("K").value = trip.diemXepHang || "";
+      row.getCell("J").value = trip.diemXepHang || "";
+      row.getCell("K").value = trip.diemDoHang || "";
       row.getCell("L").value = trip.soDiem || "";
       row.getCell("M").value = trip.trongLuong || "";
       row.getCell("N").value = trip.bienSoXe || "";
@@ -1350,6 +1431,9 @@ const exportTripsByDateRangeBS = async (req, res) => {
       row.getCell("Y").value = trip.percentHH || "0";
       row.getCell("Z").value = trip.moneyHH || "0";
       row.getCell("AA").value = trip.moneyConLai || "0";
+      row.getCell("AB").value = trip.diemXepHangNew || "";
+      row.getCell("AC").value = trip.diemDoHangNew || "";
+      row.getCell("AD").value = trip.nameCustomer || "";
 
       row.commit();
     });
@@ -1395,4 +1479,6 @@ module.exports = {
   exportTripsByDateRange,
   exportTripsByDateRangeBS,
   addBoSungSingle,
+  removeHoaDonFromSchedules,
+  importHoaDonFromExcel,
 };

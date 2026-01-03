@@ -4,6 +4,9 @@ const multer = require("multer");
 const upload = multer(); // dùng memory storage để đọc buffer
 const TCBController = require("../controllers/TCBperson.controller");
 
+router.get("/export-excel", TCBController.exportExcel);
+
+
 // ============================
 // Thêm mới
 // POST /tcbperson
@@ -45,6 +48,12 @@ router.get("/customers", TCBController.getCustomers);
 // GET /tcbperson/accountants
 // ============================
 router.get("/accountants", TCBController.getAccountants);
+
+// ============================
+// Lấy danh sách mã chuyển duy nhất
+// GET /tcbperson/ma-chuyen
+// ============================
+router.get("/ma-chuyen", TCBController.getMaChuyen);
 
 // ============================
 // Lấy tất cả dữ liệu với filter
