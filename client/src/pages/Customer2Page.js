@@ -90,7 +90,7 @@ export default function Customer2Page() {
       <h1 className="text-xl font-semibold mb-4">Danh sách khách hàng</h1>
 
       {/* ACTION BAR */}
-      <div className="flex flex-wrap items-center gap-3 mb-4 bg-white p-4 rounded shadow">
+      <div className="flex flex-wrap justify-center items-center gap-3 mb-4 bg-white p-4 rounded shadow">
         <input
           type="file"
           accept=".xlsx,.xls"
@@ -125,8 +125,8 @@ export default function Customer2Page() {
       </div>
 
       {/* TABLE */}
-      <div className="bg-white rounded shadow overflow-auto">
-        <table className="w-full border-collapse text-xs">
+      <div className="bg-white rounded shadow overflow-auto flex justify-center">
+        <table className="w-1/2 border-collapse text-xs">
           <thead className="bg-gray-100">
             <tr>
               <th className="border px-3 py-2 text-center w-16">#</th>

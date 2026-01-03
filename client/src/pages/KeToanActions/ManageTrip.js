@@ -45,7 +45,7 @@ const columnGroups = [
     keys: ["diemXepHang", "diemDoHang"],
   },
 
-    {
+  {
     label: "ĐIỂM ĐÓNG / GIAO MỚI",
     keys: ["diemXepHangNew", "diemDoHangNew"],
   },
@@ -167,6 +167,7 @@ export default function ManageTrip({ user, onLogout }) {
     { key: "diemDoHang", label: "ĐIỂM GIAO HÀNG" },
     { key: "diemXepHangNew", label: "ĐIỂM ĐÓNG MỚI" },
     { key: "diemDoHangNew", label: "ĐIỂM GIAO MỚI" },
+    { key: "nameCustomer", label: "KH ĐIỂM GIAO" },
     { key: "soDiem", label: "SỐ ĐIỂM" },
     { key: "trongLuong", label: "TRỌNG LƯỢNG" },
     { key: "bienSoXe", label: "BIỂN SỐ XE" },
@@ -744,6 +745,94 @@ export default function ManageTrip({ user, onLogout }) {
     }
   };
 
+  const [importHoaDonLoading, setImportHoaDonLoading] = useState(false);
+
+  const handleImportHoaDonExcel = async (file) => {
+    if (!file) return;
+
+    const input = document.getElementById("importHoaDonInput"); // nhớ gán id cho input
+
+    try {
+      setImportHoaDonLoading(true);
+
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+
+      // 👉 Đọc raw theo dạng mảng (A, B, C…)
+      const rows = XLSX.utils.sheet_to_json(sheet, {
+        header: 1, // mảng 2 chiều
+        defval: "",
+      });
+
+      const records = [];
+
+      // 👉 BỎ DÒNG 1 (header), bắt đầu từ dòng 2 → index = 1
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+
+        const maChuyen = row[0]?.toString().trim(); // CỘT A
+        const maHoaDon = row[1]?.toString().trim(); // CỘT B
+
+        if (maChuyen && maHoaDon) {
+          records.push({ maChuyen, maHoaDon });
+        }
+      }
+
+      console.log("ROWS:", rows);
+      console.log("RECORDS:", records);
+
+      if (!records.length) {
+        alert("Không có dữ liệu mã chuyến / mã hoá đơn hợp lệ");
+        return;
+      }
+
+      await axios.post(
+        `${API_URL}/import-hoa-don`,
+        { records },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      alert(`Import thành công ${records.length} chuyến`);
+      fetchAllRides();
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.error || "Import hoá đơn thất bại");
+    } finally {
+      setImportHoaDonLoading(false);
+
+      // ✅ RESET FILE INPUT DÙ THÀNH CÔNG HAY THẤT BẠI
+      if (input) input.value = "";
+    }
+  };
+
+  // 🔹 Xoá mã hóa đơn cho các chuyến đã chọn (dùng chung checkbox)
+  const removeMaHoaDon = async () => {
+    if (!selectedTrips.length) return alert("Vui lòng chọn ít nhất 1 chuyến!");
+
+    if (!window.confirm("Bạn có chắc muốn xoá mã hoá đơn các chuyến đã chọn?"))
+      return;
+
+    try {
+      const res = await axios.post(
+        `${API_URL}/remove-hoa-don`,
+        {
+          maChuyenList: selectedTrips
+            .map((id) => rides.find((r) => r._id === id)?.maChuyen)
+            .filter(Boolean),
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      alert(res.data.message);
+      setSelectedTrips([]);
+      fetchAllRides();
+    } catch (err) {
+      console.error(err);
+      alert("Lỗi khi xoá mã hoá đơn");
+    }
+  };
+
   const [openBoSung, setOpenBoSung] = useState(false);
   const [selectedRideBS, setSelectedRideBS] = useState(null);
 
@@ -1304,6 +1393,18 @@ export default function ManageTrip({ user, onLogout }) {
           >
             Bổ sung chi phí
           </button>
+          {/* IMPORT HOÁ ĐƠN */}
+          <label className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg">
+            {importHoaDonLoading ? "Đang import..." : "Import hoá đơn"}
+            <input
+              id="importHoaDonInput"
+              type="file"
+              hidden
+              accept=".xlsx,.xls, .xlsm"
+              disabled={importHoaDonLoading}
+              onChange={(e) => handleImportHoaDonExcel(e.target.files[0])}
+            />
+          </label>
 
           {/* Text tiến trình cùng dòng */}
           {(showFileStatus || loadingImport) && (
@@ -1342,6 +1443,13 @@ export default function ManageTrip({ user, onLogout }) {
           className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg"
         >
           Cập nhật mã hóa đơn
+        </button>
+        <button
+          className="bg-gray-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg"
+          onClick={removeMaHoaDon}
+          disabled={!selectedTrips.length}
+        >
+          Xoá mã hoá đơn
         </button>
         <span className="text-sm text-gray-600">
           Đã chọn {selectedTrips.length} chuyến
@@ -2499,6 +2607,7 @@ export default function ManageTrip({ user, onLogout }) {
                               "hangVeBS",
                               "luuCaBS",
                               "cpKhacBS",
+                              "themDiem",
                             ].includes(col.key)
                               ? "700"
                               : "normal",
@@ -2509,6 +2618,7 @@ export default function ManageTrip({ user, onLogout }) {
                               "hangVeBS",
                               "luuCaBS",
                               "cpKhacBS",
+                              "themDiem",
                             ].includes(col.key)
                               ? "#1766ddff"
                               : "black",

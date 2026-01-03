@@ -2,8 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import TCBModal from "../../components/TCBModal";
-import * as XLSX from "xlsx";
-import { saveAs } from "file-saver";
 import API from "../../api";
 
 const apiTCB = `${API}/tcb-person`;
@@ -123,9 +121,12 @@ export default function ManageTCBperson() {
 
   const [customerList, setCustomerList] = useState([]);
   const [accountantList, setAccountantList] = useState([]);
+  const [maChuyenList, setMaChuyenList] = useState([]);
 
   const [selectedCustomers, setSelectedCustomers] = useState([]);
   const [selectedAccountants, setSelectedAccountants] = useState([]);
+  const [selectedMaChuyen, setSelectedMaChuyen] = useState([]);
+
   useEffect(() => {
     axios.get(`${apiTCB}/customers`).then((res) => {
       setCustomerList(res.data.data || []);
@@ -134,13 +135,17 @@ export default function ManageTCBperson() {
     axios.get(`${apiTCB}/accountants`).then((res) => {
       setAccountantList(res.data.data || []);
     });
+
+    axios.get(`${apiTCB}/ma-chuyen`).then((res) => {
+      setMaChuyenList(res.data.data || []);
+    });
   }, []);
 
   // ===== column filters =====
   const [colFilters, setColFilters] = useState({
     noiDungCK: "",
     ghiChu: "",
-    maChuyen: "",
+    maGD: "",
   });
   const [moneyFilter, setMoneyFilter] = useState({
     soTien: "",
@@ -148,11 +153,16 @@ export default function ManageTCBperson() {
   });
   const [searchKH, setSearchKH] = useState("");
   const [searchKT, setSearchKT] = useState("");
+  const [searchMC, setSearchMC] = useState("");
 
   // ----------------- fetch data -----------------
   const [page, setPage] = useState(1); // trang hiện tại
   const [totalPages, setTotalPages] = useState(1);
   const [totalRows, setTotalRows] = useState(0);
+
+  // mặc định giống backend
+  const [sortDate, setSortDate] = useState("desc");
+  // chỉ có: "asc" | "desc"
 
   const fetchData = async (p = 1) => {
     try {
@@ -163,16 +173,17 @@ export default function ManageTCBperson() {
         to: to || undefined,
         noiDungCK: colFilters.noiDungCK || undefined,
         ghiChu: colFilters.ghiChu || undefined,
-        maChuyen: colFilters.maChuyen || undefined,
+        maChuyen: selectedMaChuyen,
         soTien: moneyFilter.soTien || undefined,
         soDu: moneyFilter.soDu || undefined,
+        maGD: colFilters.maGD || undefined,
+        sortOrder: sortDate,
         page: p, // gửi page lên server
       };
       const res = await axios.post(`${apiTCB}/all`, body, {
         headers: { Authorization: token ? `Bearer ${token}` : undefined },
       });
       setData(res.data.data || []);
-      console.log(res.data.data);
       setPage(res.data.page || p);
       setTotalPages(res.data.totalPages || 1);
       setTotalRows(res.data.total || 0);
@@ -194,6 +205,8 @@ export default function ManageTCBperson() {
     moneyFilter,
     selectedAccountants,
     selectedCustomers,
+    selectedMaChuyen,
+    sortDate,
   ]);
 
   const goToPage = (p) => {
@@ -302,13 +315,6 @@ export default function ManageTCBperson() {
     setEditItem(v);
     setShowModal(true);
   };
-  const handleSave = (saved) => {
-    setData((prev) => {
-      const found = prev.find((p) => p._id === saved._id);
-      if (found) return prev.map((p) => (p._id === saved._id ? saved : p));
-      return [saved, ...prev];
-    });
-  };
 
   // ----------------- delete -----------------
   const handleDelete = async (id) => {
@@ -358,30 +364,46 @@ export default function ManageTCBperson() {
       setImporting(false);
     }
   };
-  const exportExcel = () => {
-    if (!data.length) return alert("Không có dữ liệu để xuất");
-    const headers = allColumns
-      .filter((c) => visibleColumns.includes(c.key))
-      .map((c) => c.label);
-    const rows = data.map((d) => {
-      const r = {};
-      allColumns.forEach((c) => {
-        if (!visibleColumns.includes(c.key)) return;
-        if (["timePay"].includes(c.key)) r[c.label] = formatDate(d[c.key]);
-        else if (["soTien", "soDu"].includes(c.key))
-          r[c.label] = formatPrice(d[c.key]);
-        else r[c.label] = d[c.key] || "";
+
+  const [exporting, setExporting] = useState(false);
+
+  const exportExcel = async () => {
+    if (exporting) return;
+
+    try {
+      setExporting(true);
+
+      const res = await axios.get(`${apiTCB}/export-excel`, {
+        params: {
+          from: from || undefined,
+          to: to || undefined,
+        },
+        responseType: "blob",
+        headers: {
+          Authorization: token ? `Bearer ${token}` : undefined,
+        },
       });
-      return r;
-    });
-    const ws = XLSX.utils.json_to_sheet(rows, { header: headers });
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "TCBperson");
-    const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    saveAs(
-      new Blob([wbout], { type: "application/octet-stream" }),
-      `TCBperson_${formatDate(new Date())}.xlsx`
-    );
+
+      const blob = new Blob([res.data], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `SAO_KE_TCB_${from || "ALL"}_${to || "NOW"}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export error:", err);
+      alert(
+        err.response?.data?.message || "Không thể xuất file Excel sao kê TCB"
+      );
+    } finally {
+      setExporting(false); // 🔓 mở lại nút
+    }
   };
 
   const [insertAnchor, setInsertAnchor] = useState(null);
@@ -515,12 +537,6 @@ export default function ManageTCBperson() {
       {/* Filter */}
       <div className="flex gap-2 mb-4 flex-wrap items-center justify-end">
         <input
-          placeholder="Tên khách hàng"
-          value={qKH}
-          onChange={(e) => setQKH(e.target.value)}
-          className="border p-2 rounded"
-        />
-        <input
           type="date"
           value={from}
           onChange={(e) => setFrom(e.target.value)}
@@ -536,13 +552,13 @@ export default function ManageTCBperson() {
         />
         <button
           onClick={() => {
-            setQKH("");
             setFrom("");
             setTo("");
             setMoneyFilter({ soTien: "", soDu: "" });
-            setColFilters({ noiDungCK: "", ghiChu: "", maChuyen: "" });
+            setColFilters({ noiDungCK: "", ghiChu: "", maGD: "" });
             setSelectedAccountants([]);
             setSelectedCustomers([]);
+            setSelectedMaChuyen([]);
             fetchData();
           }}
           className="bg-gray-200 px-3 py-1 rounded"
@@ -557,10 +573,18 @@ export default function ManageTCBperson() {
         </button>
         <button
           onClick={exportExcel}
-          className="bg-blue-600 px-3 py-1 text-white rounded"
+          disabled={exporting}
+          className={`px-3 py-1 text-white rounded transition
+    ${
+      exporting
+        ? "bg-gray-400 cursor-not-allowed"
+        : "bg-blue-600 hover:bg-blue-700"
+    }
+  `}
         >
-          Xuất Excel
+          {exporting ? "Đang xuất..." : "Xuất Excel"}
         </button>
+
         <input
           ref={fileInputRef}
           type="file"
@@ -574,6 +598,31 @@ export default function ManageTCBperson() {
         >
           {importing ? "Đang import..." : "Import Excel"}
         </button>
+      </div>
+
+      {/* Thanh sắp xếp */}
+      <div className="flex items-center gap-6 mb-1 p-1 border rounded bg-gray-50 text-xs">
+        <span className="font-semibold ml-1">Sắp xếp theo ngày:</span>
+
+        <label className="flex items-center gap-1 cursor-pointer">
+          <input
+            type="radio"
+            name="sortTimePay"
+            checked={sortDate === "desc"}
+            onChange={() => setSortDate("desc")}
+          />
+          <span>Giảm dần</span>
+        </label>
+
+        <label className="flex items-center gap-1 cursor-pointer">
+          <input
+            type="radio"
+            name="sortTimePay"
+            checked={sortDate === "asc"}
+            onChange={() => setSortDate("asc")}
+          />
+          <span>Tăng dần</span>
+        </label>
       </div>
 
       {/* Table */}
@@ -747,7 +796,8 @@ export default function ManageTCBperson() {
       )}
 
       {/* Phân trang */}
-      <div className="flex justify-center items-center gap-2 mt-2">
+      {/* Phân trang */}
+      <div className="flex justify-center items-center gap-3 mt-3">
         <button
           onClick={() => goToPage(page - 1)}
           disabled={page === 1}
@@ -756,9 +806,22 @@ export default function ManageTCBperson() {
           Trước
         </button>
 
-        <span>
-          Trang {page} / {totalPages}
-        </span>
+        {/* CHỌN TRANG */}
+        <div className="flex items-center gap-1">
+          <span>Trang</span>
+          <select
+            value={page}
+            onChange={(e) => goToPage(Number(e.target.value))}
+            className="border px-2 py-1 rounded"
+          >
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+          <span>/ {totalPages}</span>
+        </div>
 
         <button
           onClick={() => goToPage(page + 1)}
@@ -768,6 +831,8 @@ export default function ManageTCBperson() {
           Sau
         </button>
       </div>
+
+      {/* Xoá tất cả */}
       <div className="flex justify-end mt-3">
         <button
           onClick={handleDeleteAll}
@@ -777,6 +842,8 @@ export default function ManageTCBperson() {
           Xóa tất cả
         </button>
       </div>
+
+      {/* Bộ lọc cột */}
       {showColFilter && (
         <div
           ref={filterRef}
@@ -914,8 +981,71 @@ export default function ManageTCBperson() {
             </>
           )}
 
+          {/* ===== KẾ TOÁN ===== */}
+          {showColFilter === "maChuyen" && (
+            <>
+              {/* 🔍 input tìm */}
+              <input
+                className="w-full border px-1 py-0.5 mb-1"
+                placeholder="Tìm mã chuyến..."
+                value={searchMC}
+                onChange={(e) => setSearchMC(e.target.value)}
+              />
+
+              {/* ✅ chọn tất cả */}
+              <button
+                className="mb-1 w-full bg-gray-200 hover:bg-gray-300 rounded py-0.5"
+                onClick={() => {
+                  const filtered = maChuyenList.filter((a) =>
+                    a.toLowerCase().includes(searchMC.toLowerCase())
+                  );
+                  const allChecked = filtered.every((a) =>
+                    selectedMaChuyen.includes(a)
+                  );
+
+                  setSelectedMaChuyen((prev) =>
+                    allChecked
+                      ? prev.filter((x) => !filtered.includes(x))
+                      : Array.from(new Set([...prev, ...filtered]))
+                  );
+                }}
+              >
+                {maChuyenList
+                  .filter((a) =>
+                    a.toLowerCase().includes(searchMC.toLowerCase())
+                  )
+                  .every((a) => selectedMaChuyen.includes(a))
+                  ? "Bỏ chọn tất cả"
+                  : "Chọn tất cả"}
+              </button>
+
+              <div className="max-h-40 overflow-auto">
+                {maChuyenList
+                  .filter((a) =>
+                    a.toLowerCase().includes(searchMC.toLowerCase())
+                  )
+                  .map((a) => (
+                    <label key={a} className="flex items-center gap-1 mb-1">
+                      <input
+                        type="checkbox"
+                        checked={selectedMaChuyen.includes(a)}
+                        onChange={(e) =>
+                          setSelectedMaChuyen((p) =>
+                            e.target.checked
+                              ? [...p, a]
+                              : p.filter((x) => x !== a)
+                          )
+                        }
+                      />
+                      <span>{a}</span>
+                    </label>
+                  ))}
+              </div>
+            </>
+          )}
+
           {/* ===== TEXT FILTER ===== */}
-          {["noiDungCK", "ghiChu", "maChuyen"].includes(showColFilter) && (
+          {["noiDungCK", "ghiChu", "maGD"].includes(showColFilter) && (
             <>
               <input
                 autoFocus
