@@ -602,7 +602,7 @@ export default function ManageTCBperson() {
 
       {/* Thanh sắp xếp */}
       <div className="flex items-center gap-6 mb-1 p-1 border rounded bg-gray-50 text-xs">
-        <span className="font-semibold ml-1">Sắp xếp theo ngày:</span>
+        <span className="font-semibold ml-1">Sắp xếp theo mã GD:</span>
 
         <label className="flex items-center gap-1 cursor-pointer">
           <input

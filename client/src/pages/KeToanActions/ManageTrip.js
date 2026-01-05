@@ -131,21 +131,24 @@ export default function ManageTrip({ user, onLogout }) {
   const [customers, setCustomers] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [addresses, setAddresses] = useState([]);
+    const [customers2, setCustomers2] = useState([]);
 
   // 🔹 Lấy danh sách gợi ý
   useEffect(() => {
     const fetchData = async () => {
-      const [driverRes, customerRes, vehicleRes, addressRes] =
+      const [driverRes, customerRes, vehicleRes, addressRes, customer2Res] =
         await Promise.all([
           axios.get(`${API}/drivers/names/list`),
           axios.get(`${API}/customers`),
           axios.get(`${API}/vehicles/names/list`),
           axios.get(`${API}/address/all`),
+          axios.get(`${API}/customer2/all`),
         ]);
       setDrivers(driverRes.data);
       setCustomers(customerRes.data);
       setVehicles(vehicleRes.data);
       setAddresses(addressRes.data.data || []);
+      setCustomers2(customer2Res.data.data || []);
     };
     fetchData();
   }, []);
@@ -180,6 +183,7 @@ export default function ManageTrip({ user, onLogout }) {
     { key: "luuCaBS", label: "LƯU CA" },
     { key: "cpKhacBS", label: "CP KHÁC" },
     { key: "maChuyen", label: "MÃ CHUYẾN" },
+    { key: "debtCode", label: "MÃ CN" },
     { key: "accountUsername", label: "KẾ TOÁN PHỤ TRÁCH" },
     { key: "maHoaDon", label: "MÃ HOÁ ĐƠN" },
 
@@ -385,6 +389,8 @@ export default function ManageTrip({ user, onLogout }) {
     bienSoXe: [],
     dienGiai: [],
     cuocPhi: [],
+    maHoaDon: [],
+    debtCode: [],
   });
 
   // ✅ DANH SÁCH ĐƯỢC CHỌN
@@ -394,6 +400,8 @@ export default function ManageTrip({ user, onLogout }) {
     bienSoXe: [],
     dienGiai: [],
     cuocPhi: [],
+    maHoaDon: [],
+    debtCode: [],
   });
 
   useEffect(() => {
@@ -410,6 +418,8 @@ export default function ManageTrip({ user, onLogout }) {
   const [searchPlate, setSearchPlate] = useState("");
   const [searchDGiai, setSearchDGiai] = useState("");
   const [searchCuocPhiBD, setSearchCuocPhiBD] = useState("");
+  const [searchMaHoaDon, setSearchMaHoaDon] = useState("");
+  const [searchDebtCode, setSearchDebtCode] = useState("");
 
   const [loading, setLoading] = useState(false);
 
@@ -440,6 +450,12 @@ export default function ManageTrip({ user, onLogout }) {
       }
       if (excelSelected.cuocPhi.length > 0) {
         excelSelected.cuocPhi.forEach((v) => q.append("cuocPhi", v));
+      }
+      if (excelSelected.maHoaDon.length > 0) {
+        excelSelected.maHoaDon.forEach((v) => q.append("maHoaDon", v));
+      }
+      if (excelSelected.debtCode.length > 0) {
+        excelSelected.debtCode.forEach((v) => q.append("debtCode", v));
       }
 
       // 🔹 FILTER TEXT
@@ -499,6 +515,8 @@ export default function ManageTrip({ user, onLogout }) {
     excelSelected.bienSoXe.join("|"),
     excelSelected.dienGiai.join("|"),
     excelSelected.cuocPhi.join("|"),
+    excelSelected.maHoaDon.join("|"),
+    excelSelected.debtCode.join("|"),
     JSON.stringify(moneyFilter),
     date,
     page,
@@ -1569,6 +1587,8 @@ export default function ManageTrip({ user, onLogout }) {
                 bienSoXe: [],
                 dienGiai: [],
                 cuocPhi: [],
+                maHoaDon: [],
+                debtCode: [],
               });
               setGiaoFrom("");
               setGiaoTo("");
@@ -2132,6 +2152,196 @@ export default function ManageTrip({ user, onLogout }) {
                           </>
                         )}
 
+                                                {/* ===== FILTER MÃ HOÁ ĐƠN ===== */}
+                        {openFilter === "maHoaDon" && (
+                          <>
+                            <input
+                              className="border w-full px-2 py-1 mb-1"
+                              placeholder="Tìm nhanh..."
+                              value={searchMaHoaDon}
+                              onChange={(e) => setSearchMaHoaDon(e.target.value)}
+                            />
+
+                            <label className="flex gap-1 items-center mb-1">
+                              <input
+                                type="checkbox"
+                                checked={
+                                  excelSelected.maHoaDon.length ===
+                                    excelOptions.maHoaDon.length &&
+                                  excelOptions.maHoaDon.length > 0
+                                }
+                                onChange={() => {
+                                  setExcelSelected((p) => ({
+                                    ...p,
+                                    maHoaDon:
+                                      p.maHoaDon.length ===
+                                      excelOptions.maHoaDon.length
+                                        ? []
+                                        : excelOptions.maHoaDon,
+                                  }));
+                                  setPage(1);
+                                }}
+                              />
+                              Chọn tất cả
+                            </label>
+
+                            <div className="max-h-40 overflow-y-auto border p-1">
+                              {excelOptions.maHoaDon
+                                .filter((c) => {
+                                  if (!searchMaHoaDon) return true;
+                                  return normalize(c).includes(
+                                    normalize(searchMaHoaDon)
+                                  );
+                                })
+
+                                .map((c) => (
+                                  <label
+                                    key={c}
+                                    className="flex gap-1 items-center"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={excelSelected.maHoaDon.includes(
+                                        c
+                                      )}
+                                      onChange={() =>
+                                        setExcelSelected((p) => ({
+                                          ...p,
+                                          maHoaDon: p.maHoaDon.includes(c)
+                                            ? p.maHoaDon.filter((x) => x !== c)
+                                            : [...p.maHoaDon, c],
+                                        }))
+                                      }
+                                    />
+                                    <span className="truncate">{c}</span>
+                                  </label>
+                                ))}
+                            </div>
+
+                            <div className="flex gap-1 mt-2">
+                              <button
+                                className="flex-1 bg-blue-600 text-white px-2 py-1 rounded"
+                                onClick={() => {
+                                  setPage(1);
+                                  setOpenFilter(null);
+                                }}
+                              >
+                                Áp dụng
+                              </button>
+
+                              <button
+                                className="flex-1 bg-gray-200 px-2 py-1 rounded"
+                                onClick={() => {
+                                  setExcelSelected((p) => ({
+                                    ...p,
+                                    khachHang: [],
+                                  }));
+                                  setPage(1);
+                                  setOpenFilter(null);
+                                }}
+                              >
+                                Xóa
+                              </button>
+                            </div>
+                          </>
+                        )}
+
+                                                {/* ===== FILTER MÃ CN  ===== */}
+                        {openFilter === "debtCode" && (
+                          <>
+                            <input
+                              className="border w-full px-2 py-1 mb-1"
+                              placeholder="Tìm nhanh..."
+                              value={searchDebtCode}
+                              onChange={(e) => setSearchDebtCode(e.target.value)}
+                            />
+
+                            <label className="flex gap-1 items-center mb-1">
+                              <input
+                                type="checkbox"
+                                checked={
+                                  excelSelected.debtCode.length ===
+                                    excelOptions.debtCode.length &&
+                                  excelOptions.debtCode.length > 0
+                                }
+                                onChange={() => {
+                                  setExcelSelected((p) => ({
+                                    ...p,
+                                    debtCode:
+                                      p.debtCode.length ===
+                                      excelOptions.debtCode.length
+                                        ? []
+                                        : excelOptions.debtCode,
+                                  }));
+                                  setPage(1);
+                                }}
+                              />
+                              Chọn tất cả
+                            </label>
+
+                            <div className="max-h-40 overflow-y-auto border p-1">
+                              {excelOptions.debtCode
+                                .filter((c) => {
+                                  if (!searchDebtCode) return true;
+                                  return normalize(c).includes(
+                                    normalize(searchDebtCode)
+                                  );
+                                })
+
+                                .map((c) => (
+                                  <label
+                                    key={c}
+                                    className="flex gap-1 items-center"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={excelSelected.debtCode.includes(
+                                        c
+                                      )}
+                                      onChange={() =>
+                                        setExcelSelected((p) => ({
+                                          ...p,
+                                          debtCode: p.debtCode.includes(c)
+                                            ? p.debtCode.filter((x) => x !== c)
+                                            : [...p.debtCode, c],
+                                        }))
+                                      }
+                                    />
+                                    <span className="truncate">{c}</span>
+                                  </label>
+                                ))}
+                            </div>
+
+                            <div className="flex gap-1 mt-2">
+                              <button
+                                className="flex-1 bg-blue-600 text-white px-2 py-1 rounded"
+                                onClick={() => {
+                                  setPage(1);
+                                  setOpenFilter(null);
+                                }}
+                              >
+                                Áp dụng
+                              </button>
+
+                              <button
+                                className="flex-1 bg-gray-200 px-2 py-1 rounded"
+                                onClick={() => {
+                                  setExcelSelected((p) => ({
+                                    ...p,
+                                    khachHang: [],
+                                  }));
+                                  setPage(1);
+                                  setOpenFilter(null);
+                                }}
+                              >
+                                Xóa
+                              </button>
+                            </div>
+                          </>
+                        )}
+
+
+
                         {/* ===== FILTER CƯỚC PHÍ (STRING) ===== */}
                         {openFilter === "cuocPhi" && (
                           <>
@@ -2238,6 +2448,8 @@ export default function ManageTrip({ user, onLogout }) {
                           "bienSoXe",
                           "cuocPhi",
                           "dienGiai",
+                          "maHoaDon",
+                          "debtCode",
                         ].includes(openFilter) &&
                           !moneyColumns.includes(openFilter) && (
                             <>
@@ -2780,6 +2992,7 @@ export default function ManageTrip({ user, onLogout }) {
             customers={customers}
             vehicles={vehicles}
             addresses={addresses}
+            customers2={customers2}
           />
         </div>
       )}

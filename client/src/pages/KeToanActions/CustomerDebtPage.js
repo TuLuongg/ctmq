@@ -15,13 +15,24 @@ const normalizeString = (str) => {
     .toLowerCase();
 };
 
+const DEBT_FILTER_KEY = "customer_debt_month_year";
+
 export default function CustomerDebtPage() {
   const token = localStorage.getItem("token");
   const now = new Date();
 
-  const [monthYear, setMonthYear] = useState(
-    `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
-  );
+  const [monthYear, setMonthYear] = useState(() => {
+    return (
+      localStorage.getItem(DEBT_FILTER_KEY) ||
+      `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+    );
+  });
+
+  useEffect(() => {
+    if (monthYear) {
+      localStorage.setItem(DEBT_FILTER_KEY, monthYear);
+    }
+  }, [monthYear]);
 
   // vẫn giữ month / year để dùng cho logic cũ
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -404,6 +415,22 @@ export default function CustomerDebtPage() {
     }
   };
 
+  useEffect(() => {
+    if (!monthYear) return;
+
+    const [y, m] = monthYear.split("-");
+    const formatted = `${m}/${y}`; // MM/YYYY
+
+    setAutoManageMonth(monthYear);
+
+    setAutoDebtData((prev) => ({
+      ...prev,
+      manageMonth: formatted,
+      month: Number(m),
+      year: Number(y),
+    }));
+  }, [monthYear]);
+
   // ====================== RENDER ======================
   return (
     <div className="p-4 text-xs">
@@ -526,6 +553,10 @@ export default function CustomerDebtPage() {
               alert("Vui lòng chọn khách hàng");
               return;
             }
+
+            // ✅ LẤY THÁNG/NĂM TỪ BỘ LỌC
+            setAutoManageMonth(monthYear);
+
             setShowAutoCreateModal(true);
           }}
           className="px-4 py-2 bg-green-600 text-white rounded"

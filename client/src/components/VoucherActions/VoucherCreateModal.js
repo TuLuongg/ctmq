@@ -122,11 +122,28 @@ function normalizeVN(str = "") {
     .trim();
 }
 
-export default function VoucherCreateModal({ customers, onClose, onSuccess }) {
+export default function VoucherCreateModal({
+  customers,
+  defaultData,
+  onClose,
+  onSuccess,
+}) {
   const token = localStorage.getItem("token");
 
+  useEffect(() => {
+    if (defaultData) {
+      setForm((prev) => ({
+        ...prev,
+        ...defaultData,
+        dateCreated: defaultData.dateCreated
+          ? new Date(defaultData.dateCreated).toISOString().slice(0, 10)
+          : "",
+      }));
+    }
+  }, [defaultData]);
+
   const [form, setForm] = useState({
-    dateCreated: new Date().toISOString().slice(0, 10),
+    dateCreated: "",
     paymentSource: "COMPANY_VCB",
     receiverName: "",
     receiverCompany: "",
@@ -364,6 +381,7 @@ export default function VoucherCreateModal({ customers, onClose, onSuccess }) {
             name="dateCreated"
             value={form.dateCreated}
             onChange={change}
+            onClick={(e) => e.target.showPicker()}
             className="border border-gray-300 rounded-md outline-none p-2 w-40"
           />
         </div>

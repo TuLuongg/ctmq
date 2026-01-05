@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import VoucherCreateModal from "../../components/VoucherActions/VoucherCreateModal";
 import VoucherDetailModal from "../../components/VoucherActions/VoucherDetailModal";
+import { FiEye, FiPrinter } from "react-icons/fi";
+import { FaCopy } from "react-icons/fa";
+
 import API from "../../api";
 import axios from "axios";
 
@@ -655,6 +658,26 @@ export default function VoucherListPage() {
     return () => window.removeEventListener("click", close);
   }, []);
 
+  const [copyData, setCopyData] = useState(null);
+
+  const handleCopyVoucher = (voucher) => {
+    const data = {
+      dateCreated: voucher.dateCreated,
+      paymentSource: voucher.paymentSource,
+      receiverName: voucher.receiverName,
+      receiverBankAccount: voucher.receiverBankAccount,
+      receiverCompany: voucher.receiverCompany,
+      transferContent: voucher.transferContent,
+      reason: voucher.reason,
+      expenseType: voucher.expenseType,
+      amount: voucher.amount,
+      transferDate: voucher.transferDate || "",
+    };
+
+    setCopyData(data);
+    setShowCreate(true);
+  };
+
   return (
     <div className="p-4 text-xs">
       <div className="flex gap-2 items-center mb-4">
@@ -799,7 +822,10 @@ export default function VoucherListPage() {
         </button>
 
         <button
-          onClick={() => setShowCreate(true)}
+          onClick={() => {
+            setCopyData({ dateCreated: now });
+            setShowCreate(true);
+          }}
           className="px-3 py-1 rounded bg-green-600 text-white"
         >
           Tạo phiếu mới
@@ -1055,15 +1081,40 @@ export default function VoucherListPage() {
                                     className="text-blue-600"
                                     onClick={() => setDetailId(v._id)}
                                   >
-                                    Xem
+                                    <FiEye size={14} />
                                   </button>
                                   <button
-                                    className="text-red-600"
-                                    onClick={() =>
-                                      window.open(`/voucher/${v._id}/print`)
-                                    }
+                                    className="text-red-600 ml-1"
+                                    onClick={async () => {
+                                      try {
+                                        // 1️⃣ GỌI API IN → AUTO APPROVE NẾU waiting_check
+                                        await axios.post(
+                                          `${API}/vouchers/${v._id}/print`
+                                        );
+
+                                        // 2️⃣ MỞ TRANG IN (GET – KHÔNG SIDE EFFECT)
+                                        window.open(
+                                          `/voucher/${v._id}/print`,
+                                          "_blank"
+                                        );
+
+                                        load()
+                                      } catch (err) {
+                                        alert(
+                                          err.response?.data?.error ||
+                                            "Không in được phiếu"
+                                        );
+                                      }
+                                    }}
                                   >
-                                    In phiếu
+                                    <FiPrinter size={14} />
+                                  </button>
+
+                                  <button
+                                    className="text-gray-500 ml-1"
+                                    onClick={() => handleCopyVoucher(v)}
+                                  >
+                                    <FaCopy size={14} />
                                   </button>
                                 </div>
                               );
@@ -1492,6 +1543,7 @@ export default function VoucherListPage() {
       {showCreate && (
         <VoucherCreateModal
           customers={customers}
+          defaultData={copyData}
           onClose={() => setShowCreate(false)}
           onSuccess={() => {
             setShowCreate(false);
