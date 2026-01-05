@@ -380,8 +380,8 @@ export default function RideModal({
     }
 
     // ===== KH ĐIỂM GIAO (Customer2) =====
-    if (name === "nameCustomer") {
-      setForm((prev) => ({ ...prev, nameCustomer: value }));
+    if (name === "KHdiemGiaoHang") {
+      setForm((prev) => ({ ...prev, KHdiemGiaoHang: value }));
 
       const filtered = customers2.filter((c) =>
         removeVietnameseTones(c.nameKH).includes(removeVietnameseTones(value))
@@ -926,8 +926,8 @@ export default function RideModal({
 
             <input
               type="text"
-              name="nameCustomer"
-              value={form.nameCustomer || ""}
+              name="KHdiemGiaoHang"
+              value={form.KHdiemGiaoHang || ""}
               onChange={handleChange}
               onKeyDown={(e) => {
                 if (!customer2Suggestions.length) return;
@@ -950,7 +950,7 @@ export default function RideModal({
                   e.preventDefault();
                   setForm((prev) => ({
                     ...prev,
-                    nameCustomer: customer2Suggestions[customer2Index].nameKH,
+                    KHdiemGiaoHang: customer2Suggestions[customer2Index].nameKH,
                   }));
                   setCustomer2Suggestions([]);
                 }
@@ -978,7 +978,7 @@ export default function RideModal({
                     onClick={() => {
                       setForm((prev) => ({
                         ...prev,
-                        nameCustomer: c.nameKH,
+                        KHdiemGiaoHang: c.nameKH,
                       }));
                       setCustomer2Suggestions([]);
                     }}

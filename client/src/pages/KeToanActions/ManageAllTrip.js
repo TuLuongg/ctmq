@@ -1,13 +1,19 @@
 import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { useNavigate, useLocation } from "react-router-dom";
-import { FaEdit, FaHistory, FaExclamationTriangle } from "react-icons/fa";
+import {
+  FaEdit,
+  FaHistory,
+  FaExclamationTriangle,
+  FaCopy,
+} from "react-icons/fa";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import RideEditTripModal from "../../components/RideEditTripModal";
 import RideAllRequestModal from "../../components/RideAllRequestModal";
 import RideHistoryModal from "../../components/RideHistoryModal";
+import RideModal from "../../components/RideModal";
 import API from "../../api";
 
 const API_URL = `${API}/schedule-admin`;
@@ -62,6 +68,7 @@ const groupColumnKeys = columnGroups.flatMap((g) => g.keys);
 
 export default function ManageTrip({ user, onLogout }) {
   const [rides, setRides] = useState([]);
+  const [rideDraft, setRideDraft] = useState(null);
   const [managers, setManagers] = useState([]);
   const [today] = useState(new Date());
   const [date, setDate] = useState("");
@@ -117,6 +124,33 @@ export default function ManageTrip({ user, onLogout }) {
     navigate("/tcb-person", { state: { user } });
   };
 
+  // 5 danh sách gợi ý
+  const [drivers, setDrivers] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
+  const [addresses, setAddresses] = useState([]);
+  const [customers2, setCustomers2] = useState([]);
+
+  // 🔹 Lấy danh sách gợi ý
+  useEffect(() => {
+    const fetchData = async () => {
+      const [driverRes, customerRes, vehicleRes, addressRes, customer2Res] =
+        await Promise.all([
+          axios.get(`${API}/drivers/names/list`),
+          axios.get(`${API}/customers`),
+          axios.get(`${API}/vehicles/names/list`),
+          axios.get(`${API}/address/all`),
+          axios.get(`${API}/customer2/all`),
+        ]);
+      setDrivers(driverRes.data);
+      setCustomers(customerRes.data);
+      setVehicles(vehicleRes.data);
+      setAddresses(addressRes.data.data || []);
+      setCustomers2(customer2Res.data.data || []);
+    };
+    fetchData();
+  }, []);
+
   // -------------------------------------
   // CÁC CỘT CHÍNH + MỞ RỘNG → GỘP 1 LIST
   // -------------------------------------
@@ -147,7 +181,7 @@ export default function ManageTrip({ user, onLogout }) {
     { key: "diemDoHang", label: "ĐIỂM GIAO HÀNG" },
     { key: "diemXepHangNew", label: "ĐIỂM ĐÓNG MỚI" },
     { key: "diemDoHangNew", label: "ĐIỂM GIAO MỚI" },
-    { key: "nameCustomer", label: "KH ĐIỂM GIAO" },
+    { key: "KHdiemGiaoHang", label: "KH ĐIỂM GIAO" },
     { key: "soDiem", label: "SỐ ĐIỂM" },
     { key: "trongLuong", label: "TRỌNG LƯỢNG" },
     { key: "bienSoXe", label: "BIỂN SỐ XE" },
@@ -536,6 +570,67 @@ export default function ManageTrip({ user, onLogout }) {
     sortOrder,
   ]);
 
+  const [showModal, setShowModal] = useState(false);
+  const handleAdd = () => {
+    setRideDraft([]);
+    setShowModal(true);
+  };
+  const handleCopyRide = (ride) => {
+    const copied = {
+      ...ride,
+
+      // ❌ loại bỏ field không copy
+      _id: undefined,
+      createdAt: undefined,
+      updatedAt: undefined,
+
+      // ✅ GIỮ ngày gốc, chỉ fallback nếu null
+      ngayBocHang: ride.ngayBocHang
+        ? format(new Date(ride.ngayBocHang), "yyyy-MM-dd")
+        : format(date, "yyyy-MM-dd"),
+
+      ngayGiaoHang: ride.ngayGiaoHang
+        ? format(new Date(ride.ngayGiaoHang), "yyyy-MM-dd")
+        : format(date, "yyyy-MM-dd"),
+
+      ngayBoc: ride.ngayBoc
+        ? format(new Date(ride.ngayBoc), "yyyy-MM-dd")
+        : format(date, "yyyy-MM-dd"),
+
+      // người tạo mới
+      createdByID: currentUser._id,
+      createdBy: currentUser.fullname,
+      dieuVanID: currentUser._id,
+      dieuVan: currentUser.fullname,
+    };
+
+    delete copied.maChuyen;
+    console.log(copied.maChuyen);
+
+    setRideDraft(copied);
+    setShowModal(true);
+  };
+
+  const handleSave = async (payload) => {
+    try {
+      // chỉ POST, không check editRide
+      const res = await axios.post(API_URL, payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      // thêm vào state
+      setRides((prev) => [...prev, res.data]);
+
+      // nếu cần fetch lại danh sách
+      fetchAllRides();
+      alert("Thêm chuyến thành công !");
+      // đóng modal
+      setShowModal(false);
+    } catch (err) {
+      alert("Không lưu được: " + err.response?.data?.error);
+    }
+  };
+
   const [filterPos, setFilterPos] = useState({ x: 0, y: 0 });
 
   // 🔹 Lấy fullname từ id
@@ -786,8 +881,11 @@ export default function ManageTrip({ user, onLogout }) {
       for (let i = 1; i < rows.length; i++) {
         const row = rows[i];
 
-        const maChuyen = row[0]?.toString().trim(); // CỘT A
-        const maHoaDon = row[1]?.toString().trim(); // CỘT B
+        const maChuyen =
+          row[0] !== undefined && row[0] !== null ? String(row[0]).trim() : "";
+
+        const maHoaDon =
+          row[1] !== undefined && row[1] !== null ? String(row[1]).trim() : "";
 
         if (maChuyen && maHoaDon) {
           records.push({ maChuyen, maHoaDon });
@@ -1543,29 +1641,37 @@ export default function ManageTrip({ user, onLogout }) {
         </div>
 
         {/* BÊN PHẢI: Xóa lọc sát mép phải */}
-        <button
-          onClick={() => {
-            setFilters(
-              Object.fromEntries(filterFields.map((f) => [f.key, ""]))
-            );
-            setExcelSelected({
-              khachHang: [],
-              tenLaiXe: [],
-              bienSoXe: [],
-              dienGiai: [],
-              cuocPhi: [],
-              maHoaDon: [],
-              debtCode: [],
-            });
-            setGiaoFrom("");
-            setGiaoTo("");
-            setMoneyFilter("");
-            setPage(1);
-          }}
-          className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded shadow"
-        >
-          Xóa lọc
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleAdd}
+            className="bg-blue-500 hover:bg-blue-800 text-white px-3 py-1 rounded"
+          >
+            + Thêm chuyến
+          </button>
+          <button
+            onClick={() => {
+              setFilters(
+                Object.fromEntries(filterFields.map((f) => [f.key, ""]))
+              );
+              setExcelSelected({
+                khachHang: [],
+                tenLaiXe: [],
+                bienSoXe: [],
+                dienGiai: [],
+                cuocPhi: [],
+                maHoaDon: [],
+                debtCode: [],
+              });
+              setGiaoFrom("");
+              setGiaoTo("");
+              setMoneyFilter("");
+              setPage(1);
+            }}
+            className="px-4 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded shadow"
+          >
+            Xóa lọc
+          </button>
+        </div>
       </div>
 
       {/* BẢNG */}
@@ -2656,8 +2762,16 @@ export default function ManageTrip({ user, onLogout }) {
                           </span>
                         </button>
                       ) : (
-                        <span className="text-gray-400 text-xs">-</span>
+                        <span className="text-gray-400 text-xs">null</span>
                       )}
+
+                      <button
+                        onClick={() => handleCopyRide(r)}
+                        className="p-1.5 bg-gray-400 text-white rounded-lg shadow-sm hover:bg-green-500 hover:shadow-md transition"
+                        title="Nhân bản"
+                      >
+                        <FaCopy className="w-2 h-2" />
+                      </button>
                     </div>
                   </td>
                 )}
@@ -2773,6 +2887,42 @@ export default function ManageTrip({ user, onLogout }) {
                         <div
                           className="truncate"
                           style={{
+                            textAlign: [
+                              "cuocPhiBS",
+                              "bocXepBS",
+                              "veBS",
+                              "hangVeBS",
+                              "luuCaBS",
+                              "cpKhacBS",
+                              "themDiem",
+                              "cuocPhi",
+                              "bocXep",
+                              "ve",
+                              "hangVe",
+                              "luuCa",
+                              "luatChiPhiKhac",
+                              "percentHH",
+                              "moneyHH",
+                              "moneyConLai"
+                            ].includes(col.key) ? "right" : "left",
+                            paddingRight: [
+                              "cuocPhiBS",
+                              "bocXepBS",
+                              "veBS",
+                              "hangVeBS",
+                              "luuCaBS",
+                              "cpKhacBS",
+                              "themDiem",
+                              "cuocPhi",
+                              "bocXep",
+                              "ve",
+                              "hangVe",
+                              "luuCa",
+                              "luatChiPhiKhac",
+                              "percentHH",
+                              "moneyHH",
+                              "moneyConLai"
+                            ].includes(col.key) ? "4px" : "0",
                             fontWeight: [
                               "cuocPhiBS",
                               "bocXepBS",
@@ -2892,6 +3042,25 @@ export default function ManageTrip({ user, onLogout }) {
         </select>
       </div>
 
+      {/* Modal thêm/sửa chuyến */}
+      {showModal && (
+        <div className="fixed z-[99999]">
+          <RideModal
+            key="new"
+            initialData={rideDraft}
+            onClose={() => setShowModal(false)}
+            onSave={handleSave}
+            dieuVanList={[]}
+            currentUser={currentUser}
+            drivers={drivers}
+            customers={customers}
+            vehicles={vehicles}
+            addresses={addresses}
+            customers2={customers2}
+          />
+        </div>
+      )}
+
       {showTripEditModal && (
         <div className="fixed z-[99999]">
           <RideEditTripModal
@@ -2899,6 +3068,11 @@ export default function ManageTrip({ user, onLogout }) {
             onSubmit={submitTripEdit}
             currentUser={currentUser}
             onClose={() => setShowTripEditModal(false)}
+            drivers={drivers}
+            customers={customers}
+            vehicles={vehicles}
+            addresses={addresses}
+            customers2={customers2}
           />
         </div>
       )}

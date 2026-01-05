@@ -362,9 +362,9 @@ export default function RideEditRequestModal({
       return;
     }
 
-    // ===== KH ĐIỂM GIAO (nameCustomer) =====
-    if (name === "nameCustomer") {
-      setForm((prev) => ({ ...prev, nameCustomer: value }));
+    // ===== KH ĐIỂM GIAO (KHdiemGiaoHang) =====
+    if (name === "KHdiemGiaoHang") {
+      setForm((prev) => ({ ...prev, KHdiemGiaoHang: value }));
 
       const keyword = removeVietnameseTones(value);
 
@@ -766,8 +766,8 @@ export default function RideEditRequestModal({
 
               <input
                 type="text"
-                name="nameCustomer"
-                value={form.nameCustomer || ""}
+                name="KHdiemGiaoHang"
+                value={form.KHdiemGiaoHang || ""}
                 onChange={handleChange}
                 onFocus={() => setIsCustomer2Focused(true)}
                 onBlur={() =>
@@ -789,7 +789,7 @@ export default function RideEditRequestModal({
                       onClick={() => {
                         setForm((prev) => ({
                           ...prev,
-                          nameCustomer: c.nameKH,
+                          KHdiemGiaoHang: c.nameKH,
                         }));
                         setCustomer2Suggestions([]);
                       }}

@@ -126,12 +126,12 @@ export default function ManageTrip({ user, onLogout }) {
     navigate("/tcb-person", { state: { user } });
   };
 
-  // 🔹 3 danh sách gợi ý
+  // 5 danh sách gợi ý
   const [drivers, setDrivers] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [addresses, setAddresses] = useState([]);
-    const [customers2, setCustomers2] = useState([]);
+  const [customers2, setCustomers2] = useState([]);
 
   // 🔹 Lấy danh sách gợi ý
   useEffect(() => {
@@ -170,7 +170,7 @@ export default function ManageTrip({ user, onLogout }) {
     { key: "diemDoHang", label: "ĐIỂM GIAO HÀNG" },
     { key: "diemXepHangNew", label: "ĐIỂM ĐÓNG MỚI" },
     { key: "diemDoHangNew", label: "ĐIỂM GIAO MỚI" },
-    { key: "nameCustomer", label: "KH ĐIỂM GIAO" },
+    { key: "KHdiemGiaoHang", label: "KH ĐIỂM GIAO" },
     { key: "soDiem", label: "SỐ ĐIỂM" },
     { key: "trongLuong", label: "TRỌNG LƯỢNG" },
     { key: "bienSoXe", label: "BIỂN SỐ XE" },
@@ -789,8 +789,11 @@ export default function ManageTrip({ user, onLogout }) {
       for (let i = 1; i < rows.length; i++) {
         const row = rows[i];
 
-        const maChuyen = row[0]?.toString().trim(); // CỘT A
-        const maHoaDon = row[1]?.toString().trim(); // CỘT B
+        const maChuyen =
+          row[0] !== undefined && row[0] !== null ? String(row[0]).trim() : "";
+
+        const maHoaDon =
+          row[1] !== undefined && row[1] !== null ? String(row[1]).trim() : "";
 
         if (maChuyen && maHoaDon) {
           records.push({ maChuyen, maHoaDon });
@@ -2152,14 +2155,16 @@ export default function ManageTrip({ user, onLogout }) {
                           </>
                         )}
 
-                                                {/* ===== FILTER MÃ HOÁ ĐƠN ===== */}
+                        {/* ===== FILTER MÃ HOÁ ĐƠN ===== */}
                         {openFilter === "maHoaDon" && (
                           <>
                             <input
                               className="border w-full px-2 py-1 mb-1"
                               placeholder="Tìm nhanh..."
                               value={searchMaHoaDon}
-                              onChange={(e) => setSearchMaHoaDon(e.target.value)}
+                              onChange={(e) =>
+                                setSearchMaHoaDon(e.target.value)
+                              }
                             />
 
                             <label className="flex gap-1 items-center mb-1">
@@ -2246,14 +2251,16 @@ export default function ManageTrip({ user, onLogout }) {
                           </>
                         )}
 
-                                                {/* ===== FILTER MÃ CN  ===== */}
+                        {/* ===== FILTER MÃ CN  ===== */}
                         {openFilter === "debtCode" && (
                           <>
                             <input
                               className="border w-full px-2 py-1 mb-1"
                               placeholder="Tìm nhanh..."
                               value={searchDebtCode}
-                              onChange={(e) => setSearchDebtCode(e.target.value)}
+                              onChange={(e) =>
+                                setSearchDebtCode(e.target.value)
+                              }
                             />
 
                             <label className="flex gap-1 items-center mb-1">
@@ -2339,8 +2346,6 @@ export default function ManageTrip({ user, onLogout }) {
                             </div>
                           </>
                         )}
-
-
 
                         {/* ===== FILTER CƯỚC PHÍ (STRING) ===== */}
                         {openFilter === "cuocPhi" && (
@@ -2810,8 +2815,48 @@ export default function ManageTrip({ user, onLogout }) {
                         </div>
                       ) : (
                         <div
-                          className="flex items-center w-full truncate"
+                          className="truncate"
                           style={{
+                            textAlign: [
+                              "cuocPhiBS",
+                              "bocXepBS",
+                              "veBS",
+                              "hangVeBS",
+                              "luuCaBS",
+                              "cpKhacBS",
+                              "themDiem",
+                              "cuocPhi",
+                              "bocXep",
+                              "ve",
+                              "hangVe",
+                              "luuCa",
+                              "luatChiPhiKhac",
+                              "percentHH",
+                              "moneyHH",
+                              "moneyConLai",
+                            ].includes(col.key)
+                              ? "right"
+                              : "left",
+                            paddingRight: [
+                              "cuocPhiBS",
+                              "bocXepBS",
+                              "veBS",
+                              "hangVeBS",
+                              "luuCaBS",
+                              "cpKhacBS",
+                              "themDiem",
+                              "cuocPhi",
+                              "bocXep",
+                              "ve",
+                              "hangVe",
+                              "luuCa",
+                              "luatChiPhiKhac",
+                              "percentHH",
+                              "moneyHH",
+                              "moneyConLai",
+                            ].includes(col.key)
+                              ? "4px"
+                              : "0",
                             fontWeight: [
                               "cuocPhiBS",
                               "bocXepBS",
@@ -2846,7 +2891,7 @@ export default function ManageTrip({ user, onLogout }) {
                           {/* ICON luôn sát phải */}
                           {col.key === "cpKhacBS" && (
                             <FaInfoCircle
-                              className="ml-auto shrink-0 text-gray-500 hover:text-blue-600 cursor-pointer mr-1"
+                              className="ml-auto shrink-0 text-gray-500 hover:text-blue-600 cursor-pointer"
                               title="Chi tiết chi phí khác"
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -2955,6 +3000,11 @@ export default function ManageTrip({ user, onLogout }) {
             allColumns={allColumns}
             onSubmit={submitEditRequest}
             onClose={() => setShowEditModal(false)}
+            drivers={drivers}
+            customers={customers}
+            vehicles={vehicles}
+            addresses={addresses}
+            customers2={customers2}
           />
         </div>
       )}

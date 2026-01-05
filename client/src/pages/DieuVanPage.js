@@ -33,7 +33,7 @@ const mainColumns = [
   { key: "diemDoHangNew", label: "ĐIỂM GIAO MỚI" },
   { key: "ngayBocHang", label: "NGÀY ĐÓNG HÀNG" },
   { key: "ngayGiaoHang", label: "NGÀY GIAO HÀNG" },
-  { key: "nameCustomer", label: "KH ĐIỂM GIAO" },
+  { key: "KHdiemGiaoHang", label: "KH ĐIỂM GIAO" },
   { key: "bienSoXe", label: "BIỂN SỐ XE" },
   { key: "maChuyen", label: "MÃ CHUYẾN" },
 ];
@@ -307,7 +307,7 @@ export default function DieuVanPage({ user, onLogout }) {
     keToanPhuTrach: "",
     accountUsername: "",
     cuocPhiBoSung: "",
-    nameCustomer: "",
+    KHdiemGiaoHang: "",
   };
 
   const [rideDraft, setRideDraft] = useState(null);

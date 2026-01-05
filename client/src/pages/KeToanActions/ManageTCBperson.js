@@ -739,7 +739,9 @@ export default function ManageTCBperson() {
                 {visibleColumns.map((cKey) => (
                   <td
                     key={cKey}
-                    className="border p-1"
+                    className={`border p-1 ${
+                      ["soTien", "soDu"].includes(cKey) ? "text-right" : ""
+                    }`}
                     style={{
                       width: columnWidths[cKey],
                       maxWidth: columnWidths[cKey],
@@ -755,6 +757,7 @@ export default function ManageTCBperson() {
                       : v[cKey]}
                   </td>
                 ))}
+
                 <td className="border p-1 flex gap-2 justify-center">
                   <button
                     onClick={() => handleEdit(v)}
