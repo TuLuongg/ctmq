@@ -349,25 +349,6 @@ exports.createDebtPeriod = async (req, res) => {
       });
     }
 
-    // ❗ kiểm tra chồng kỳ
-    const overlapped = await CustomerDebtPeriod.findOne({
-      customerCode,
-      fromDate: { $lte: to },
-      toDate: { $gte: from },
-    });
-
-    if (overlapped) {
-      return res.status(400).json({
-        error: "Khoảng ngày bị trùng với kỳ công nợ khác",
-        conflictPeriod: {
-          debtCode: overlapped.debtCode,
-          fromDate: overlapped.fromDate,
-          toDate: overlapped.toDate,
-          manageMonth: overlapped.manageMonth,
-        },
-      });
-    }
-
     // ✅ TẠO debtCode TRƯỚC
     const debtCode = await buildDebtCode(customerCode, month, year);
 
@@ -376,6 +357,9 @@ exports.createDebtPeriod = async (req, res) => {
       {
         maKH: customerCode,
         ngayGiaoHang: { $gte: from, $lte: to },
+
+        // ✅ CHỈ LẤY CHUYẾN CHƯA THUỘC KỲ NÀO
+        $or: [{ debtCode: null }, { debtCode: { $exists: false } }],
       },
       {
         $set: {
@@ -453,20 +437,28 @@ exports.updateDebtPeriod = async (req, res) => {
       return res.status(400).json({ error: "fromDate phải <= toDate" });
     }
 
-    const overlapped = await CustomerDebtPeriod.findOne({
-      customerCode: period.customerCode,
-      debtCode: { $ne: debtCode },
-      fromDate: { $lte: to },
-      toDate: { $gte: from },
-    });
+    // =================================================
+    // ✅ GÁN THÊM CHUYẾN CHƯA THUỘC KỲ NÀO
+    // =================================================
+    await ScheduleAdmin.updateMany(
+      {
+        maKH: period.customerCode,
+        ngayGiaoHang: { $gte: from, $lte: to },
 
-    if (overlapped) {
-      return res.status(400).json({
-        error: "Khoảng ngày sửa bị trùng với kỳ khác",
-      });
-    }
+        // 🔒 CHỈ NHẬN CHUYẾN CHƯA THUỘC KỲ
+        $or: [{ debtCode: null }, { debtCode: { $exists: false } }],
+      },
+      {
+        $set: {
+          debtCode: period.debtCode,
+          paymentType: "INVOICE",
+        },
+      }
+    );
 
-    // 🔄 TÍNH LẠI TIỀN THEO KHOẢNG NGÀY MỚI
+    // =================================================
+    // 🔄 TÍNH LẠI TIỀN TOÀN KỲ
+    // =================================================
     const trips = await ScheduleAdmin.find({
       debtCode: period.debtCode,
     });
@@ -498,6 +490,7 @@ exports.updateDebtPeriod = async (req, res) => {
 
     res.json({
       message: "Đã cập nhật kỳ công nợ",
+      tripCount: trips.length,
       period,
     });
   } catch (err) {

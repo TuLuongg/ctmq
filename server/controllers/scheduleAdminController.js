@@ -34,6 +34,8 @@ const calcHoaHong = async (schedule) => {
   schedule.moneyConLai = moneyConLai;
 };
 
+const escapeRegex = (str = "") => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 // 🆕 Tạo chuyến mới
 const createScheduleAdmin = async (req, res) => {
   try {
@@ -147,7 +149,7 @@ const updateScheduleAdmin = async (req, res) => {
       "dienGiai",
       "maKH",
       "bienSoXe",
-      "nameCustomer"
+      "KHdiemGiaoHang",
     ];
 
     const ignoreCompareFields = ["createdAt", "updatedAt"];
@@ -424,20 +426,18 @@ const getAllSchedulesAdmin = async (req, res) => {
       cuocPhi: "cuocPhi",
       maHoaDon: "maHoaDon",
       debtCode: "debtCode",
-
     };
 
     for (const [queryKey, field] of Object.entries(arrayFilterMap)) {
       let values = query[queryKey] || query[`${queryKey}[]`];
       if (!values) continue;
       if (!Array.isArray(values)) values = [values];
-      values = values.filter(Boolean);
+
+      values = values.map((v) => v?.toString().trim()).filter(Boolean);
       if (!values.length) continue;
 
       andConditions.push({
-        [field]: {
-          $in: values.map((v) => new RegExp(`^${v}$`, "i")),
-        },
+        [field]: { $in: values },
       });
     }
 
@@ -463,7 +463,6 @@ const getAllSchedulesAdmin = async (req, res) => {
       const isEmpty = query[`${field}Empty`];
       const isFilled = query[`${field}Filled`];
 
-      // CHƯA NHẬP
       if (isEmpty && !isFilled) {
         andConditions.push({
           $or: [
@@ -474,7 +473,6 @@ const getAllSchedulesAdmin = async (req, res) => {
         });
       }
 
-      // ĐÃ NHẬP
       if (isFilled && !isEmpty) {
         andConditions.push({
           [field]: { $nin: ["", null] },
@@ -528,7 +526,9 @@ const getAllSchedulesAdmin = async (req, res) => {
       }
 
       // String
-      andConditions.push({ [key]: new RegExp(value, "i") });
+      andConditions.push({
+        [key]: new RegExp(escapeRegex(value), "i"),
+      });
     }
 
     if (andConditions.length) {
@@ -604,7 +604,7 @@ const getSchedulesByDieuVan = async (req, res) => {
       // 🔎 Các trường còn lại → regex
       else {
         andConditions.push({
-          [key]: new RegExp(value, "i"),
+          [key]: new RegExp(escapeRegex(value), "i"),
         });
       }
     }
@@ -700,9 +700,7 @@ const getSchedulesByAccountant = async (req, res) => {
       if (!values.length) continue;
 
       andConditions.push({
-        [field]: {
-          $in: values.map((v) => new RegExp(`^${v}$`, "i")),
-        },
+        [field]: { $in: values },
       });
     }
 
@@ -770,7 +768,7 @@ const getSchedulesByAccountant = async (req, res) => {
       if (ignoreKeys.includes(key)) continue;
 
       andConditions.push({
-        [key]: new RegExp(value, "i"),
+        [key]: new RegExp(escapeRegex(value), "i"),
       });
     }
 
@@ -810,16 +808,23 @@ const getAllScheduleFilterOptions = async (req, res) => {
     // Không cần kiểm tra quyền hay username
     const baseFilter = { isDeleted: { $ne: true } }; // chỉ loại bỏ các bản ghi đã xóa
 
-    const [khachHang, tenLaiXe, bienSoXe, dienGiai, cuocPhi, maHoaDon, debtCode] =
-      await Promise.all([
-        ScheduleAdmin.distinct("khachHang", baseFilter),
-        ScheduleAdmin.distinct("tenLaiXe", baseFilter),
-        ScheduleAdmin.distinct("bienSoXe", baseFilter),
-        ScheduleAdmin.distinct("dienGiai", baseFilter),
-        ScheduleAdmin.distinct("cuocPhi", baseFilter),
-        ScheduleAdmin.distinct("maHoaDon", baseFilter),
-        ScheduleAdmin.distinct("debtCode", baseFilter),
-      ]);
+    const [
+      khachHang,
+      tenLaiXe,
+      bienSoXe,
+      dienGiai,
+      cuocPhi,
+      maHoaDon,
+      debtCode,
+    ] = await Promise.all([
+      ScheduleAdmin.distinct("khachHang", baseFilter),
+      ScheduleAdmin.distinct("tenLaiXe", baseFilter),
+      ScheduleAdmin.distinct("bienSoXe", baseFilter),
+      ScheduleAdmin.distinct("dienGiai", baseFilter),
+      ScheduleAdmin.distinct("cuocPhi", baseFilter),
+      ScheduleAdmin.distinct("maHoaDon", baseFilter),
+      ScheduleAdmin.distinct("debtCode", baseFilter),
+    ]);
 
     res.json({
       khachHang: khachHang.filter(Boolean).sort(),
@@ -850,23 +855,30 @@ const getScheduleFilterOptions = async (req, res) => {
       isDeleted: { $ne: true },
     };
 
-    const [khachHang, tenLaiXe, bienSoXe, dienGiai, cuocPhi, maHoaDon, debtCode] =
-      await Promise.all([
-        ScheduleAdmin.distinct("khachHang", baseFilter),
-        ScheduleAdmin.distinct("tenLaiXe", baseFilter),
-        ScheduleAdmin.distinct("bienSoXe", baseFilter),
-        ScheduleAdmin.distinct("dienGiai", baseFilter),
-        ScheduleAdmin.distinct("cuocPhi", baseFilter),
-        ScheduleAdmin.distinct("maHoaDon", baseFilter),
-        ScheduleAdmin.distinct("debtCode", baseFilter),
-      ]);
+    const [
+      khachHang,
+      tenLaiXe,
+      bienSoXe,
+      dienGiai,
+      cuocPhi,
+      maHoaDon,
+      debtCode,
+    ] = await Promise.all([
+      ScheduleAdmin.distinct("khachHang", baseFilter),
+      ScheduleAdmin.distinct("tenLaiXe", baseFilter),
+      ScheduleAdmin.distinct("bienSoXe", baseFilter),
+      ScheduleAdmin.distinct("dienGiai", baseFilter),
+      ScheduleAdmin.distinct("cuocPhi", baseFilter),
+      ScheduleAdmin.distinct("maHoaDon", baseFilter),
+      ScheduleAdmin.distinct("debtCode", baseFilter),
+    ]);
 
     res.json({
       khachHang: khachHang.filter(Boolean).sort(),
       tenLaiXe: tenLaiXe.filter(Boolean).sort(),
       bienSoXe: bienSoXe.filter(Boolean).sort(),
       dienGiai: dienGiai.filter(Boolean).sort(),
-      cuocPhi: cuocPhi.filter(Boolean).sort(),  
+      cuocPhi: cuocPhi.filter(Boolean).sort(),
       maHoaDon: maHoaDon.filter(Boolean).sort(),
       debtCode: debtCode.filter(Boolean).sort(),
     });
@@ -976,7 +988,6 @@ const importHoaDonFromExcel = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
 
 const addBoSung = async (req, res) => {
   try {
@@ -1448,7 +1459,7 @@ const exportTripsByDateRangeBS = async (req, res) => {
       row.getCell("AB").value = trip.moneyConLai || "0";
       row.getCell("AC").value = trip.diemXepHangNew || "";
       row.getCell("AD").value = trip.diemDoHangNew || "";
-      row.getCell("AE").value = trip.nameCustomer || "";
+      row.getCell("AE").value = trip.KHdiemGiaoHang || "";
 
       row.commit();
     });
