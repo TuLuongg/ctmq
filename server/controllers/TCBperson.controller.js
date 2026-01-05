@@ -617,12 +617,7 @@ exports.exportExcel = async (req, res) => {
       path.join(__dirname, "../templates/SAO_KE_TCB.xlsx")
     );
 
-    const filePath = path.join(__dirname, "../templates/SAO_KE_TCB.xlsx");
-
-    console.log("EXCEL TEMPLATE PATH:", filePath);
-    console.log("FILE EXISTS:", fs.existsSync(filePath));
-
-    const sheet = workbook.getWorksheet("Tech CN");
+    const sheet = workbook.getWorksheet("Sheet1");
     if (!sheet) {
       return res.status(500).json({ message: "Không tìm thấy sheet" });
     }
