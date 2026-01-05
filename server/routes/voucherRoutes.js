@@ -18,6 +18,6 @@ router.post("/:id/approve", voucherController.approveVoucher);
 router.post("/:id/adjust", voucherController.adjustVoucher);
 router.post("/:id/approve-adjust", voucherController.approveAdjustedVoucher);
 router.put("/transfer-date/bulk", voucherController.updateTransferDateBulk);
-router.get("/:id/print", voucherController.printVoucher);
+router.post("/:id/print", voucherController.printVoucher);
 
 module.exports = router;

@@ -420,6 +420,11 @@ const getAllSchedulesAdmin = async (req, res) => {
       khachHang: "khachHang",
       tenLaiXe: "tenLaiXe",
       bienSoXe: "bienSoXe",
+      dienGiai: "dienGiai",
+      cuocPhi: "cuocPhi",
+      maHoaDon: "maHoaDon",
+      debtCode: "debtCode",
+
     };
 
     for (const [queryKey, field] of Object.entries(arrayFilterMap)) {
@@ -440,7 +445,6 @@ const getAllSchedulesAdmin = async (req, res) => {
     // 🔹 FILTER TIỀN (ĐÃ NHẬP / CHƯA NHẬP)
     // ===============================
     const moneyFields = [
-      "cuocPhi",
       "bocXep",
       "ve",
       "hangVe",
@@ -684,6 +688,8 @@ const getSchedulesByAccountant = async (req, res) => {
       bienSoXe: "bienSoXe",
       dienGiai: "dienGiai",
       cuocPhi: "cuocPhi",
+      maHoaDon: "maHoaDon",
+      debtCode: "debtCode",
     };
 
     for (const [queryKey, field] of Object.entries(arrayFilterMap)) {
@@ -804,13 +810,15 @@ const getAllScheduleFilterOptions = async (req, res) => {
     // Không cần kiểm tra quyền hay username
     const baseFilter = { isDeleted: { $ne: true } }; // chỉ loại bỏ các bản ghi đã xóa
 
-    const [khachHang, tenLaiXe, bienSoXe, dienGiai, cuocPhi] =
+    const [khachHang, tenLaiXe, bienSoXe, dienGiai, cuocPhi, maHoaDon, debtCode] =
       await Promise.all([
         ScheduleAdmin.distinct("khachHang", baseFilter),
         ScheduleAdmin.distinct("tenLaiXe", baseFilter),
         ScheduleAdmin.distinct("bienSoXe", baseFilter),
         ScheduleAdmin.distinct("dienGiai", baseFilter),
         ScheduleAdmin.distinct("cuocPhi", baseFilter),
+        ScheduleAdmin.distinct("maHoaDon", baseFilter),
+        ScheduleAdmin.distinct("debtCode", baseFilter),
       ]);
 
     res.json({
@@ -819,6 +827,8 @@ const getAllScheduleFilterOptions = async (req, res) => {
       bienSoXe: bienSoXe.filter(Boolean).sort(),
       dienGiai: dienGiai.filter(Boolean).sort(),
       cuocPhi: cuocPhi.filter(Boolean).sort(),
+      maHoaDon: maHoaDon.filter(Boolean).sort(),
+      debtCode: debtCode.filter(Boolean).sort(),
     });
   } catch (err) {
     console.error("❌ Filter options error:", err);
@@ -840,13 +850,15 @@ const getScheduleFilterOptions = async (req, res) => {
       isDeleted: { $ne: true },
     };
 
-    const [khachHang, tenLaiXe, bienSoXe, dienGiai, cuocPhi] =
+    const [khachHang, tenLaiXe, bienSoXe, dienGiai, cuocPhi, maHoaDon, debtCode] =
       await Promise.all([
         ScheduleAdmin.distinct("khachHang", baseFilter),
         ScheduleAdmin.distinct("tenLaiXe", baseFilter),
         ScheduleAdmin.distinct("bienSoXe", baseFilter),
         ScheduleAdmin.distinct("dienGiai", baseFilter),
         ScheduleAdmin.distinct("cuocPhi", baseFilter),
+        ScheduleAdmin.distinct("maHoaDon", baseFilter),
+        ScheduleAdmin.distinct("debtCode", baseFilter),
       ]);
 
     res.json({
@@ -854,7 +866,9 @@ const getScheduleFilterOptions = async (req, res) => {
       tenLaiXe: tenLaiXe.filter(Boolean).sort(),
       bienSoXe: bienSoXe.filter(Boolean).sort(),
       dienGiai: dienGiai.filter(Boolean).sort(),
-      cuocPhi: cuocPhi.filter(Boolean).sort(),
+      cuocPhi: cuocPhi.filter(Boolean).sort(),  
+      maHoaDon: maHoaDon.filter(Boolean).sort(),
+      debtCode: debtCode.filter(Boolean).sort(),
     });
   } catch (err) {
     console.error("❌ Filter options error:", err);
@@ -1427,13 +1441,14 @@ const exportTripsByDateRangeBS = async (req, res) => {
       row.getCell("U").value = cpKhac;
       row.getCell("V").value = trip.ghiChu || "";
       row.getCell("W").value = trip.maChuyen || "";
-      row.getCell("X").value = trip.accountUsername || "";
-      row.getCell("Y").value = trip.percentHH || "0";
-      row.getCell("Z").value = trip.moneyHH || "0";
-      row.getCell("AA").value = trip.moneyConLai || "0";
-      row.getCell("AB").value = trip.diemXepHangNew || "";
-      row.getCell("AC").value = trip.diemDoHangNew || "";
-      row.getCell("AD").value = trip.nameCustomer || "";
+      row.getCell("X").value = trip.debtCode || "";
+      row.getCell("Y").value = trip.accountUsername || "";
+      row.getCell("Z").value = trip.percentHH || "0";
+      row.getCell("AA").value = trip.moneyHH || "0";
+      row.getCell("AB").value = trip.moneyConLai || "0";
+      row.getCell("AC").value = trip.diemXepHangNew || "";
+      row.getCell("AD").value = trip.diemDoHangNew || "";
+      row.getCell("AE").value = trip.nameCustomer || "";
 
       row.commit();
     });

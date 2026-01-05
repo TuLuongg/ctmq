@@ -467,7 +467,7 @@ exports.getAll = async (req, res) => {
 
     // ---------- SORT ----------
     const sort = {
-      timePay: sortOrder === "asc" ? 1 : -1, // mặc định desc
+      maGD: sortOrder === "asc" ? 1 : -1, // mặc định desc
     };
 
     const data = await TCBperson.find(filter)

@@ -239,24 +239,43 @@ exports.adjustVoucher = async (req, res) => {
 // =========================
 exports.printVoucher = async (req, res) => {
   try {
-    const v = await Voucher.findById(req.params.id);
-    if (!v) return res.status(404).json({ error: "Không tìm thấy phiếu" });
+    const v = await Voucher.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        status: "waiting_check", // ✅ chỉ update nếu đang chờ
+      },
+      {
+        $set: {
+          status: "approved",
+          approvedAt: new Date(), // optional
+        },
+      },
+      {
+        new: true, // ✅ trả về bản đã update
+      }
+    );
+
+    // nếu không update được (đã approved từ trước)
+    const voucher = v || (await Voucher.findById(req.params.id));
+    if (!voucher) {
+      return res.status(404).json({ error: "Không tìm thấy phiếu" });
+    }
 
     const formatted = {
-      id: v._id,
-      receiverCompany: v.receiverCompany,
-      receiverBankAccount: v.receiverBankAccount,
-      receiverName: v.receiverName,
-      paymentSource: v.paymentSource,
-      reason: v.reason,
-      transferContent: v.transferContent,
-      amount: v.amount,
-      amountInWords: v.amountInWords,
-      expenseType: v.expenseType,
-      note: v.note,
-      status: v.status,
-      dateCreated: v.dateCreated
-        ? v.dateCreated.toLocaleString("vi-VN", { hour12: false })
+      id: voucher._id,
+      receiverCompany: voucher.receiverCompany,
+      receiverBankAccount: voucher.receiverBankAccount,
+      receiverName: voucher.receiverName,
+      paymentSource: voucher.paymentSource,
+      reason: voucher.reason,
+      transferContent: voucher.transferContent,
+      amount: voucher.amount,
+      amountInWords: voucher.amountInWords,
+      expenseType: voucher.expenseType,
+      note: voucher.note,
+      status: voucher.status, // ✅ ĐÃ LÀ approved
+      dateCreated: voucher.dateCreated
+        ? voucher.dateCreated.toLocaleString("vi-VN", { hour12: false })
         : null,
     };
 
@@ -265,6 +284,7 @@ exports.printVoucher = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 // =========================
 //  DUYỆT PHIẾU ĐIỀU CHỈNH
