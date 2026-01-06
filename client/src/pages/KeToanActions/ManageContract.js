@@ -360,27 +360,25 @@ export default function ManageContract() {
     }
   };
 
-  const exportExcel = () => {
-    if (!contracts.length) return alert("Không có dữ liệu để xuất");
-    const headers = allColumns
-      .filter((c) => visibleColumns.includes(c.key))
-      .map((c) => c.label);
-    const data = contracts.map((d) => {
-      const row = {};
-      allColumns.forEach((c) => {
-        if (!visibleColumns.includes(c.key)) return;
-        row[c.label] = d[c.key] || "";
+  const exportExcel = async () => {
+    try {
+      const res = await axios.get(`${apiContracts}/export`, {
+        responseType: "blob", // 🔥 BẮT BUỘC
+        headers: {
+          Authorization: token ? `Bearer ${token}` : undefined,
+        },
       });
-      return row;
-    });
-    const ws = XLSX.utils.json_to_sheet(data, { header: headers });
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Contracts");
-    const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    saveAs(
-      new Blob([wbout], { type: "application/octet-stream" }),
-      `contracts_${formatDateFns(new Date(), "yyyyMMdd_HHmm")}.xlsx`
-    );
+
+      saveAs(
+        new Blob([res.data], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }),
+        "DS_HOP_DONG.xlsx"
+      );
+    } catch (err) {
+      console.error("Export contracts lỗi:", err);
+      alert(err.response?.data?.message || "Xuất danh sách hợp đồng thất bại");
+    }
   };
 
   const isResizingRef = useRef(false);

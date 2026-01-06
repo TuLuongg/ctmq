@@ -1,6 +1,16 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 
+const formatMoney = (value) => {
+  if (!value) return "";
+  const number = value.replace(/\D/g, "");
+  return number.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+};
+
+const parseMoney = (value) => {
+  return Number(value.replace(/\./g, "")) || 0;
+};
+
 export default function TCBModal({
   initialData,
   insertAnchor,
@@ -41,6 +51,15 @@ export default function TCBModal({
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+
+    if (name === "soTien") {
+      setFormData((prev) => ({
+        ...prev,
+        soTien: formatMoney(value),
+      }));
+      return;
+    }
+
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -133,6 +152,8 @@ export default function TCBModal({
               value={formData.timePay}
               onChange={handleChange}
               className="border p-1 w-1/3 rounded ml-1"
+              onClick={(e) => e.target.showPicker()}
+              required
             />
           </label>
 
@@ -151,7 +172,7 @@ export default function TCBModal({
           <label>
             Số tiền
             <input
-              type="number"
+              type="text"
               name="soTien"
               value={formData.soTien}
               onChange={handleChange}

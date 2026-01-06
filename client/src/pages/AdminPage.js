@@ -116,7 +116,7 @@ export default function AdminPage({ onLogout }) {
   }, []);
 
   return (
-    <div className="w-9/10 mx-auto mt-5 bg-gray-200 shadow-lg rounded-xl p-8 flex gap-6">
+    <div className="w-9/10 mx-auto bg-gray-200 shadow-lg rounded-xl p-8 flex gap-6">
       {/* 🟩 Cột bên trái: Menu quản lý */}
       <div className="w-1/5 bg-white p-4 rounded-lg shadow-sm">
         <h3 className="font-semibold text-lg mb-4">THAO TÁC QUẢN LÝ</h3>
@@ -248,6 +248,12 @@ export default function AdminPage({ onLogout }) {
                 <th className="px-4 py-2 border-b text-center">
                   Quản lý hợp đồng
                 </th>
+                <th className="px-4 py-2 border-b text-center">
+                  Khóa KCN
+                </th>
+                <th className="px-4 py-2 border-b text-center">
+                  Khóa TCB
+                </th>
                 <th className="px-4 py-2 border-b text-center">Thao tác</th>
               </tr>
             </thead>
@@ -276,6 +282,8 @@ export default function AdminPage({ onLogout }) {
                     "cong_no_26",
                     "edit_tcb",
                     "edit_contract",
+                    "lock_kcn",
+                    "lock_tcb",
                   ].map((perm) => (
                     <td key={perm} className="px-4 py-2 border-b text-center">
                       <input

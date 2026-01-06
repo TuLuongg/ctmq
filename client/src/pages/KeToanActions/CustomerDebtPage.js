@@ -70,6 +70,8 @@ export default function CustomerDebtPage() {
   const location = useLocation();
   const user =
     JSON.parse(localStorage.getItem("user") || "null") || location.state?.user;
+  const permissions = user?.permissions || [];
+  const canLockKCN = permissions.includes("lock_kcn");
 
   const isActive = (path) => location.pathname === path;
 
@@ -227,7 +229,6 @@ export default function CustomerDebtPage() {
         { lockedBy: user?.name },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      alert("Đã khoá kỳ công nợ");
       loadData();
     } catch (err) {
       console.error(err);
@@ -242,7 +243,6 @@ export default function CustomerDebtPage() {
         { unlockedBy: user?.name },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      alert("Đã mở khoá kỳ công nợ");
       loadData();
     } catch (err) {
       console.error(err);
@@ -790,22 +790,40 @@ export default function CustomerDebtPage() {
                   <td className="border p-1 flex gap-1 font-semibold justify-center">
                     {c.debtCode && (
                       <>
+                        {/* ===== MỞ / KHOÁ ===== */}
                         {c.isLocked ? (
                           <button
-                            className="p-1 text-green-600"
-                            onClick={() => handleUnlockDebt(c.debtCode)}
+                            disabled={!canLockKCN}
+                            className={`p-1 ${
+                              canLockKCN
+                                ? "text-green-600"
+                                : "text-gray-400 cursor-not-allowed"
+                            }`}
+                            onClick={() => {
+                              if (!canLockKCN) return;
+                              handleUnlockDebt(c.debtCode);
+                            }}
                           >
                             Mở
                           </button>
                         ) : (
                           <button
-                            className="p-1 text-yellow-500"
-                            onClick={() => handleLockDebt(c.debtCode)}
+                            disabled={!canLockKCN}
+                            className={`p-1 ${
+                              canLockKCN
+                                ? "text-yellow-500"
+                                : "text-gray-400 cursor-not-allowed"
+                            }`}
+                            onClick={() => {
+                              if (!canLockKCN) return;
+                              handleLockDebt(c.debtCode);
+                            }}
                           >
                             Khoá
                           </button>
                         )}
 
+                        {/* ===== SỬA ===== */}
                         <button
                           disabled={c.isLocked}
                           className={`p-1 ${
@@ -833,7 +851,7 @@ export default function CustomerDebtPage() {
                           Sửa
                         </button>
 
-                        {/* 🗑️ NÚT XOÁ */}
+                        {/* ===== XOÁ ===== */}
                         <button
                           disabled={c.isLocked}
                           className={`p-1 ${

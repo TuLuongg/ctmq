@@ -427,10 +427,14 @@ export default function ManageTrip({ user, onLogout }) {
     axios
       .get(`${API_URL}/accountant/filter-all`, {
         headers: { Authorization: `Bearer ${token}` },
+        params: {
+          fromDate: giaoFrom || undefined,
+          toDate: giaoTo || undefined,
+        },
       })
       .then((res) => setExcelOptions(res.data))
-      .catch(console.error);
-  }, []);
+      .catch((err) => console.error("❌ fetch filter-all error:", err));
+  }, [giaoFrom, giaoTo]);
 
   const [searchKH, setSearchKH] = useState("");
   const [searchDriver, setSearchDriver] = useState("");
@@ -461,6 +465,9 @@ export default function ManageTrip({ user, onLogout }) {
     }
   };
 
+  const [onlyEmptyMaHoaDon, setOnlyEmptyMaHoaDon] = useState(false);
+  const [onlyEmptyDebtCode, setOnlyEmptyDebtCode] = useState(false);
+
   // 🔹 Lấy tất cả chuyến (có filter)
   const fetchAllRides = async () => {
     try {
@@ -489,11 +496,20 @@ export default function ManageTrip({ user, onLogout }) {
       if (excelSelected.cuocPhi.length > 0) {
         excelSelected.cuocPhi.forEach((v) => q.append("cuocPhi", v));
       }
-      if (excelSelected.maHoaDon.length > 0) {
+      if (!onlyEmptyMaHoaDon && excelSelected.maHoaDon.length > 0) {
         excelSelected.maHoaDon.forEach((v) => q.append("maHoaDon", v));
       }
-      if (excelSelected.debtCode.length > 0) {
+
+      if (!onlyEmptyDebtCode && excelSelected.debtCode.length > 0) {
         excelSelected.debtCode.forEach((v) => q.append("debtCode", v));
+      }
+
+      if (onlyEmptyMaHoaDon) {
+        q.append("maHoaDonEmpty", "1");
+      }
+
+      if (onlyEmptyDebtCode) {
+        q.append("debtCodeEmpty", "1");
       }
 
       // 🔹 FILTER TEXT
@@ -568,6 +584,8 @@ export default function ManageTrip({ user, onLogout }) {
     giaoTo,
     sortBy,
     sortOrder,
+    onlyEmptyMaHoaDon,
+    onlyEmptyDebtCode,
   ]);
 
   const [showModal, setShowModal] = useState(false);
@@ -1266,6 +1284,44 @@ export default function ManageTrip({ user, onLogout }) {
     );
   };
 
+  const filteredKhachHang = excelOptions.khachHang.filter((c) => {
+    if (!searchKH) return true;
+    return normalize(c).includes(normalize(searchKH));
+  });
+
+  const filteredTenLaiXe = excelOptions.tenLaiXe.filter((d) => {
+    if (!searchDriver) return true;
+    return normalize(d).includes(normalize(searchDriver));
+  });
+  const filteredBienSoXe = excelOptions.bienSoXe.filter((p) => {
+    if (!searchPlate) return true;
+    return normalize(p).includes(normalize(searchPlate));
+  });
+  const filteredDienGiai = excelOptions.dienGiai.filter((dg) => {
+    if (!searchDGiai) return true;
+    return normalize(dg).includes(normalize(searchDGiai));
+  });
+  const filteredCuocPhi = excelOptions.cuocPhi.filter((cp) => {
+    if (!searchCuocPhiBD) return true;
+    return normalize(cp).includes(normalize(searchCuocPhiBD));
+  });
+
+  const filteredMaHoaDon = excelOptions.maHoaDon.filter((m) => {
+    if (onlyEmptyMaHoaDon && m) return false;
+
+    if (!searchMaHoaDon) return true;
+
+    return normalize(m || "").includes(normalize(searchMaHoaDon));
+  });
+
+  const filteredDebtCode = excelOptions.debtCode.filter((d) => {
+    if (onlyEmptyDebtCode && d) return false;
+
+    if (!searchDebtCode) return true;
+
+    return normalize(d || "").includes(normalize(searchDebtCode));
+  });
+
   // ---------- Render ----------
   return (
     <div className="p-4 bg-gray-50 min-h-screen text-xs">
@@ -1851,60 +1907,66 @@ export default function ManageTrip({ user, onLogout }) {
                               onChange={(e) => setSearchKH(e.target.value)}
                             />
 
-                            <label className="flex gap-1 items-center mb-1">
+                            <label className="flex gap-1 items-center mb-1 font-semibold">
                               <input
                                 type="checkbox"
                                 checked={
-                                  excelSelected.khachHang.length ===
-                                    excelOptions.khachHang.length &&
-                                  excelOptions.khachHang.length > 0
+                                  filteredKhachHang.length > 0 &&
+                                  filteredKhachHang.every((c) =>
+                                    excelSelected.khachHang.includes(c)
+                                  )
                                 }
                                 onChange={() => {
-                                  setExcelSelected((p) => ({
-                                    ...p,
-                                    khachHang:
-                                      p.khachHang.length ===
-                                      excelOptions.khachHang.length
-                                        ? []
-                                        : excelOptions.khachHang,
-                                  }));
+                                  setExcelSelected((prev) => {
+                                    const isAllSelected =
+                                      filteredKhachHang.every((c) =>
+                                        prev.khachHang.includes(c)
+                                      );
+
+                                    return {
+                                      ...prev,
+                                      khachHang: isAllSelected
+                                        ? prev.khachHang.filter(
+                                            (x) =>
+                                              !filteredKhachHang.includes(x)
+                                          )
+                                        : [
+                                            ...prev.khachHang,
+                                            ...filteredKhachHang.filter(
+                                              (x) => !prev.khachHang.includes(x)
+                                            ),
+                                          ],
+                                    };
+                                  });
                                   setPage(1);
                                 }}
                               />
-                              Chọn tất cả
+                              Chọn tất cả ({filteredKhachHang.length})
                             </label>
 
                             <div className="max-h-40 overflow-y-auto border p-1">
-                              {excelOptions.khachHang
-                                .filter((c) => {
-                                  if (!searchKH) return true;
-                                  return normalize(c).includes(
-                                    normalize(searchKH)
-                                  );
-                                })
-
-                                .map((c) => (
-                                  <label
-                                    key={c}
-                                    className="flex gap-1 items-center"
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={excelSelected.khachHang.includes(
-                                        c
-                                      )}
-                                      onChange={() =>
-                                        setExcelSelected((p) => ({
-                                          ...p,
-                                          khachHang: p.khachHang.includes(c)
-                                            ? p.khachHang.filter((x) => x !== c)
-                                            : [...p.khachHang, c],
-                                        }))
-                                      }
-                                    />
-                                    <span className="truncate">{c}</span>
-                                  </label>
-                                ))}
+                              {filteredKhachHang.map((c) => (
+                                <label
+                                  key={c}
+                                  className="flex gap-1 items-center"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={excelSelected.khachHang.includes(
+                                      c
+                                    )}
+                                    onChange={() =>
+                                      setExcelSelected((p) => ({
+                                        ...p,
+                                        khachHang: p.khachHang.includes(c)
+                                          ? p.khachHang.filter((x) => x !== c)
+                                          : [...p.khachHang, c],
+                                      }))
+                                    }
+                                  />
+                                  <span className="truncate">{c}</span>
+                                </label>
+                              ))}
                             </div>
 
                             <div className="flex gap-1 mt-2">
@@ -1945,60 +2007,62 @@ export default function ManageTrip({ user, onLogout }) {
                               onChange={(e) => setSearchDriver(e.target.value)}
                             />
 
-                            <label className="flex gap-1 items-center mb-1">
+                            <label className="flex gap-1 items-center mb-1 font-semibold">
                               <input
                                 type="checkbox"
                                 checked={
-                                  excelSelected.tenLaiXe.length ===
-                                    excelOptions.tenLaiXe.length &&
-                                  excelOptions.tenLaiXe.length > 0
+                                  filteredTenLaiXe.length > 0 &&
+                                  filteredTenLaiXe.every((d) =>
+                                    excelSelected.tenLaiXe.includes(d)
+                                  )
                                 }
                                 onChange={() => {
-                                  setExcelSelected((p) => ({
-                                    ...p,
-                                    tenLaiXe:
-                                      p.tenLaiXe.length ===
-                                      excelOptions.tenLaiXe.length
-                                        ? []
-                                        : excelOptions.tenLaiXe,
-                                  }));
+                                  setExcelSelected((prev) => {
+                                    const isAllSelected =
+                                      filteredTenLaiXe.every((d) =>
+                                        prev.tenLaiXe.includes(d)
+                                      );
+                                    return {
+                                      ...prev,
+                                      tenLaiXe: isAllSelected
+                                        ? prev.tenLaiXe.filter(
+                                            (x) => !filteredTenLaiXe.includes(x)
+                                          )
+                                        : [
+                                            ...prev.tenLaiXe,
+                                            ...filteredTenLaiXe.filter(
+                                              (x) => !prev.tenLaiXe.includes(x)
+                                            ),
+                                          ],
+                                    };
+                                  });
                                   setPage(1);
                                 }}
                               />
-                              Chọn tất cả
+                              Chọn tất cả ({filteredTenLaiXe.length})
                             </label>
 
                             <div className="max-h-40 overflow-y-auto border p-1">
-                              {excelOptions.tenLaiXe
-                                .filter((d) => {
-                                  if (!searchDriver) return true;
-                                  return normalize(d).includes(
-                                    normalize(searchDriver)
-                                  );
-                                })
-
-                                .map((d) => (
-                                  <label
-                                    key={d}
-                                    className="flex gap-1 items-center"
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={excelSelected.tenLaiXe.includes(
-                                        d
-                                      )}
-                                      onChange={() =>
-                                        setExcelSelected((p) => ({
-                                          ...p,
-                                          tenLaiXe: p.tenLaiXe.includes(d)
-                                            ? p.tenLaiXe.filter((x) => x !== d)
-                                            : [...p.tenLaiXe, d],
-                                        }))
-                                      }
-                                    />
-                                    <span className="truncate">{d}</span>
-                                  </label>
-                                ))}
+                              {filteredTenLaiXe.map((d) => (
+                                <label
+                                  key={d}
+                                  className="flex gap-1 items-center"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={excelSelected.tenLaiXe.includes(d)}
+                                    onChange={() =>
+                                      setExcelSelected((p) => ({
+                                        ...p,
+                                        tenLaiXe: p.tenLaiXe.includes(d)
+                                          ? p.tenLaiXe.filter((x) => x !== d)
+                                          : [...p.tenLaiXe, d],
+                                      }))
+                                    }
+                                  />
+                                  <span className="truncate">{d}</span>
+                                </label>
+                              ))}
                             </div>
 
                             <div className="flex gap-1 mt-2">
@@ -2039,60 +2103,62 @@ export default function ManageTrip({ user, onLogout }) {
                               onChange={(e) => setSearchPlate(e.target.value)}
                             />
 
-                            <label className="flex gap-1 items-center mb-1">
+                            <label className="flex gap-1 items-center mb-1 font-semibold">
                               <input
                                 type="checkbox"
                                 checked={
-                                  excelSelected.bienSoXe.length ===
-                                    excelOptions.bienSoXe.length &&
-                                  excelOptions.bienSoXe.length > 0
+                                  filteredBienSoXe.length > 0 &&
+                                  filteredBienSoXe.every((p) =>
+                                    excelSelected.bienSoXe.includes(p)
+                                  )
                                 }
                                 onChange={() => {
-                                  setExcelSelected((p) => ({
-                                    ...p,
-                                    bienSoXe:
-                                      p.bienSoXe.length ===
-                                      excelOptions.bienSoXe.length
-                                        ? []
-                                        : excelOptions.bienSoXe,
-                                  }));
+                                  setExcelSelected((prev) => {
+                                    const isAllSelected =
+                                      filteredBienSoXe.every((p) =>
+                                        prev.bienSoXe.includes(p)
+                                      );
+                                    return {
+                                      ...prev,
+                                      bienSoXe: isAllSelected
+                                        ? prev.bienSoXe.filter(
+                                            (x) => !filteredBienSoXe.includes(x)
+                                          )
+                                        : [
+                                            ...prev.bienSoXe,
+                                            ...filteredBienSoXe.filter(
+                                              (x) => !prev.bienSoXe.includes(x)
+                                            ),
+                                          ],
+                                    };
+                                  });
                                   setPage(1);
                                 }}
                               />
-                              Chọn tất cả
+                              Chọn tất cả ({filteredBienSoXe.length})
                             </label>
 
                             <div className="max-h-40 overflow-y-auto border p-1">
-                              {excelOptions.bienSoXe
-                                .filter((p) => {
-                                  if (!searchPlate) return true;
-                                  return normalize(p).includes(
-                                    normalize(searchPlate)
-                                  );
-                                })
-
-                                .map((p) => (
-                                  <label
-                                    key={p}
-                                    className="flex gap-1 items-center"
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={excelSelected.bienSoXe.includes(
-                                        p
-                                      )}
-                                      onChange={() =>
-                                        setExcelSelected((s) => ({
-                                          ...s,
-                                          bienSoXe: s.bienSoXe.includes(p)
-                                            ? s.bienSoXe.filter((x) => x !== p)
-                                            : [...s.bienSoXe, p],
-                                        }))
-                                      }
-                                    />
-                                    <span className="truncate">{p}</span>
-                                  </label>
-                                ))}
+                              {filteredBienSoXe.map((p) => (
+                                <label
+                                  key={p}
+                                  className="flex gap-1 items-center"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={excelSelected.bienSoXe.includes(p)}
+                                    onChange={() =>
+                                      setExcelSelected((s) => ({
+                                        ...s,
+                                        bienSoXe: s.bienSoXe.includes(p)
+                                          ? s.bienSoXe.filter((x) => x !== p)
+                                          : [...s.bienSoXe, p],
+                                      }))
+                                    }
+                                  />
+                                  <span className="truncate">{p}</span>
+                                </label>
+                              ))}
                             </div>
 
                             <div className="flex gap-1 mt-2">
@@ -2133,61 +2199,66 @@ export default function ManageTrip({ user, onLogout }) {
                               onChange={(e) => setSearchDGiai(e.target.value)}
                             />
 
-                            <label className="flex gap-1 items-center mb-1">
+                            <label className="flex gap-1 items-center mb-1 font-semibold">
                               <input
                                 type="checkbox"
                                 checked={
-                                  excelSelected.dienGiai.length ===
-                                    excelOptions.dienGiai.length &&
-                                  excelOptions.dienGiai.length > 0
+                                  filteredDienGiai.length > 0 &&
+                                  filteredDienGiai.every((dg) =>
+                                    excelSelected.dienGiai.includes(dg)
+                                  )
                                 }
                                 onChange={() => {
-                                  setExcelSelected((prev) => ({
-                                    ...prev,
-                                    dienGiai:
-                                      prev.dienGiai.length ===
-                                      excelOptions.dienGiai.length
-                                        ? []
-                                        : excelOptions.dienGiai,
-                                  }));
+                                  setExcelSelected((prev) => {
+                                    const isAllSelected =
+                                      filteredDienGiai.every((dg) =>
+                                        prev.dienGiai.includes(dg)
+                                      );
+                                    return {
+                                      ...prev,
+                                      dienGiai: isAllSelected
+                                        ? prev.dienGiai.filter(
+                                            (x) => !filteredDienGiai.includes(x)
+                                          )
+                                        : [
+                                            ...prev.dienGiai,
+                                            ...filteredDienGiai.filter(
+                                              (x) => !prev.dienGiai.includes(x)
+                                            ),
+                                          ],
+                                    };
+                                  });
                                   setPage(1);
                                 }}
                               />
-                              Chọn tất cả
+                              Chọn tất cả ({filteredDienGiai.length})
                             </label>
 
                             <div className="max-h-40 overflow-y-auto border p-1">
-                              {excelOptions.dienGiai
-                                .filter((dg) => {
-                                  if (!searchDGiai) return true;
-                                  return normalize(dg).includes(
-                                    normalize(searchDGiai)
-                                  );
-                                })
-                                .map((dg) => (
-                                  <label
-                                    key={dg}
-                                    className="flex gap-1 items-center"
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={excelSelected.dienGiai.includes(
-                                        dg
-                                      )}
-                                      onChange={() =>
-                                        setExcelSelected((prev) => ({
-                                          ...prev,
-                                          dienGiai: prev.dienGiai.includes(dg)
-                                            ? prev.dienGiai.filter(
-                                                (x) => x !== dg
-                                              )
-                                            : [...prev.dienGiai, dg],
-                                        }))
-                                      }
-                                    />
-                                    <span className="truncate">{dg}</span>
-                                  </label>
-                                ))}
+                              {filteredDienGiai.map((dg) => (
+                                <label
+                                  key={dg}
+                                  className="flex gap-1 items-center"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={excelSelected.dienGiai.includes(
+                                      dg
+                                    )}
+                                    onChange={() =>
+                                      setExcelSelected((prev) => ({
+                                        ...prev,
+                                        dienGiai: prev.dienGiai.includes(dg)
+                                          ? prev.dienGiai.filter(
+                                              (x) => x !== dg
+                                            )
+                                          : [...prev.dienGiai, dg],
+                                      }))
+                                    }
+                                  />
+                                  <span className="truncate">{dg}</span>
+                                </label>
+                              ))}
                             </div>
 
                             <div className="flex gap-1 mt-2">
@@ -2230,63 +2301,63 @@ export default function ManageTrip({ user, onLogout }) {
                               }
                             />
 
-                            <label className="flex gap-1 items-center mb-1">
+                            <label className="flex gap-1 items-center mb-1 font-semibold">
                               <input
                                 type="checkbox"
                                 checked={
-                                  excelSelected.cuocPhi.length ===
-                                    excelOptions.cuocPhi.length &&
-                                  excelOptions.cuocPhi.length > 0
+                                  filteredCuocPhi.length > 0 &&
+                                  filteredCuocPhi.every((cp) =>
+                                    excelSelected.cuocPhi.includes(cp)
+                                  )
                                 }
                                 onChange={() => {
-                                  setExcelSelected((prev) => ({
-                                    ...prev,
-                                    cuocPhi:
-                                      prev.cuocPhi.length ===
-                                      excelOptions.cuocPhi.length
-                                        ? []
-                                        : excelOptions.cuocPhi,
-                                  }));
+                                  setExcelSelected((prev) => {
+                                    const isAllSelected = filteredCuocPhi.every(
+                                      (cp) => prev.cuocPhi.includes(cp)
+                                    );
+                                    return {
+                                      ...prev,
+                                      cuocPhi: isAllSelected
+                                        ? prev.cuocPhi.filter(
+                                            (x) => !filteredCuocPhi.includes(x)
+                                          )
+                                        : [
+                                            ...prev.cuocPhi,
+                                            ...filteredCuocPhi.filter(
+                                              (x) => !prev.cuocPhi.includes(x)
+                                            ),
+                                          ],
+                                    };
+                                  });
                                   setPage(1);
                                 }}
                               />
-                              Chọn tất cả
+                              Chọn tất cả ({filteredCuocPhi.length})
                             </label>
 
                             <div className="max-h-40 overflow-y-auto border p-1">
-                              {excelOptions.cuocPhi
-                                .filter((cp) => {
-                                  if (!searchCuocPhiBD) return true;
-                                  return normalize(cp).includes(
-                                    normalize(searchCuocPhiBD)
-                                  );
-                                })
-                                .map((cp) => (
-                                  <label
-                                    key={cp}
-                                    className="flex gap-1 items-center"
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={excelSelected.cuocPhi.includes(
-                                        cp
-                                      )}
-                                      onChange={() =>
-                                        setExcelSelected((prev) => ({
-                                          ...prev,
-                                          cuocPhi: prev.cuocPhi.includes(cp)
-                                            ? prev.cuocPhi.filter(
-                                                (x) => x !== cp
-                                              )
-                                            : [...prev.cuocPhi, cp],
-                                        }))
-                                      }
-                                    />
-                                    <span className="truncate">
-                                      {formatNumber(cp)}
-                                    </span>
-                                  </label>
-                                ))}
+                              {filteredCuocPhi.map((cp) => (
+                                <label
+                                  key={cp}
+                                  className="flex gap-1 items-center"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={excelSelected.cuocPhi.includes(cp)}
+                                    onChange={() =>
+                                      setExcelSelected((prev) => ({
+                                        ...prev,
+                                        cuocPhi: prev.cuocPhi.includes(cp)
+                                          ? prev.cuocPhi.filter((x) => x !== cp)
+                                          : [...prev.cuocPhi, cp],
+                                      }))
+                                    }
+                                  />
+                                  <span className="truncate">
+                                    {formatNumber(cp)}
+                                  </span>
+                                </label>
+                              ))}
                             </div>
 
                             <div className="flex gap-1 mt-2">
@@ -2327,64 +2398,84 @@ export default function ManageTrip({ user, onLogout }) {
                                 setSearchMaHoaDon(e.target.value)
                               }
                             />
-
-                            <label className="flex gap-1 items-center mb-1">
+                            <label className="flex gap-1 items-center mb-1 text-red-600 font-semibold">
                               <input
                                 type="checkbox"
-                                checked={
-                                  excelSelected.maHoaDon.length ===
-                                    excelOptions.maHoaDon.length &&
-                                  excelOptions.maHoaDon.length > 0
-                                }
+                                checked={onlyEmptyMaHoaDon}
                                 onChange={() => {
+                                  setOnlyEmptyMaHoaDon((p) => !p);
                                   setExcelSelected((prev) => ({
                                     ...prev,
-                                    maHoaDon:
-                                      prev.maHoaDon.length ===
-                                      excelOptions.maHoaDon.length
-                                        ? []
-                                        : excelOptions.maHoaDon,
+                                    maHoaDon: [],
                                   }));
                                   setPage(1);
                                 }}
                               />
-                              Chọn tất cả
+                              Chưa nhập
+                            </label>
+
+                            <label className="flex gap-1 items-center mb-1 font-semibold">
+                              <input
+                                type="checkbox"
+                                checked={
+                                  filteredMaHoaDon.length > 0 &&
+                                  filteredMaHoaDon.every((m) =>
+                                    excelSelected.maHoaDon.includes(m)
+                                  )
+                                }
+                                onChange={() => {
+                                  setExcelSelected((prev) => {
+                                    const isAllSelected =
+                                      filteredMaHoaDon.every((m) =>
+                                        prev.maHoaDon.includes(m)
+                                      );
+                                    return {
+                                      ...prev,
+                                      maHoaDon: isAllSelected
+                                        ? prev.maHoaDon.filter(
+                                            (x) => !filteredMaHoaDon.includes(x)
+                                          )
+                                        : [
+                                            ...prev.maHoaDon,
+                                            ...filteredMaHoaDon.filter(
+                                              (x) => !prev.maHoaDon.includes(x)
+                                            ),
+                                          ],
+                                    };
+                                  });
+                                  setPage(1);
+                                }}
+                              />
+                              Chọn tất cả ({filteredMaHoaDon.length})
                             </label>
 
                             <div className="max-h-40 overflow-y-auto border p-1">
-                              {excelOptions.maHoaDon
-                                .filter((cp) => {
-                                  if (!searchMaHoaDon) return true;
-                                  return normalize(cp).includes(
-                                    normalize(searchMaHoaDon)
-                                  );
-                                })
-                                .map((cp) => (
-                                  <label
-                                    key={cp}
-                                    className="flex gap-1 items-center"
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={excelSelected.maHoaDon.includes(
-                                        cp
-                                      )}
-                                      onChange={() =>
-                                        setExcelSelected((prev) => ({
-                                          ...prev,
-                                          maHoaDon: prev.maHoaDon.includes(cp)
-                                            ? prev.maHoaDon.filter(
-                                                (x) => x !== cp
-                                              )
-                                            : [...prev.maHoaDon, cp],
-                                        }))
-                                      }
-                                    />
-                                    <span className="truncate">
-                                      {formatNumber(cp)}
-                                    </span>
-                                  </label>
-                                ))}
+                              {filteredMaHoaDon.map((cp) => (
+                                <label
+                                  key={cp}
+                                  className="flex gap-1 items-center"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={excelSelected.maHoaDon.includes(
+                                      cp
+                                    )}
+                                    onChange={() =>
+                                      setExcelSelected((prev) => ({
+                                        ...prev,
+                                        maHoaDon: prev.maHoaDon.includes(cp)
+                                          ? prev.maHoaDon.filter(
+                                              (x) => x !== cp
+                                            )
+                                          : [...prev.maHoaDon, cp],
+                                      }))
+                                    }
+                                  />
+                                  <span className="truncate">
+                                    {formatNumber(cp)}
+                                  </span>
+                                </label>
+                              ))}
                             </div>
 
                             <div className="flex gap-1 mt-2">
@@ -2426,64 +2517,84 @@ export default function ManageTrip({ user, onLogout }) {
                                 setSearchDebtCode(e.target.value)
                               }
                             />
-
-                            <label className="flex gap-1 items-center mb-1">
+                            <label className="flex gap-1 items-center mb-1 text-red-600 font-semibold">
                               <input
                                 type="checkbox"
-                                checked={
-                                  excelSelected.debtCode.length ===
-                                    excelOptions.debtCode.length &&
-                                  excelOptions.debtCode.length > 0
-                                }
+                                checked={onlyEmptyDebtCode}
                                 onChange={() => {
+                                  setOnlyEmptyDebtCode((p) => !p);
                                   setExcelSelected((prev) => ({
                                     ...prev,
-                                    debtCode:
-                                      prev.debtCode.length ===
-                                      excelOptions.debtCode.length
-                                        ? []
-                                        : excelOptions.debtCode,
+                                    debtCode: [],
                                   }));
                                   setPage(1);
                                 }}
                               />
-                              Chọn tất cả
+                              Chưa có KCN
+                            </label>
+
+                            <label className="flex gap-1 items-center mb-1 font-semibold">
+                              <input
+                                type="checkbox"
+                                checked={
+                                  filteredDebtCode.length > 0 &&
+                                  filteredDebtCode.every((d) =>
+                                    excelSelected.debtCode.includes(d)
+                                  )
+                                }
+                                onChange={() => {
+                                  setExcelSelected((prev) => {
+                                    const isAllSelected =
+                                      filteredDebtCode.every((d) =>
+                                        prev.debtCode.includes(d)
+                                      );
+                                    return {
+                                      ...prev,
+                                      debtCode: isAllSelected
+                                        ? prev.debtCode.filter(
+                                            (x) => !filteredDebtCode.includes(x)
+                                          )
+                                        : [
+                                            ...prev.debtCode,
+                                            ...filteredDebtCode.filter(
+                                              (x) => !prev.debtCode.includes(x)
+                                            ),
+                                          ],
+                                    };
+                                  });
+                                  setPage(1);
+                                }}
+                              />
+                              Chọn tất cả ({filteredDebtCode.length})
                             </label>
 
                             <div className="max-h-40 overflow-y-auto border p-1">
-                              {excelOptions.debtCode
-                                .filter((cp) => {
-                                  if (!searchDebtCode) return true;
-                                  return normalize(cp).includes(
-                                    normalize(searchDebtCode)
-                                  );
-                                })
-                                .map((cp) => (
-                                  <label
-                                    key={cp}
-                                    className="flex gap-1 items-center"
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={excelSelected.debtCode.includes(
-                                        cp
-                                      )}
-                                      onChange={() =>
-                                        setExcelSelected((prev) => ({
-                                          ...prev,
-                                          debtCode: prev.debtCode.includes(cp)
-                                            ? prev.debtCode.filter(
-                                                (x) => x !== cp
-                                              )
-                                            : [...prev.debtCode, cp],
-                                        }))
-                                      }
-                                    />
-                                    <span className="truncate">
-                                      {formatNumber(cp)}
-                                    </span>
-                                  </label>
-                                ))}
+                              {filteredDebtCode.map((cp) => (
+                                <label
+                                  key={cp}
+                                  className="flex gap-1 items-center"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={excelSelected.debtCode.includes(
+                                      cp
+                                    )}
+                                    onChange={() =>
+                                      setExcelSelected((prev) => ({
+                                        ...prev,
+                                        debtCode: prev.debtCode.includes(cp)
+                                          ? prev.debtCode.filter(
+                                              (x) => x !== cp
+                                            )
+                                          : [...prev.debtCode, cp],
+                                      }))
+                                    }
+                                  />
+                                  <span className="truncate">
+                                    {formatNumber(cp)}
+                                  </span>
+                                </label>
+                              ))}
                             </div>
 
                             <div className="flex gap-1 mt-2">
@@ -2903,8 +3014,10 @@ export default function ManageTrip({ user, onLogout }) {
                               "luatChiPhiKhac",
                               "percentHH",
                               "moneyHH",
-                              "moneyConLai"
-                            ].includes(col.key) ? "right" : "left",
+                              "moneyConLai",
+                            ].includes(col.key)
+                              ? "right"
+                              : "left",
                             paddingRight: [
                               "cuocPhiBS",
                               "bocXepBS",
@@ -2921,8 +3034,10 @@ export default function ManageTrip({ user, onLogout }) {
                               "luatChiPhiKhac",
                               "percentHH",
                               "moneyHH",
-                              "moneyConLai"
-                            ].includes(col.key) ? "4px" : "0",
+                              "moneyConLai",
+                            ].includes(col.key)
+                              ? "4px"
+                              : "0",
                             fontWeight: [
                               "cuocPhiBS",
                               "bocXepBS",

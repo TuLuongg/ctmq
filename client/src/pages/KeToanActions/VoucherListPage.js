@@ -111,6 +111,26 @@ export default function VoucherListPage() {
     navigate("/tcb-person", { state: { user } });
   };
 
+  const [expenseTypeOptions, setExpenseTypeOptions] = useState([]);
+  const [companyOptions, setCompanyOptions] = useState([]);
+  useEffect(() => {
+    const fetchFilterOptions = async () => {
+      try {
+        const [expenseRes, companyRes] = await Promise.all([
+          axios.get(`${API}/vouchers/expense-types`),
+          axios.get(`${API}/vouchers/receiver-companies`),
+        ]);
+
+        setExpenseTypeOptions(expenseRes.data || []);
+        setCompanyOptions(companyRes.data || []);
+      } catch (err) {
+        console.error("Load filter options failed", err);
+      }
+    };
+
+    fetchFilterOptions();
+  }, []);
+
   const [originColWidth, setOriginColWidth] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem(LS_ORIGIN_COL_WIDTH)) || {};
@@ -271,6 +291,7 @@ export default function VoucherListPage() {
           "company",
           "content",
           "reason",
+          "expenseType",
           "transferDate",
           "amount",
           "status",
@@ -288,6 +309,7 @@ export default function VoucherListPage() {
         "company",
         "content",
         "reason",
+        "expenseType",
         "transferDate",
         "amount",
         "status",
@@ -310,6 +332,7 @@ export default function VoucherListPage() {
           "company",
           "content",
           "reason",
+          "expenseType",
           "transferDate",
           "amount",
           "orig",
@@ -328,6 +351,7 @@ export default function VoucherListPage() {
         "company",
         "content",
         "reason",
+        "expenseType",
         "transferDate",
         "amount",
         "orig",
@@ -412,6 +436,8 @@ export default function VoucherListPage() {
     transferDateTo: null,
 
     paymentSources: [],
+    expenseTypes: [],
+    companies: [],
 
     code: "",
     receiver: "",
@@ -474,6 +500,77 @@ export default function VoucherListPage() {
       </div>
     );
   };
+
+  function CheckboxSearchFilter({
+    options = [],
+    value = [],
+    onChange,
+    placeholder = "Tìm...",
+  }) {
+    const [keyword, setKeyword] = useState("");
+
+    const filteredOptions = options.filter((o) =>
+      removeVietnameseTones(o).includes(removeVietnameseTones(keyword))
+    );
+
+    const isAllChecked =
+      filteredOptions.length > 0 &&
+      filteredOptions.every((o) => value.includes(o));
+
+    const toggleOne = (opt) => {
+      if (value.includes(opt)) {
+        onChange(value.filter((v) => v !== opt));
+      } else {
+        onChange([...value, opt]);
+      }
+    };
+
+    const toggleAll = () => {
+      if (isAllChecked) {
+        // ❌ bỏ chọn tất cả trong danh sách đang lọc
+        onChange(value.filter((v) => !filteredOptions.includes(v)));
+      } else {
+        // ✅ chọn tất cả trong danh sách đang lọc
+        const merged = Array.from(new Set([...value, ...filteredOptions]));
+        onChange(merged);
+      }
+    };
+
+    return (
+      <div className="bg-white border rounded shadow p-2 w-[240px] text-xs">
+        <input
+          value={keyword}
+          onChange={(e) => setKeyword(e.target.value)}
+          placeholder={placeholder}
+          className="border px-2 py-1 rounded w-full mb-2"
+        />
+
+        <label className="flex items-center gap-2 mb-2 font-semibold">
+          <input type="checkbox" checked={isAllChecked} onChange={toggleAll} />
+          Chọn tất cả ({filteredOptions.length})
+        </label>
+
+        <div className="max-h-48 overflow-auto">
+          {filteredOptions.map((opt) => (
+            <label key={opt} className="flex items-center gap-2 mb-1">
+              <input
+                type="checkbox"
+                checked={value.includes(opt)}
+                onChange={() => toggleOne(opt)}
+              />
+              <span title={opt} className="truncate">
+                {opt}
+              </span>
+            </label>
+          ))}
+
+          {filteredOptions.length === 0 && (
+            <div className="text-gray-400 italic">Không có dữ liệu</div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   function TextFilter({ value, onChange, placeholder, onClear }) {
     return (
@@ -583,6 +680,22 @@ export default function VoucherListPage() {
         return false;
       }
 
+      // ===== PHÂN LOẠI CHI =====
+      if (
+        filters.expenseTypes?.length > 0 &&
+        !filters.expenseTypes.includes(v.expenseType)
+      ) {
+        return false;
+      }
+
+      // ===== CÔNG TY =====
+      if (
+        filters.companies?.length > 0 &&
+        !filters.companies.includes(v.receiverCompany)
+      ) {
+        return false;
+      }
+
       if (
         filters.code &&
         !removeVietnameseTones(v.voucherCode).includes(
@@ -599,13 +712,6 @@ export default function VoucherListPage() {
       )
         return false;
 
-      if (
-        filters.company &&
-        !removeVietnameseTones(v.receiverCompany).includes(
-          removeVietnameseTones(filters.company)
-        )
-      )
-        return false;
       if (
         filters.reason &&
         !removeVietnameseTones(v.reason).includes(
@@ -945,6 +1051,7 @@ export default function VoucherListPage() {
                         company: "Tên công ty",
                         content: "Nội dung",
                         reason: "Lý do chi",
+                        expenseType: "Phân loại chi",
                         transferDate: "Ngày chuyển tiền",
                         amount: "Số tiền",
                         status: "Trạng thái",
@@ -1047,6 +1154,8 @@ export default function VoucherListPage() {
                               return v.transferContent;
                             case "reason":
                               return v.reason;
+                            case "expenseType":
+                              return v.expenseType;
                             case "transferDate":
                               return v.transferDate
                                 ? new Date(v.transferDate).toLocaleDateString(
@@ -1098,7 +1207,7 @@ export default function VoucherListPage() {
                                           "_blank"
                                         );
 
-                                        load()
+                                        load();
                                       } catch (err) {
                                         alert(
                                           err.response?.data?.error ||
@@ -1198,6 +1307,7 @@ export default function VoucherListPage() {
                         company: "Tên công ty",
                         content: "Nội dung",
                         reason: "Lý do chi",
+                        expenseType: "Phân loại chi",
                         transferDate: "Ngày chuyển tiền",
                         amount: "Số tiền",
                         orig: "Phiếu gốc",
@@ -1331,6 +1441,9 @@ export default function VoucherListPage() {
 
                               case "reason":
                                 return v.reason;
+
+                              case "expenseType":
+                                return v.expenseType;
 
                               case "transferDate":
                                 return v.transferDate
@@ -1497,15 +1610,6 @@ export default function VoucherListPage() {
             />
           )}
 
-          {filterPopup.col === "company" && (
-            <TextFilter
-              value={filters.company}
-              placeholder="Nhập tên công ty"
-              onChange={(v) => setFilters((f) => ({ ...f, company: v }))}
-              onClear={() => setFilters((f) => ({ ...f, company: "" }))}
-            />
-          )}
-
           {filterPopup.col === "content" && (
             <TextFilter
               value={filters.content}
@@ -1521,6 +1625,25 @@ export default function VoucherListPage() {
               placeholder="Nhập lý do"
               onChange={(v) => setFilters((f) => ({ ...f, reason: v }))}
               onClear={() => setFilters((f) => ({ ...f, reason: "" }))}
+            />
+          )}
+
+          {filterPopup.col === "expenseType" && (
+            <CheckboxSearchFilter
+              options={expenseTypeOptions}
+              value={filters.expenseTypes}
+              onChange={(arr) =>
+                setFilters((f) => ({ ...f, expenseTypes: arr }))
+              }
+              placeholder="Tìm phân loại chi"
+            />
+          )}
+          {filterPopup.col === "company" && (
+            <CheckboxSearchFilter
+              options={companyOptions}
+              value={filters.companies}
+              onChange={(arr) => setFilters((f) => ({ ...f, companies: arr }))}
+              placeholder="Tìm công ty"
             />
           )}
 
