@@ -10,6 +10,8 @@ router.get("/", voucherController.getAllVouchers);
 // FE gửi query: fromMonth=yyyy-MM, toMonth=yyyy-MM
 // ==========================
 router.get("/export", voucherController.exportVouchers);
+router.get("/expense-types", voucherController.getUniqueExpenseTypes);
+router.get("/receiver-companies", voucherController.getUniqueReceiverCompanies);
 router.get("/:id", voucherController.getVoucherById);
 router.put("/:id", voucherController.updateVoucher);
 router.delete("/:id", voucherController.deleteVoucher);
@@ -19,5 +21,7 @@ router.post("/:id/adjust", voucherController.adjustVoucher);
 router.post("/:id/approve-adjust", voucherController.approveAdjustedVoucher);
 router.put("/transfer-date/bulk", voucherController.updateTransferDateBulk);
 router.post("/:id/print", voucherController.printVoucher);
+
+
 
 module.exports = router;

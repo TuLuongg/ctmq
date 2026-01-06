@@ -429,6 +429,14 @@ const getAllSchedulesAdmin = async (req, res) => {
     };
 
     for (const [queryKey, field] of Object.entries(arrayFilterMap)) {
+      // ❗ nếu đang lọc Empty thì bỏ qua filter thường
+      if (
+        (queryKey === "maHoaDon" && query.maHoaDonEmpty === "1") ||
+        (queryKey === "debtCode" && query.debtCodeEmpty === "1")
+      ) {
+        continue;
+      }
+
       let values = query[queryKey] || query[`${queryKey}[]`];
       if (!values) continue;
       if (!Array.isArray(values)) values = [values];
@@ -481,6 +489,29 @@ const getAllSchedulesAdmin = async (req, res) => {
     });
 
     // ===============================
+    // 🔹 FILTER EMPTY (maHoaDon / debtCode)
+    // ===============================
+    if (query.maHoaDonEmpty === "1") {
+      andConditions.push({
+        $or: [
+          { maHoaDon: { $exists: false } },
+          { maHoaDon: null },
+          { maHoaDon: "" },
+        ],
+      });
+    }
+
+    if (query.debtCodeEmpty === "1") {
+      andConditions.push({
+        $or: [
+          { debtCode: { $exists: false } },
+          { debtCode: null },
+          { debtCode: "" },
+        ],
+      });
+    }
+
+    // ===============================
     // 🔹 AUTO TEXT FILTER (KHÔNG PHÁ ARRAY + MONEY)
     // ===============================
     const ignoreKeys = [
@@ -494,6 +525,9 @@ const getAllSchedulesAdmin = async (req, res) => {
       ...Object.keys(arrayFilterMap),
       ...Object.keys(arrayFilterMap).map((k) => `${k}[]`),
     ];
+
+    ignoreKeys.push("maHoaDonEmpty");
+    ignoreKeys.push("debtCodeEmpty");
 
     moneyFields.forEach((f) => {
       ignoreKeys.push(`${f}Empty`);
@@ -693,10 +727,20 @@ const getSchedulesByAccountant = async (req, res) => {
     };
 
     for (const [queryKey, field] of Object.entries(arrayFilterMap)) {
+      // ❗ nếu đang lọc Empty thì bỏ qua filter thường
+      if (
+        (queryKey === "maHoaDon" && query.maHoaDonEmpty === "1") ||
+        (queryKey === "debtCode" && query.debtCodeEmpty === "1")
+      ) {
+        continue;
+      }
+
       let values = query[queryKey] || query[`${queryKey}[]`];
       if (!values) continue;
       if (!Array.isArray(values)) values = [values];
-      values = values.filter(Boolean);
+
+      values = values.map((v) => v?.toString().trim()).filter(Boolean);
+
       if (!values.length) continue;
 
       andConditions.push({
@@ -737,6 +781,29 @@ const getSchedulesByAccountant = async (req, res) => {
         });
       }
 
+      // =================================================
+      // 🔹 FILTER EMPTY (maHoaDon / debtCode)
+      // =================================================
+      if (query.maHoaDonEmpty === "1") {
+        andConditions.push({
+          $or: [
+            { maHoaDon: { $exists: false } },
+            { maHoaDon: null },
+            { maHoaDon: "" },
+          ],
+        });
+      }
+
+      if (query.debtCodeEmpty === "1") {
+        andConditions.push({
+          $or: [
+            { debtCode: { $exists: false } },
+            { debtCode: null },
+            { debtCode: "" },
+          ],
+        });
+      }
+
       // ĐÃ NHẬP
       if (isFilled && !isEmpty) {
         andConditions.push({
@@ -757,6 +824,9 @@ const getSchedulesByAccountant = async (req, res) => {
       ...Object.keys(arrayFilterMap),
       ...Object.keys(arrayFilterMap).map((k) => `${k}[]`),
     ];
+
+    ignoreKeys.push("maHoaDonEmpty");
+    ignoreKeys.push("debtCodeEmpty");
 
     moneyFields.forEach((f) => {
       ignoreKeys.push(`${f}Empty`);
@@ -802,11 +872,24 @@ const getSchedulesByAccountant = async (req, res) => {
   }
 };
 
-// Lấy tất cả danh sách KH, bsx, tên lái xe, ... không cần điều kiện
+// ==============================
+// Lấy tất cả filter options theo khoảng ngày giao
+// ==============================
 const getAllScheduleFilterOptions = async (req, res) => {
   try {
-    // Không cần kiểm tra quyền hay username
-    const baseFilter = { isDeleted: { $ne: true } }; // chỉ loại bỏ các bản ghi đã xóa
+    const { fromDate, toDate } = req.query;
+
+    const baseFilter = {
+      isDeleted: { $ne: true },
+    };
+
+    // ===== THÊM LỌC NGÀY GIAO =====
+    if (fromDate || toDate) {
+      baseFilter.ngayGiaoHang = {};
+      if (fromDate)
+        baseFilter.ngayGiaoHang.$gte = new Date(fromDate + "T00:00:00");
+      if (toDate) baseFilter.ngayGiaoHang.$lte = new Date(toDate + "T23:59:59");
+    }
 
     const [
       khachHang,
@@ -841,10 +924,13 @@ const getAllScheduleFilterOptions = async (req, res) => {
   }
 };
 
-//Lấy danh sách KH, bsx, tên lái xe theo kế toán
+// ==============================
+// Lấy filter options theo kế toán + khoảng ngày giao
+// ==============================
 const getScheduleFilterOptions = async (req, res) => {
   try {
     const user = req.user;
+    const { fromDate, toDate } = req.query;
 
     if (!user || user.role !== "keToan") {
       return res.status(403).json({ error: "Forbidden" });
@@ -854,6 +940,14 @@ const getScheduleFilterOptions = async (req, res) => {
       accountUsername: user.username,
       isDeleted: { $ne: true },
     };
+
+    // ===== THÊM LỌC NGÀY GIAO =====
+    if (fromDate || toDate) {
+      baseFilter.ngayGiaoHang = {};
+      if (fromDate)
+        baseFilter.ngayGiaoHang.$gte = new Date(fromDate + "T00:00:00");
+      if (toDate) baseFilter.ngayGiaoHang.$lte = new Date(toDate + "T23:59:59");
+    }
 
     const [
       khachHang,

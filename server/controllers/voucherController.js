@@ -462,3 +462,36 @@ exports.exportVouchers = async (req, res) => {
     res.status(500).json({ message: "Lỗi xuất danh sách phiếu" });
   }
 };
+
+
+// =========================
+//  LẤY DS PHÂN LOẠI CHI (UNIQUE)
+// =========================
+exports.getUniqueExpenseTypes = async (req, res) => {
+  try {
+    const expenseTypes = await Voucher.distinct("expenseType", {
+      expenseType: { $ne: null },
+    });
+
+    res.json(expenseTypes);
+  } catch (err) {
+    console.error("getUniqueExpenseTypes error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// =========================
+//  LẤY DS CÔNG TY NGƯỜI NHẬN (UNIQUE)
+// =========================
+exports.getUniqueReceiverCompanies = async (req, res) => {
+  try {
+    const companies = await Voucher.distinct("receiverCompany", {
+      receiverCompany: { $ne: null },
+    });
+
+    res.json(companies);
+  } catch (err) {
+    console.error("getUniqueReceiverCompanies error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};

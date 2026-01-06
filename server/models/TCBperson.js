@@ -10,6 +10,10 @@ const TCBpersonSchema = new mongoose.Schema({
   keToan: { type: String, default: "" },
   ghiChu: { type: String, default: "" },
   maChuyen: { type: String, default: "" },
+  isLocked: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const TCBperson = mongoose.model("TCBperson", TCBpersonSchema);

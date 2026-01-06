@@ -68,4 +68,6 @@ router.post("/all", TCBController.getAll);
 // ============================
 router.post("/import", upload.single("file"), TCBController.importExcel);
 
+router.patch("/:id/toggle-lock", TCBController.toggleLock);
+
 module.exports = router;

@@ -205,6 +205,9 @@ exports.update = async (req, res) => {
     if (!record) {
       throw new Error("Không tìm thấy giao dịch");
     }
+    if (record.isLocked) {
+      throw new Error("Giao dịch đã bị khoá, không thể sửa");
+    }
 
     const oldSoTien = record.soTien;
     const newSoTien = parseNumber(soTien);
@@ -274,6 +277,9 @@ exports.deleteOne = async (req, res) => {
     if (!record) {
       throw new Error("Không tìm thấy bản ghi");
     }
+    if (record.isLocked) {
+      throw new Error("Giao dịch đã bị khoá, không thể sửa");
+    }
 
     const prefix = buildPrefix(record.timePay);
     const curSTT = parseSTT(record.maGD);
@@ -339,7 +345,7 @@ exports.deleteOne = async (req, res) => {
 // ===================
 exports.deleteAll = async (req, res) => {
   try {
-    await TCBperson.deleteMany({});
+    await TCBperson.deleteMany({ isLocked: { $ne: true } });
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -657,5 +663,31 @@ exports.exportExcel = async (req, res) => {
   } catch (err) {
     console.error("❌ Export TCB error:", err);
     res.status(500).json({ message: "Lỗi xuất file sao kê TCB" });
+  }
+};
+
+// ===================
+// Toggle khoá / mở giao dịch
+// ===================
+exports.toggleLock = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const record = await TCBperson.findById(id);
+    if (!record) {
+      return res.status(404).json({ message: "Không tìm thấy giao dịch" });
+    }
+
+    record.isLocked = !record.isLocked;
+    await record.save();
+
+    res.json({
+      success: true,
+      isLocked: record.isLocked,
+      message: record.isLocked ? "Đã khoá giao dịch" : "Đã mở khoá giao dịch",
+    });
+  } catch (err) {
+    console.error("❌ Toggle lock error:", err);
+    res.status(500).json({ message: err.message });
   }
 };

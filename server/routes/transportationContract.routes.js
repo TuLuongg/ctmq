@@ -16,6 +16,8 @@ router.get("/", transportationContractController.getAll);
 ======================= */
 router.get("/unique-customers", transportationContractController.getUniqueCustomers);
 
+router.get("/export", transportationContractController.exportTransportationContracts);
+
 /* =======================
    THÊM 1 HỢP ĐỒNG
    POST /contracts
