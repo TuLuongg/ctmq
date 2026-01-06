@@ -329,7 +329,8 @@ export default function RideEditTripModal({
                   <input
                     className="border rounded w-full p-2 mt-1"
                     value={formData[key] || ""}
-                    onChange={(e) => handleChange(key, e.target.value)}
+                    name={key}
+                    onChange={handleChange}
                   />
                 </div>
               ))}
@@ -676,37 +677,49 @@ export default function RideEditTripModal({
             </div>
 
             <div className="grid grid-cols-2 gap-3 mb-3 mt-3">
-              <input
-                className="border rounded p-2"
-                placeholder="Số điểm"
-                value={formData.soDiem || ""}
-                name="soDiem"
-                onChange={handleChange}
-              />
-              <input
-                className="border rounded p-2"
-                placeholder="Trọng lượng"
-                value={formData.trongLuong || ""}
-                name="trongLuong"
-                onChange={handleChange}
-              />
+              <div>
+                <label className="font-semibold block mb-1">Số điểm</label>
+                <input
+                  className="border rounded p-2 w-full"
+                  placeholder="Số điểm"
+                  value={formData.soDiem || ""}
+                  name="soDiem"
+                  onChange={handleChange}
+                />
+              </div>
+              <div>
+                <label className="font-semibold block mb-1">Trọng lượng</label>
+                <input
+                  className="border rounded p-2 w-full"
+                  placeholder="Trọng lượng"
+                  value={formData.trongLuong || ""}
+                  name="trongLuong"
+                  onChange={handleChange}
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <input
-                className="border rounded p-2"
-                placeholder="Cước phí"
-                value={formatMoney(formData.cuocPhi)}
-                name="cuocPhi"
-                onChange={handleChange}
-              />
-              <input
-                className="border rounded p-2"
-                placeholder="Đã thanh toán"
-                value={formatMoney(formData.daThanhToan)}
-                name="daThanhToan"
-                onChange={handleChange}
-              />
+              <div>
+                <label className="font-semibold block mb-1">Cước phí</label>
+                <input
+                  className="border rounded p-2 w-full"
+                  placeholder="Cước phí"
+                  value={formatMoney(formData.cuocPhi)}
+                  name="cuocPhi"
+                  onChange={handleChange}
+                />
+              </div>
+              <div>
+                <label className="font-semibold block mb-1">Đã thanh toán</label>
+                <input
+                  className="border rounded p-2 w-full"
+                  placeholder="Đã thanh toán"
+                  value={formatMoney(formData.daThanhToan)}
+                  name="daThanhToan"
+                  onChange={handleChange}
+                />
+              </div>
             </div>
           </div>
 

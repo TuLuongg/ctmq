@@ -333,7 +333,8 @@ export default function RideEditModal({
                 <input
                   className="border rounded w-full p-2 mt-1"
                   value={formData.ltState || ""}
-                  onChange={(e) => handleChange("ltState", e.target.value)}
+                  name="ltState"
+                  onChange={handleChange}
                 />
               </div>
 
@@ -342,7 +343,8 @@ export default function RideEditModal({
                 <input
                   className="border rounded w-full p-2 mt-1"
                   value={formData.onlState || ""}
-                  onChange={(e) => handleChange("onlState", e.target.value)}
+                  name="onlState"
+                  onChange={handleChange}
                 />
               </div>
 
@@ -351,7 +353,8 @@ export default function RideEditModal({
                 <input
                   className="border rounded w-full p-2 mt-1"
                   value={formData.offState || ""}
-                  onChange={(e) => handleChange("offState", e.target.value)}
+                  name="offState"
+                  onChange={handleChange}
                 />
               </div>
             </div>
