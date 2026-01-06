@@ -705,7 +705,8 @@ export default function RideEditModal({
                 <input
                   className="border rounded w-full p-2 mt-1"
                   value={formData.soDiem || ""}
-                  onChange={(e) => handleChange("soDiem", e.target.value)}
+                  name="soDiem"
+                  onChange={handleChange}
                 />
               </div>
 
@@ -714,7 +715,8 @@ export default function RideEditModal({
                 <input
                   className="border rounded w-full p-2 mt-1"
                   value={formData.trongLuong || ""}
-                  onChange={(e) => handleChange("trongLuong", e.target.value)}
+                  name="trongLuong"
+                  onChange={handleChange}
                 />
               </div>
             </div>
@@ -726,7 +728,8 @@ export default function RideEditModal({
                 <input
                   className="border rounded w-full p-2 mt-1"
                   value={formatMoney(formData.cuocPhi)}
-                  onChange={(e) => handleChange("cuocPhi", e.target.value)}
+                  name="cuocPhi"
+                  onChange={handleChange}
                 />
               </div>
 
@@ -735,7 +738,8 @@ export default function RideEditModal({
                 <input
                   className="border rounded w-full p-2 mt-1"
                   value={formData.daThanhToan || ""}
-                  onChange={(e) => handleChange("daThanhToan", e.target.value)}
+                  name="daThanhToan"
+                  onChange={handleChange}
                 />
               </div>
             </div>
@@ -747,9 +751,8 @@ export default function RideEditModal({
                 <input
                   className="border rounded w-full p-2 mt-1"
                   value={formData.keToanPhuTrach || ""}
-                  onChange={(e) =>
-                    handleChange("keToanPhuTrach", e.target.value)
-                  }
+                  name="keToanPhuTrach"
+                  onChange={handleChange}
                 />
               </div>
 
@@ -758,7 +761,8 @@ export default function RideEditModal({
                 <input
                   className="border rounded w-full p-2 mt-1"
                   value={formData.maHoaDon || ""}
-                  onChange={(e) => handleChange("maHoaDon", e.target.value)}
+                  name="maHoaDon"
+                  onChange={handleChange}
                 />
               </div>
             </div>
@@ -908,7 +912,8 @@ export default function RideEditModal({
               <input
                 className="border rounded w-full p-2 mt-1"
                 value={formData.dienGiai || ""}
-                onChange={(e) => handleChange("dienGiai", e.target.value)}
+                name="dienGiai"
+                onChange={handleChange}
               />
             </div>
 
@@ -920,7 +925,9 @@ export default function RideEditModal({
                   type="date"
                   className="border rounded w-full p-2 mt-1"
                   value={formatDate(formData.ngayBocHang)}
-                  onChange={(e) => handleChange("ngayBocHang", e.target.value)}
+                  name="ngayBocHang"
+                  onChange={handleChange}
+                  onClick={(e) => e.target.showPicker()}
                 />
               </div>
 
@@ -930,7 +937,9 @@ export default function RideEditModal({
                   type="date"
                   className="border rounded w-full p-2 mt-1"
                   value={formatDate(formData.ngayGiaoHang)}
-                  onChange={(e) => handleChange("ngayGiaoHang", e.target.value)}
+                  name="ngayGiaoHang"
+                  onChange={handleChange}
+                  onClick={(e) => e.target.showPicker()}
                 />
               </div>
             </div>
@@ -962,7 +971,8 @@ export default function RideEditModal({
                     <input
                       className="border rounded p-2 w-full"
                       value={formatMoney(formData.bocXep || "")}
-                      onChange={(e) => handleChange("bocXep", e.target.value)}
+                      name="bocXep"
+                      onChange={handleChange}
                     />
                   )}
                 </div>
@@ -988,7 +998,8 @@ export default function RideEditModal({
                     <input
                       className="border rounded p-2 w-full"
                       value={formatMoney(formData.hangVe || "")}
-                      onChange={(e) => handleChange("hangVe", e.target.value)}
+                      name="hangVe"
+                      onChange={handleChange}
                     />
                   )}
                 </div>
@@ -1017,7 +1028,8 @@ export default function RideEditModal({
                     <input
                       className="border rounded p-2 w-full"
                       value={formatMoney(formData.ve || "")}
-                      onChange={(e) => handleChange("ve", e.target.value)}
+                      name="ve"
+                      onChange={handleChange}
                     />
                   )}
                 </div>
@@ -1043,7 +1055,8 @@ export default function RideEditModal({
                     <input
                       className="border rounded p-2 w-full"
                       value={formatMoney(formData.luuCa || "")}
-                      onChange={(e) => handleChange("luuCa", e.target.value)}
+                      name="luuCa"
+                      onChange={handleChange}
                     />
                   )}
                 </div>
@@ -1070,7 +1083,8 @@ export default function RideEditModal({
                   <input
                     className="border rounded p-2 w-full"
                     value={formatMoney(formData.chiPhiKhac || "")}
-                    onChange={(e) => handleChange("chiPhiKhac", e.target.value)}
+                    name="chiPhiKhac"
+                    onChange={handleChange}
                   />
                 )}
               </div>
@@ -1082,7 +1096,8 @@ export default function RideEditModal({
               <input
                 className="border rounded w-full p-2 mt-1"
                 value={formData.ghiChu || ""}
-                onChange={(e) => handleChange("dieuVan", e.target.value)}
+                name="ghiChu"
+                onChange={handleChange}
               />
             </div>
 
@@ -1106,7 +1121,8 @@ export default function RideEditModal({
             rows={3}
             className="w-full border rounded p-2 mt-1"
             value={formData.reason}
-            onChange={(e) => handleChange("reason", e.target.value)}
+            name="reason"
+            onChange={handleChange}
             placeholder="Nhập lý do..."
           />
         </div>

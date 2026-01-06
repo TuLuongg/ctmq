@@ -108,10 +108,6 @@ export default function RideAllRequestModal({
   console.log("requests", requests);
 
   const handleProcess = async (req, action) => {
-    if (action === "reject" && !noteMap[req._id]?.trim()) {
-      return alert("Nhập lý do từ chối");
-    }
-
     try {
       await axios.post(
         `${API_URL}/edit-process`,
