@@ -1167,37 +1167,79 @@ export default function ManageTrip({ user, onLogout }) {
     setRideDraft([]);
     setShowModal(true);
   };
+  const COPY_FIELDS = [
+    // Người & xe
+    "tenLaiXe",
+    "bienSoXe",
+
+    // Khách
+    "khachHang",
+    "maKH",
+    "keToanPhuTrach",
+    "accountUsername",
+
+    // Mô tả chuyến
+    "dienGiai",
+    "ngayBocHang",
+    "ngayGiaoHang",
+
+    // Địa điểm
+    "diemXepHang",
+    "diemXepHangNew",
+    "diemDoHang",
+    "diemDoHangNew",
+    "KHdiemGiaoHang",
+
+    // Thông tin hàng
+    "soDiem",
+    "trongLuong",
+
+    // Tiền cơ bản (tuỳ mày có cho copy hay không)
+    "cuocPhi",
+    "bocXep",
+    "ve",
+    "hangVe",
+    "luuCa",
+    "luatChiPhiKhac",
+    "laiXeThuCuoc",
+  ];
+
+  const buildCopySchedule = (schedule) => {
+    const result = {};
+
+    COPY_FIELDS.forEach((key) => {
+      if (schedule[key] !== undefined && schedule[key] !== null) {
+        result[key] = schedule[key];
+      }
+    });
+
+    return result;
+  };
+
   const handleCopyRide = (ride) => {
     const copied = {
-      ...ride,
+      // ✅ chỉ lấy data sạch
+      ...buildCopySchedule(ride),
 
-      // ❌ loại bỏ field không copy
-      _id: undefined,
-      createdAt: undefined,
-      updatedAt: undefined,
-
-      // ✅ GIỮ ngày gốc, chỉ fallback nếu null
+      // ✅ format ngày nếu cần cho input date
       ngayBocHang: ride.ngayBocHang
         ? format(new Date(ride.ngayBocHang), "yyyy-MM-dd")
-        : format(date, "yyyy-MM-dd"),
+        : "",
 
       ngayGiaoHang: ride.ngayGiaoHang
         ? format(new Date(ride.ngayGiaoHang), "yyyy-MM-dd")
-        : format(date, "yyyy-MM-dd"),
+        : "",
 
-      ngayBoc: ride.ngayBoc
-        ? format(new Date(ride.ngayBoc), "yyyy-MM-dd")
-        : format(date, "yyyy-MM-dd"),
+      // ❌ KHÔNG copy các field hệ thống
+      maChuyen: undefined,
+      ngayBoc: undefined,
 
-      // người tạo mới
+      // ✅ gán người tạo mới
       createdByID: currentUser._id,
       createdBy: currentUser.fullname,
       dieuVanID: currentUser._id,
       dieuVan: currentUser.fullname,
     };
-
-    delete copied.maChuyen;
-    console.log(copied.maChuyen);
 
     setRideDraft(copied);
     setShowModal(true);

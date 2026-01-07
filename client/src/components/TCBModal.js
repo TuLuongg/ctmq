@@ -70,7 +70,7 @@ export default function TCBModal({
     try {
       const payload = {
         ...formData,
-        soTien: Number(formData.soTien) || 0,
+        soTien: parseMoney(formData.soTien),
         timePay: formData.timePay ? new Date(formData.timePay) : null,
       };
 
@@ -152,7 +152,6 @@ export default function TCBModal({
               value={formData.timePay}
               onChange={handleChange}
               className="border p-1 w-1/3 rounded ml-1"
-              onClick={(e) => e.target.showPicker()}
               required
             />
           </label>

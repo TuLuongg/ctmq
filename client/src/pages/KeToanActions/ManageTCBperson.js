@@ -57,6 +57,9 @@ export default function ManageTCBperson() {
   const userId = user?._id || "guest";
   const permissions = user?.permissions || [];
   const canEditTCB = permissions.includes("edit_tcb");
+  const canLockTCB = permissions.includes("lock_tcb");
+
+  console.log("User permissions:", permissions, "canEditTCB:", canEditTCB);
 
   const [visibleColumns, setVisibleColumns] = useState(
     allColumns.map((c) => c.key)
@@ -325,6 +328,7 @@ export default function ManageTCBperson() {
         headers: { Authorization: token ? `Bearer ${token}` : undefined },
       });
       setData((prev) => prev.filter((m) => m._id !== id));
+      fetchData(); // reload để cập nhật số dư
     } catch (err) {
       alert("Không xóa được: " + (err.response?.data?.error || err.message));
     }
@@ -426,6 +430,40 @@ export default function ManageTCBperson() {
     window.addEventListener("mousedown", handler);
     return () => window.removeEventListener("mousedown", handler);
   }, []);
+
+  const handleToggleLock = async (row) => {
+    try {
+      await axios.patch(
+        `${apiTCB}/${row._id}/toggle-lock`,
+        {},
+        { headers: { Authorization: token ? `Bearer ${token}` : undefined } }
+      );
+      fetchData(page);
+    } catch (err) {
+      alert(err.response?.data?.error || "Không thể đổi trạng thái khoá");
+    }
+  };
+
+  const handleLockByDateRange = async () => {
+    if (!from || !to) {
+      return alert("Vui lòng chọn từ ngày – đến ngày");
+    }
+
+    if (!window.confirm(`Khoá tất cả giao dịch từ ${from} đến ${to}?`)) return;
+
+    try {
+      const res = await axios.post(
+        `${apiTCB}/lock-by-date`,
+        { fromDate: from, toDate: to },
+        { headers: { Authorization: token ? `Bearer ${token}` : undefined } }
+      );
+
+      alert(res.data.message || "Đã khoá giao dịch");
+      fetchData(page);
+    } catch (err) {
+      alert(err.response?.data?.message || "Khoá theo khoảng ngày thất bại");
+    }
+  };
 
   return (
     <div className="p-4 bg-gray-50 min-h-screen text-xs">
@@ -536,6 +574,13 @@ export default function ManageTCBperson() {
 
       {/* Filter */}
       <div className="flex gap-2 mb-4 flex-wrap items-center justify-end">
+        <button
+          onClick={handleLockByDateRange}
+          className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-700"
+        >
+          Khoá GD
+        </button>
+
         <input
           type="date"
           value={from}
@@ -713,7 +758,8 @@ export default function ManageTCBperson() {
                 );
               })}
 
-              <th className="border p-1 sticky top-0 bg-gray-200">Hành động</th>
+              <th className="border p-1 sticky top-0 bg-gray-200">HÀNH ĐỘNG</th>
+              <th className="border p-1 sticky top-0 bg-gray-200">KHOÁ</th>
             </tr>
           </thead>
 
@@ -759,24 +805,49 @@ export default function ManageTCBperson() {
                 ))}
 
                 <td className="border p-1 flex gap-2 justify-center">
+                  {/* ===== SỬA ===== */}
                   <button
                     onClick={() => handleEdit(v)}
-                    className="text-blue-600"
+                    disabled={v.isLocked}
+                    className={`${
+                      v.isLocked
+                        ? "text-gray-400 cursor-not-allowed"
+                        : "text-blue-600"
+                    }`}
+                    title={v.isLocked ? "Giao dịch đã bị khoá" : ""}
                   >
                     Sửa
                   </button>
+
+                  {/* ===== CHÈN (LUÔN CHO PHÉP) ===== */}
                   <button
                     onClick={() => handleInsert(v)}
                     className="text-green-600 font-semibold"
                   >
                     Chèn
                   </button>
+
+                  {/* ===== XOÁ ===== */}
                   <button
                     onClick={() => handleDelete(v._id)}
-                    className="text-red-600"
+                    disabled={v.isLocked}
+                    className={`${
+                      v.isLocked
+                        ? "text-gray-400 cursor-not-allowed"
+                        : "text-red-600"
+                    }`}
+                    title={v.isLocked ? "Giao dịch đã bị khoá" : ""}
                   >
                     Xóa
                   </button>
+                </td>
+
+                <td className="border p-1 text-center">
+                  <input
+                    type="checkbox"
+                    checked={v.isLocked === true}
+                    onChange={() => handleToggleLock(v)}
+                  />
                 </td>
               </tr>
             ))}
@@ -798,7 +869,6 @@ export default function ManageTCBperson() {
         />
       )}
 
-      {/* Phân trang */}
       {/* Phân trang */}
       <div className="flex justify-center items-center gap-3 mt-3">
         <button

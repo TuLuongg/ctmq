@@ -306,9 +306,39 @@ export default function DieuVanPage({ user, onLogout }) {
     ngayBoc: format(date, "yyyy-MM-dd"),
     keToanPhuTrach: "",
     accountUsername: "",
-    cuocPhiBoSung: "",
     KHdiemGiaoHang: "",
   };
+
+  const COPY_FIELDS = [
+    "tenLaiXe",
+    "khachHang",
+    "maKH",
+    "dienGiai",
+    "ngayBocHang",
+    "ngayGiaoHang",
+
+    "diemXepHang",
+    "diemDoHang",
+    "diemXepHangNew",
+    "diemDoHangNew",
+
+    "soDiem",
+    "trongLuong",
+    "bienSoXe",
+
+    "cuocPhi",
+    "laiXeThuCuoc",
+    "bocXep",
+    "ve",
+    "hangVe",
+    "luuCa",
+    "luatChiPhiKhac",
+
+    "ghiChu",
+    "keToanPhuTrach",
+    "accountUsername",
+    "KHdiemGiaoHang",
+  ];
 
   const [rideDraft, setRideDraft] = useState(null);
 
@@ -317,31 +347,41 @@ export default function DieuVanPage({ user, onLogout }) {
     setShowModal(true);
   };
 
+  const buildCopyFromRide = (ride) => {
+    const result = {};
+
+    COPY_FIELDS.forEach((key) => {
+      if (ride[key] != null) {
+        result[key] = ride[key];
+      }
+    });
+
+    return result;
+  };
+
   const handleCopyRide = (ride) => {
     const copied = {
+      // ✅ base form sạch
       ...emptyForm,
-      ...ride,
 
-      // ❌ loại bỏ field không copy
-      _id: undefined,
-      maChuyen: "",
-      createdAt: undefined,
-      updatedAt: undefined,
+      // ✅ chỉ copy field cho phép
+      ...buildCopyFromRide(ride),
 
-      // ✅ GIỮ ngày gốc, chỉ fallback nếu null
+      // ✅ format ngày cho input
       ngayBocHang: ride.ngayBocHang
         ? format(new Date(ride.ngayBocHang), "yyyy-MM-dd")
-        : format(date, "yyyy-MM-dd"),
+        : emptyForm.ngayBocHang,
 
       ngayGiaoHang: ride.ngayGiaoHang
         ? format(new Date(ride.ngayGiaoHang), "yyyy-MM-dd")
-        : format(date, "yyyy-MM-dd"),
+        : emptyForm.ngayGiaoHang,
 
-      ngayBoc: ride.ngayBoc
-        ? format(new Date(ride.ngayBoc), "yyyy-MM-dd")
-        : format(date, "yyyy-MM-dd"),
+      // ❌ KHÔNG copy hệ thống
+      _id: undefined,
+      maChuyen: undefined,
+      ngayBoc: undefined,
 
-      // người tạo mới
+      // ✅ gán người tạo mới
       createdByID: currentUser._id,
       createdBy: currentUser.fullname,
       dieuVanID: currentUser._id,
