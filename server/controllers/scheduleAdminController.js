@@ -1419,8 +1419,10 @@ const exportTripsByDateRange = async (req, res) => {
       const hangVe = cleanNumber(trip.hangVe);
       const luuCa = cleanNumber(trip.luuCa);
       const cpKhac = cleanNumber(trip.luatChiPhiKhac);
+      const daThanhToan = cleanNumber(trip.daThanhToan);
 
       row.getCell("O").value = cuocPhi;
+      row.getCell("P").value = daThanhToan;
       row.getCell("Q").value = bocXep;
       row.getCell("R").value = ve;
       row.getCell("S").value = hangVe;

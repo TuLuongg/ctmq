@@ -691,3 +691,45 @@ exports.toggleLock = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+// ===================
+// Khoá giao dịch theo khoảng ngày
+// ===================
+exports.lockByDateRange = async (req, res) => {
+  try {
+    const { fromDate, toDate } = req.body;
+
+    if (!fromDate || !toDate) {
+      return res
+        .status(400)
+        .json({ message: "Thiếu fromDate hoặc toDate" });
+    }
+
+    const from = new Date(fromDate);
+    const to = new Date(toDate);
+
+    // set full ngày
+    from.setHours(0, 0, 0, 0);
+    to.setHours(23, 59, 59, 999);
+
+    const result = await TCBperson.updateMany(
+      {
+        timePay: { $gte: from, $lte: to },
+        isLocked: { $ne: true }, // chỉ khoá những cái chưa khoá
+      },
+      {
+        $set: { isLocked: true },
+      }
+    );
+
+    res.json({
+      success: true,
+      lockedCount: result.modifiedCount,
+      message: `Đã khoá ${result.modifiedCount} giao dịch`,
+    });
+  } catch (err) {
+    console.error("❌ Lock by date range error:", err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
