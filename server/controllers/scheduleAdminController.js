@@ -1177,6 +1177,7 @@ const importSchedulesFromExcel = async (req, res) => {
 
     let count = 0;
     let skipped = 0;
+    let skippedTrips = [];
 
     for (const r of records) {
       const maChuyen = r.maChuyen?.toString().trim();
@@ -1185,6 +1186,7 @@ const importSchedulesFromExcel = async (req, res) => {
       if (!maChuyen) {
         console.log("🚫 Bỏ qua dòng vì không có mã chuyến");
         skipped++;
+        skippedTrips.push(null);
         continue;
       }
 
@@ -1195,6 +1197,7 @@ const importSchedulesFromExcel = async (req, res) => {
           `⛔ Bỏ qua chuyến ${maChuyen} vì kỳ ${locked.debtCode} đã khoá`
         );
         skipped++;
+        skippedTrips.push(maChuyen);
         continue;
       }
 
@@ -1204,6 +1207,7 @@ const importSchedulesFromExcel = async (req, res) => {
       if (mode === "add" && existed) {
         console.log(`⚠️ Bỏ qua ${maChuyen} vì đã tồn tại (mode add)`);
         skipped++;
+        skippedTrips.push(maChuyen);
         continue;
       }
 
@@ -1277,12 +1281,15 @@ const importSchedulesFromExcel = async (req, res) => {
         count++;
       } catch (err) {
         console.log("❌ LỖI KHI LƯU CHUYẾN", maChuyen, "→", err.message);
+        skipped++;
+        skippedTrips.push(maChuyen);
       }
     }
 
     return res.json({
       success: true,
-      message: `Import thành công ${count} chuyến, bỏ qua ${skipped} chuyến`,
+      importedCount: count,
+      skippedTrips,
     });
   } catch (err) {
     console.error("Lỗi import Excel:", err);
