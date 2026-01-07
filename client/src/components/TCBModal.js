@@ -14,6 +14,7 @@ const parseMoney = (value) => {
 export default function TCBModal({
   initialData,
   insertAnchor,
+  canEditTCB,
   onClose,
   onSave,
   apiBase,
@@ -174,8 +175,11 @@ export default function TCBModal({
               type="text"
               name="soTien"
               value={formData.soTien}
-              onChange={handleChange}
-              className="border p-1 w-full rounded"
+              onChange={canEditTCB ? handleChange : undefined}
+              disabled={!canEditTCB}
+              className={`border p-1 w-full rounded
+      ${!canEditTCB ? "bg-gray-100 cursor-not-allowed" : ""}
+    `}
               required
             />
           </label>

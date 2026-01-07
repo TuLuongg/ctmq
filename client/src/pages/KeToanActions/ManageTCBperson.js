@@ -309,19 +309,17 @@ export default function ManageTCBperson() {
 
   // ----------------- add/edit -----------------
   const handleAdd = () => {
-    if (!canEditTCB) return alert("Bạn chưa có quyền!");
     setEditItem(null);
     setShowModal(true);
   };
   const handleEdit = (v) => {
-    if (!canEditTCB) return alert("Bạn chưa có quyền!");
     setEditItem(v);
     setShowModal(true);
   };
 
   // ----------------- delete -----------------
   const handleDelete = async (id) => {
-    if (!canEditTCB) return alert("Bạn chưa có quyền!");
+    if (!canLockTCB) return alert("Bạn chưa có quyền!");
     if (!window.confirm("Xác nhận xóa?")) return;
     try {
       await axios.delete(`${apiTCB}/${id}`, {
@@ -334,7 +332,7 @@ export default function ManageTCBperson() {
     }
   };
   const handleDeleteAll = async () => {
-    if (!canEditTCB) return alert("Bạn chưa có quyền!");
+    if (!canLockTCB) return alert("Bạn chưa có quyền!");
     if (!window.confirm("Xác nhận xóa tất cả?")) return;
     try {
       await axios.delete(apiTCB, {
@@ -412,7 +410,6 @@ export default function ManageTCBperson() {
 
   const [insertAnchor, setInsertAnchor] = useState(null);
   const handleInsert = (row) => {
-    if (!canEditTCB) return alert("Bạn chưa có quyền!");
     setInsertAnchor(row); // dòng mốc
     setEditItem(null); // modal rỗng
     setShowModal(true);
@@ -576,7 +573,19 @@ export default function ManageTCBperson() {
       <div className="flex gap-2 mb-4 flex-wrap items-center justify-end">
         <button
           onClick={handleLockByDateRange}
-          className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-700"
+          disabled={!canLockTCB}
+          className={`px-3 py-1 rounded text-white
+    ${
+      canLockTCB
+        ? "bg-red-500 hover:bg-red-700"
+        : "bg-gray-400 cursor-not-allowed"
+    }
+  `}
+          title={
+            !canLockTCB
+              ? "Bạn không có quyền khoá giao dịch"
+              : "Khoá giao dịch theo ngày"
+          }
         >
           Khoá GD
         </button>
@@ -830,13 +839,19 @@ export default function ManageTCBperson() {
                   {/* ===== XOÁ ===== */}
                   <button
                     onClick={() => handleDelete(v._id)}
-                    disabled={v.isLocked}
+                    disabled={!canLockTCB || v.isLocked}
                     className={`${
-                      v.isLocked
+                      !canLockTCB || v.isLocked
                         ? "text-gray-400 cursor-not-allowed"
-                        : "text-red-600"
+                        : "text-red-600 hover:underline"
                     }`}
-                    title={v.isLocked ? "Giao dịch đã bị khoá" : ""}
+                    title={
+                      !canLockTCB
+                        ? "Bạn không có quyền xoá"
+                        : v.isLocked
+                        ? "Giao dịch đã bị khoá"
+                        : "Xoá giao dịch"
+                    }
                   >
                     Xóa
                   </button>
@@ -846,7 +861,15 @@ export default function ManageTCBperson() {
                   <input
                     type="checkbox"
                     checked={v.isLocked === true}
-                    onChange={() => handleToggleLock(v)}
+                    disabled={!canLockTCB}
+                    onChange={() => canLockTCB && handleToggleLock(v)}
+                    title={
+                      !canLockTCB
+                        ? "Bạn không có quyền khoá/mở"
+                        : v.isLocked
+                        ? "Mở khoá giao dịch"
+                        : "Khoá giao dịch"
+                    }
                   />
                 </td>
               </tr>
@@ -859,6 +882,7 @@ export default function ManageTCBperson() {
         <TCBModal
           initialData={editItem}
           insertAnchor={insertAnchor}
+          canEditTCB={canEditTCB}
           onClose={() => {
             setShowModal(false);
             setEditItem(null);
@@ -910,7 +934,7 @@ export default function ManageTCBperson() {
         <button
           onClick={handleDeleteAll}
           className={`px-4 py-2 bg-red-600 text-white rounded shadow hover:bg-red-700 
-      ${!canEditTCB ? "opacity-50 cursor-not-allowed" : ""}`}
+      ${!canLockTCB ? "opacity-50 cursor-not-allowed" : ""}`}
         >
           Xóa tất cả
         </button>

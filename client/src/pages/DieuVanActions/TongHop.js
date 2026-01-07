@@ -163,7 +163,7 @@ export default function TongHop({ user, onLogout }) {
         excelSelected.cuocPhi.forEach((v) => q.append("cuocPhi", v));
       }
 
-            // 🔹 FILTER TEXT
+      // 🔹 FILTER TEXT
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== "" && value !== null && value !== undefined) {
           q.append(key, value);
@@ -231,7 +231,7 @@ export default function TongHop({ user, onLogout }) {
     dienGiai: [],
     cuocPhi: [],
   });
-      useEffect(() => {
+  useEffect(() => {
     fetchAllRides();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -264,8 +264,6 @@ export default function TongHop({ user, onLogout }) {
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, []);
-
-
 
   const [filterPos, setFilterPos] = useState({ x: 0, y: 0 });
   const getColumnLabel = (key) => {
@@ -454,39 +452,45 @@ export default function TongHop({ user, onLogout }) {
     setLoadingImport(true);
     setRemaining(excelData.length);
 
-    const failed = []; // lưu các bản ghi lỗi (nếu cần)
-
     try {
+      let totalImported = 0;
+      let skippedTrips = [];
       // Import tuần tự để có thể update remaining từng cái
       for (let i = 0; i < excelData.length; i++) {
         const record = excelData[i];
         try {
           // Gọi API import từng bản ghi (server nên chấp nhận 1 item trong records array)
-          await axios.post(
+          const res = await axios.post(
             `${API_URL}/import-excel`,
             { records: [record], mode },
             { headers: { Authorization: `Bearer ${token}` } }
           );
+
+          // 🔹 gom kết quả từ BE
+          if (res.data?.importedCount) {
+            totalImported += res.data.importedCount;
+          }
+
+          if (Array.isArray(res.data?.skippedTrips)) {
+            skippedTrips.push(...res.data.skippedTrips.filter(Boolean));
+          }
         } catch (err) {
-          console.error(
-            "Lỗi import record:",
-            record,
-            err.response?.data || err.message
-          );
-          failed.push({ record, error: err.response?.data || err.message });
+          console.error("Lỗi import record:", record, err);
+          skippedTrips.push(record.maChuyen || null);
           // tiếp tục import các bản ghi còn lại
         } finally {
           setRemaining((prev) => prev - 1);
         }
       }
 
-      if (failed.length === 0) {
-        alert("Import thành công tất cả chuyến!");
+      if (skippedTrips.length === 0) {
+        alert(`Import thành công ${totalImported} chuyến!`);
       } else {
         alert(
-          `Hoàn thành với ${failed.length} chuyến lỗi. Kiểm tra console để biết chi tiết.`
+          `Import xong: ${totalImported} chuyến thành công.\n` +
+            `Không import được ${skippedTrips.length} chuyến:\n` +
+            skippedTrips.join(", ")
         );
-        console.warn("Danh sách lỗi import:", failed);
       }
 
       // Reset sau import (chỉ khi bạn muốn)
@@ -589,7 +593,6 @@ export default function TongHop({ user, onLogout }) {
     "luuCa",
     "luatChiPhiKhac",
   ];
-
 
   const filteredRides = rides.filter((r) => {
     // ===== FILTER KHÁCH HÀNG =====

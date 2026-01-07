@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { format } from "date-fns";
+import { format, set } from "date-fns";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   FaEdit,
@@ -593,7 +593,7 @@ export default function ManageTrip({ user, onLogout }) {
     setRideDraft([]);
     setShowModal(true);
   };
-  
+
   const COPY_FIELDS = [
     // Người & xe
     "tenLaiXe",
@@ -2030,6 +2030,7 @@ export default function ManageTrip({ user, onLogout }) {
                                     ...p,
                                     khachHang: [],
                                   }));
+                                  setSearchKH(""); 
                                   setPage(1);
                                   setOpenFilter(null);
                                 }}
@@ -2126,6 +2127,7 @@ export default function ManageTrip({ user, onLogout }) {
                                     ...p,
                                     tenLaiXe: [],
                                   }));
+                                  setSearchDriver("");
                                   setPage(1);
                                   setOpenFilter(null);
                                 }}
@@ -2222,6 +2224,7 @@ export default function ManageTrip({ user, onLogout }) {
                                     ...p,
                                     bienSoXe: [],
                                   }));
+                                  setSearchPlate("");
                                   setPage(1);
                                   setOpenFilter(null);
                                 }}
@@ -2322,6 +2325,7 @@ export default function ManageTrip({ user, onLogout }) {
                                     ...prev,
                                     dienGiai: [],
                                   }));
+                                  setSearchDGiai("");
                                   setPage(1);
                                   setOpenFilter(null);
                                 }}
@@ -2421,6 +2425,7 @@ export default function ManageTrip({ user, onLogout }) {
                                     ...prev,
                                     cuocPhi: [],
                                   }));
+                                  setSearchCuocPhiBD("");
                                   setPage(1);
                                   setOpenFilter(null);
                                 }}
@@ -2537,8 +2542,9 @@ export default function ManageTrip({ user, onLogout }) {
                                 onClick={() => {
                                   setExcelSelected((prev) => ({
                                     ...prev,
-                                    cuocPhi: [],
+                                    maHoaDon: [],
                                   }));
+                                  setSearchMaHoaDon("");
                                   setPage(1);
                                   setOpenFilter(null);
                                 }}
@@ -2656,8 +2662,9 @@ export default function ManageTrip({ user, onLogout }) {
                                 onClick={() => {
                                   setExcelSelected((prev) => ({
                                     ...prev,
-                                    cuocPhi: [],
+                                    debtCode: [],
                                   }));
+                                  setSearchDebtCode("");
                                   setPage(1);
                                   setOpenFilter(null);
                                 }}

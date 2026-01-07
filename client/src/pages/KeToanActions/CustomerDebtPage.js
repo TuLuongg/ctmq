@@ -159,6 +159,7 @@ export default function CustomerDebtPage() {
               debtCode: null,
               maKH: c.code,
               tenKH: c.name,
+              userAssigned: c.accUsername,
               fromDate: null,
               toDate: null,
               thangQuanLy: manageMonth,
@@ -362,8 +363,13 @@ export default function CustomerDebtPage() {
     const normSearch = normalizeString(searchText);
     const normCode = normalizeString(c.maKH);
     const normName = normalizeString(c.tenKH);
+    const normAssigned = normalizeString(c.userAssigned);
 
-    return normCode.includes(normSearch) || normName.includes(normSearch);
+    return (
+      normCode.includes(normSearch) ||
+      normName.includes(normSearch) ||
+      normAssigned.includes(normSearch)
+    );
   });
 
   const visibleCustomerCodes = filteredDebtList.map((c) => c.maKH);
@@ -567,7 +573,7 @@ export default function CustomerDebtPage() {
       <div className="flex gap-2 mb-2 items-center">
         <input
           type="text"
-          placeholder="Mã KH / Tên KH"
+          placeholder="Mã KH / Tên KH / Phụ trách..."
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
           className="border p-2 w-52 rounded"
@@ -627,6 +633,9 @@ export default function CustomerDebtPage() {
               </th>
               <th className="border p-2 sticky top-0 bg-gray-200 z-20">
                 TÊN KH
+              </th>
+              <th className="border p-2 sticky top-0 bg-gray-200 z-20">
+                Phụ trách
               </th>
               <th className="border p-2 sticky top-0 bg-gray-200 z-20">
                 MÃ CN
@@ -706,6 +715,13 @@ export default function CustomerDebtPage() {
                         className="border p-2 align-top"
                       >
                         {customer.tenKH}
+                      </td>
+
+                      <td
+                        rowSpan={periods.length}
+                        className="border p-2 align-top"
+                      >
+                        {customer.userAssigned}
                       </td>
                     </>
                   )}
@@ -904,7 +920,12 @@ export default function CustomerDebtPage() {
                 type="month"
                 value={autoManageMonth}
                 onChange={(e) => setAutoManageMonth(e.target.value)}
-                onClick={(e) => e.target.showPicker()}
+                onClick={(e) => {
+                  if (!autoManageMonth) return e.target.showPicker();
+
+                  e.target.value = autoManageMonth;
+                  e.target.showPicker();
+                }}
                 className="border p-2 w-40 cursor-pointer"
               />
 

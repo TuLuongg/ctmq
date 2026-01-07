@@ -1971,6 +1971,7 @@ export default function ManageTrip({ user, onLogout }) {
                                     ...p,
                                     khachHang: [],
                                   }));
+                                  setSearchKH("");
                                   setPage(1);
                                   setOpenFilter(null);
                                 }}
@@ -2067,6 +2068,7 @@ export default function ManageTrip({ user, onLogout }) {
                                     ...p,
                                     tenLaiXe: [],
                                   }));
+                                  setSearchDriver("");
                                   setPage(1);
                                   setOpenFilter(null);
                                 }}
@@ -2163,6 +2165,7 @@ export default function ManageTrip({ user, onLogout }) {
                                     ...p,
                                     bienSoXe: [],
                                   }));
+                                  setSearchPlate("");
                                   setPage(1);
                                   setOpenFilter(null);
                                 }}
@@ -2263,6 +2266,7 @@ export default function ManageTrip({ user, onLogout }) {
                                     ...prev,
                                     dienGiai: [],
                                   }));
+                                  setSearchDGiai("");
                                   setPage(1);
                                   setOpenFilter(null);
                                 }}
@@ -2362,6 +2366,7 @@ export default function ManageTrip({ user, onLogout }) {
                                     ...prev,
                                     cuocPhi: [],
                                   }));
+                                  setSearchCuocPhiBD("");
                                   setPage(1);
                                   setOpenFilter(null);
                                 }}
@@ -2479,8 +2484,9 @@ export default function ManageTrip({ user, onLogout }) {
                                 onClick={() => {
                                   setExcelSelected((prev) => ({
                                     ...prev,
-                                    cuocPhi: [],
+                                    maHoaDon: [],
                                   }));
+                                  setSearchMaHoaDon("");
                                   setPage(1);
                                   setOpenFilter(null);
                                 }}
@@ -2598,8 +2604,9 @@ export default function ManageTrip({ user, onLogout }) {
                                 onClick={() => {
                                   setExcelSelected((prev) => ({
                                     ...prev,
-                                    cuocPhi: [],
+                                    debtCode: [],
                                   }));
+                                  setSearchDebtCode("");
                                   setPage(1);
                                   setOpenFilter(null);
                                 }}

@@ -313,7 +313,7 @@ export default function VoucherAdjustModal({
 
         {/* LÝ DO */}
         <div className="mb-2">
-          <label className="font-semibold">LÝ DO ĐIỀU CHỈNH</label>
+          <label className="font-semibold">LÝ DO CHI</label>
           <textarea
             name="reason"
             value={form.reason}

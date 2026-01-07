@@ -366,6 +366,15 @@ export default function VoucherCreateModal({
     }
   }
 
+  const receiverNameExists = receiverNameList.some(
+    (e) =>
+      e.name.trim().toLowerCase() === form.receiverName.trim().toLowerCase()
+  );
+
+  const expenseExists = expenseList.some(
+    (e) => e.name.trim().toLowerCase() === form.expenseType.trim().toLowerCase()
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white w-[900px] max-h-[90vh] overflow-auto p-6 rounded shadow-lg">
@@ -416,13 +425,30 @@ export default function VoucherCreateModal({
             </button>
           </div>
 
-          <input
-            list="receiverNameList"
-            name="receiverName"
-            value={form.receiverName}
-            onChange={change}
-            className="border border-gray-300 rounded-md outline-none p-2 w-full mt-2"
-          />
+          <div className="relative mt-2">
+            <input
+              list="receiverNameList"
+              name="receiverName"
+              value={form.receiverName}
+              onChange={change}
+              className="border border-gray-300 rounded-md outline-none p-2 w-full pr-16"
+            />
+
+            {/* NÚT LƯU – GỌI LOGIC CŨ */}
+            {form.receiverName.trim() && !receiverNameExists && (
+              <button
+                type="button"
+                onClick={() => {
+                  setNewReceiverName(form.receiverName);
+                  addReceiverName(); // 👈 HÀM CŨ
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2
+                 bg-blue-500 text-white text-xs px-3 py-1 rounded"
+              >
+                Lưu
+              </button>
+            )}
+          </div>
 
           <datalist id="receiverNameList">
             {receiverNameList.map((e) => (
@@ -573,14 +599,31 @@ export default function VoucherCreateModal({
               </button>
             </div>
 
-            <input
-              list="expenseList"
-              name="expenseType"
-              value={form.expenseType}
-              onChange={change}
-              className="border border-gray-300 rounded-md outline-none p-2 w-full mt-2"
-              autoComplete="off"
-            />
+            <div className="relative mt-2">
+              <input
+                list="expenseList"
+                name="expenseType"
+                value={form.expenseType}
+                onChange={change}
+                className="border border-gray-300 rounded-md outline-none p-2 w-full pr-16"
+                autoComplete="off"
+              />
+
+              {/* NÚT LƯU – DÙNG HÀM CŨ */}
+              {form.expenseType.trim() && !expenseExists && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewExpenseName(form.expenseType);
+                    addExpenseType(); // 👈 HÀM CŨ
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2
+                 bg-blue-500 text-white text-xs px-3 py-1 rounded"
+                >
+                  Lưu
+                </button>
+              )}
+            </div>
 
             <datalist id="expenseList">
               {expenseList.map((e) => (

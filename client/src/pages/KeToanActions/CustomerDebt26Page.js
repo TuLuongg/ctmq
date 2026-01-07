@@ -51,11 +51,12 @@ export default function CustomerDebt26Page() {
     { key: "diemXepHang", label: "Điểm giao", width: 100, visible: true },
     { key: "soDiem", label: "Số điểm", width: 80, visible: true },
     { key: "trongLuong", label: "Trọng lượng", width: 100, visible: true },
-    { key: "bienSoXe", label: "Biển số", width: 100, visible: true },
-    { key: "maKH", label: "Mã KH", width: 100, visible: true },
+    { key: "bienSoXe", label: "Biển số", width: 80, visible: true },
+    { key: "maKH", label: "Mã KH", width: 50, visible: true },
+    { key: "ghiChu", label: "Ghi chú gốc", width: 100, visible: true },
     { key: "cuocPhi", label: "Cước phí", width: 80, visible: true },
     { key: "bocXep", label: "Bốc xếp", width: 80, visible: true },
-    { key: "ve", label: "Vé", width: 60, visible: true },
+    { key: "ve", label: "Vé", width: 80, visible: true },
     { key: "hangVe", label: "Hàng về", width: 80, visible: true },
     { key: "luuCa", label: "Lưu ca", width: 80, visible: true },
     { key: "luatChiPhiKhac", label: "Luật CP khác", width: 90, visible: true },
@@ -769,25 +770,30 @@ export default function CustomerDebt26Page() {
                       .map((col) => {
                         let value = t[col.key];
 
+                        const MONEY_RIGHT_FIELDS = [
+                          "tongTien",
+                          "daThanhToan",
+                          "conLai",
+                        ];
+
                         if (DATE_COLUMNS.includes(col.key)) {
                           value = value
                             ? format(new Date(value), "dd/MM/yyyy")
                             : "";
                         }
                         if (MONEY_FIELDS.includes(col.key)) {
-                          const num = Number(t[col.key] ?? 0);
-                          const displayValue = isNaN(num)
-                            ? ""
-                            : num.toLocaleString();
+                          const num = Number(t[col.key]);
+
+                          const displayValue =
+                            !num || isNaN(num) ? "" : num.toLocaleString();
 
                           return (
                             <td
                               key={col.key}
-                              className={`border table-cell cursor-pointer hover:bg-yellow-50 ${
-                                col.key === "maChuyen"
-                                  ? "sticky left-[30px] bg-white z-20"
-                                  : ""
-                              }`}
+                              className={`border table-cell cursor-pointer hover:bg-yellow-50
+        ${col.key === "maChuyen" ? "sticky left-[30px] bg-white z-20" : ""}
+        ${MONEY_RIGHT_FIELDS.includes(col.key) ? "text-right" : ""}
+      `}
                               style={{
                                 width: col.width,
                                 minWidth: col.width,
@@ -811,7 +817,7 @@ export default function CustomerDebt26Page() {
                           col.key === "luuCa" ||
                           col.key === "luatChiPhiKhac"
                         ) {
-                          const num = Number(value ?? 0); // ép sang number
+                          const num = Number(value ?? ""); // ép sang number
                           value = isNaN(num) ? "" : num.toLocaleString(); // nếu NaN thì hiển thị rỗng
                         }
 
@@ -851,7 +857,13 @@ export default function CustomerDebt26Page() {
                             }}
                           >
                             <div
-                              className="cell-content"
+                              className={`cell-content ${
+                                ["tongTien", "daThanhToan", "conLai"].includes(
+                                  col.key
+                                )
+                                  ? "text-right"
+                                  : ""
+                              }`}
                               title={String(value ?? "")}
                             >
                               {value}
@@ -882,7 +894,9 @@ export default function CustomerDebt26Page() {
 
           <div className="flex justify-between items-center mt-3">
             <div className="font-semibold">
-              Tổng số chuyến: <span className="text-black">{totalTrips}</span> || hiển thị: <span className="text-black">{filteredTrips.length}</span>
+              Tổng số chuyến: <span className="text-black">{totalTrips}</span>{" "}
+              || hiển thị:{" "}
+              <span className="text-black">{filteredTrips.length}</span>
             </div>
 
             <div className="flex items-center gap-2">
