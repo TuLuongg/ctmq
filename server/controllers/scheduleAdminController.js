@@ -1169,7 +1169,6 @@ const importSchedulesFromExcel = async (req, res) => {
     }
 
     const { records, mode = "overwrite" } = req.body;
-    // mode: "overwrite" | "add"
 
     if (!Array.isArray(records) || records.length === 0) {
       return res.status(400).json({ error: "Không có dữ liệu để import" });
@@ -1190,7 +1189,7 @@ const importSchedulesFromExcel = async (req, res) => {
         continue;
       }
 
-      // check khoá kỳ công nợ
+      // 🔒 check khoá kỳ công nợ
       const locked = await checkLockedDebtPeriod(maKH, r.ngayGiaoHang);
       if (locked) {
         console.log(
@@ -1203,7 +1202,7 @@ const importSchedulesFromExcel = async (req, res) => {
 
       const existed = await ScheduleAdmin.findOne({ maChuyen });
 
-      // ===== MODE: ADD (chỉ thêm mới) =====
+      // ===== MODE: ADD =====
       if (mode === "add" && existed) {
         console.log(`⚠️ Bỏ qua ${maChuyen} vì đã tồn tại (mode add)`);
         skipped++;
@@ -1211,7 +1210,7 @@ const importSchedulesFromExcel = async (req, res) => {
         continue;
       }
 
-      // Nếu có maKH thì lấy thông tin khách hàng
+      // 📌 Lấy thông tin khách hàng
       let khachHang = r.khachHang || "";
       let accountUsername = r.accountUsername || "";
 
@@ -1263,18 +1262,12 @@ const importSchedulesFromExcel = async (req, res) => {
 
       try {
         if (existed) {
-          // ===== MODE: OVERWRITE =====
+          // 🔁 OVERWRITE
           await ScheduleAdmin.updateOne({ maChuyen }, { $set: data });
-
-          // 🔥 RECALC SAU UPDATE
-          const sch = await ScheduleAdmin.findOne({ maChuyen });
-          await calcHoaHong(sch);
-          await sch.save();
           console.log(`🔁 Ghi đè chuyến ${maChuyen}`);
         } else {
+          // ➕ ADD
           await ScheduleAdmin.create(data);
-          await calcHoaHong(sch);
-          await sch.save();
           console.log(`➕ Thêm mới chuyến ${maChuyen}`);
         }
 
