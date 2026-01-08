@@ -824,11 +824,7 @@ export default function CustomerDebtPage() {
                           </button>
                         ) : (
                           <button
-                            className={`p-1 ${
-                              canLockKCN
-                                ? "text-yellow-500"
-                                : "text-gray-400 cursor-not-allowed"
-                            }`}
+                            className={"p-1 text-yellow-500"}
                             onClick={() => {
                               handleLockDebt(c.debtCode);
                             }}
