@@ -830,7 +830,6 @@ export default function CustomerDebtPage() {
                                 : "text-gray-400 cursor-not-allowed"
                             }`}
                             onClick={() => {
-                              if (!canLockKCN) return;
                               handleLockDebt(c.debtCode);
                             }}
                           >
