@@ -2,14 +2,19 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 
 const formatMoney = (value) => {
-  if (!value) return "";
-  const number = value.replace(/\D/g, "");
+  if (value === null || value === undefined) return "";
+  const str = String(value);
+  const number = str.replace(/\D/g, "");
   return number.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 };
 
+
 const parseMoney = (value) => {
-  return Number(value.replace(/\./g, "")) || 0;
+  if (typeof value === "number") return value;
+  if (!value) return 0;
+  return Number(String(value).replace(/\./g, "")) || 0;
 };
+
 
 export default function TCBModal({
   initialData,

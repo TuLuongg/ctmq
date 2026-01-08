@@ -824,7 +824,6 @@ export default function CustomerDebtPage() {
                           </button>
                         ) : (
                           <button
-                            disabled={!canLockKCN}
                             className={`p-1 ${
                               canLockKCN
                                 ? "text-yellow-500"
