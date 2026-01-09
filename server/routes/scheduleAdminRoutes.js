@@ -10,6 +10,7 @@ const {
   getSchedulesByAccountant,
   addHoaDonToSchedules,
   importHoaDonFromExcel,
+  importCTXNFromExcel,
   removeHoaDonFromSchedules,
   addBoSung,
   importSchedulesFromExcel,
@@ -176,6 +177,13 @@ router.post(
   "/import-hoa-don",
   authMiddleware(["keToan"]),
   importHoaDonFromExcel
+);
+
+// 🆕 Import cước trả xe ngoài từ Excel (check theo maChuyen)
+router.post(
+  "/import-ctxn",
+  authMiddleware(["keToan"]),
+  importCTXNFromExcel
 );
 
 // 🆕 Xoá mã hoá đơn theo danh sách chuyến

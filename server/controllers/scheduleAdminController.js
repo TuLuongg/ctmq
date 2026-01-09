@@ -5,33 +5,64 @@ const CustomerDebtPeriod = require("../models/CustomerDebtPeriod");
 const ExcelJS = require("exceljs");
 const path = require("path");
 const mongoose = require("mongoose");
+const CustomerCommissionHistory = require("../models/CustomerCommissionHistory");
 
 const calcHoaHong = async (schedule) => {
-  if (!schedule?.maKH) {
+  if (!schedule?.maKH || !schedule?.ngayGiaoHang) {
     schedule.percentHH = 0;
     schedule.moneyHH = 0;
     schedule.moneyConLai = 0;
+    schedule.doanhThu = 0;
     return;
   }
 
-  const customer = await Customer.findOne({ code: schedule.maKH }).lean();
-  const percentHH = Number(customer?.percentHH || 0);
+  const giaoDate = new Date(schedule.ngayGiaoHang);
+
+  const history = await CustomerCommissionHistory.findOne({
+    customerCode: schedule.maKH,
+    startDate: { $lte: giaoDate },
+    $or: [{ endDate: null }, { endDate: { $gt: giaoDate } }],
+  })
+    .sort({ startDate: -1 })
+    .lean();
+
+  const percentHH = Number(history?.percentHH || 0);
+  const moneyPerTrip = Number(history?.moneyPerTrip || 0);
 
   const toNum = (v) => Number(String(v || 0).replace(/[.,]/g, "")) || 0;
 
   const cuocPhiBS = toNum(schedule.cuocPhiBS);
   const themDiem = toNum(schedule.themDiem);
   const hangVeBS = toNum(schedule.hangVeBS);
+  const cuocTraXN = toNum(schedule.cuocTraXN);
 
-  // ✅ TỔNG TIỀN CHỊU HOA HỒNG
   const baseHH = cuocPhiBS + themDiem + hangVeBS;
 
-  const moneyHH = Math.round((baseHH * percentHH) / 100);
+  if (baseHH <= 0) {
+    schedule.percentHH = 0;
+    schedule.moneyHH = 0;
+    schedule.moneyConLai = 0;
+    schedule.doanhThu = -cuocTraXN;
+    return;
+  }
+
+  let moneyHH = 0;
+
+  if (moneyPerTrip > 0) {
+    moneyHH = moneyPerTrip;
+    schedule.percentHH = 0;
+  } else {
+    moneyHH = Math.round((baseHH * percentHH) / 100);
+    schedule.percentHH = percentHH;
+  }
+
   const moneyConLai = baseHH - moneyHH;
 
-  schedule.percentHH = percentHH;
   schedule.moneyHH = moneyHH;
   schedule.moneyConLai = moneyConLai;
+
+  // 🔥🔥🔥 DOANH THU CHUẨN DUY NHẤT
+  schedule.doanhThu = moneyConLai - cuocTraXN;
 };
 
 const escapeRegex = (str = "") => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -85,9 +116,6 @@ const createScheduleAdmin = async (req, res) => {
       ...data,
     });
 
-    // 🔥 AUTO TÍNH HOA HỒNG
-    await calcHoaHong(newSchedule);
-    await newSchedule.save();
     res.status(201).json(newSchedule);
   } catch (err) {
     if (err.code === 11000) {
@@ -211,10 +239,6 @@ const updateScheduleAdmin = async (req, res) => {
 
     // Cập nhật dữ liệu bình thường
     Object.assign(schedule, req.body);
-
-    // 🔥 AUTO RECALC HOA HỒNG
-    await calcHoaHong(schedule);
-    await schedule.save();
 
     res.json(schedule);
   } catch (err) {
@@ -1083,6 +1107,50 @@ const importHoaDonFromExcel = async (req, res) => {
   }
 };
 
+// 🆕 Import cước trả xe ngoài từ file (check theo maChuyen)
+const importCTXNFromExcel = async (req, res) => {
+  try {
+    const { records } = req.body;
+    if (!Array.isArray(records) || records.length === 0) {
+      return res.status(400).json({ error: "Không có dữ liệu import" });
+    }
+
+    let updated = 0;
+    let skipped = 0;
+
+    for (const r of records) {
+      const maChuyen = r.maChuyen?.toString().trim();
+      const cuocTraXN = Number(r.cuocTraXN);
+
+      if (!maChuyen || Number.isNaN(cuocTraXN)) {
+        skipped++;
+        continue;
+      }
+
+      const schedule = await ScheduleAdmin.findOne({ maChuyen });
+      if (!schedule) {
+        skipped++;
+        continue;
+      }
+
+      schedule.cuocTraXN = cuocTraXN;
+      await calcHoaHong(schedule);
+      await schedule.save();
+      updated++;
+    }
+
+    return res.json({
+      success: true,
+      message: `Import hoá đơn thành công ${updated} chuyến, bỏ qua ${skipped} dòng`,
+      updated,
+      skipped,
+    });
+  } catch (err) {
+    console.error("❌ importHoaDonFromExcel error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
 const addBoSung = async (req, res) => {
   try {
     const { updates } = req.body; // [{ maChuyen, cuocPhiBoSung }, ...]
@@ -1127,6 +1195,7 @@ const addBoSungSingle = async (req, res) => {
       luuCaBS,
       cpKhacBS,
       themDiem,
+      cuocTraXN,
     } = req.body;
 
     const schedule = await ScheduleAdmin.findById(id);
@@ -1146,6 +1215,7 @@ const addBoSungSingle = async (req, res) => {
     schedule.cpKhacBS = cpKhacBS?.toString() || "";
 
     schedule.themDiem = themDiem?.toString() || "";
+    schedule.cuocTraXN = cuocTraXN;
     await calcHoaHong(schedule);
     await schedule.save();
 
@@ -1603,4 +1673,5 @@ module.exports = {
   addBoSungSingle,
   removeHoaDonFromSchedules,
   importHoaDonFromExcel,
+  importCTXNFromExcel,
 };

@@ -12,7 +12,9 @@ const {
   toggleWarning,
   exportTripsByCustomer,
   deleteAllCustomers,
-  exportCustomers
+  exportCustomers,
+  updateCustomerCommission,
+  getCustomerCommissionHistory
 } = require("../controllers/customerController");
 
 // --------------------------
@@ -21,22 +23,29 @@ const {
 const excelStorage = multer.memoryStorage();
 const excelUpload = multer({ storage: excelStorage });
 
+// ==============================
+// 🔥 HOA HỒNG / LỊCH SỬ
+// ==============================
+router.post("/:id/commission", updateCustomerCommission);
+router.get("/commission-history/:code", getCustomerCommissionHistory);
+
 // --------------------------
-// Routes
+// Routes CHUNG
 // --------------------------
 router.get("/", listCustomers);
 router.get("/export-excel", exportCustomers);
-router.get("/:id", getCustomer);
 router.post("/", createCustomer);
-router.put("/:id", updateCustomer);
 router.delete("/all", deleteAllCustomers);
+router.post("/import", excelUpload.single("file"), importCustomersFromExcel);
+router.put("/warning/:id", toggleWarning);
+router.get("/export-trips-customer/:maKH", exportTripsByCustomer);
+
+// ⛔ LUÔN ĐỂ CUỐI
+router.get("/:id", getCustomer);
+router.put("/:id", updateCustomer);
 router.delete("/:id", deleteCustomer);
 
-// Import Excel (MemoryStorage)
-router.post("/import", excelUpload.single("file"), importCustomersFromExcel);
-router.put("/warning/:id", toggleWarning)
 
-router.get("/export-trips-customer/:maKH", exportTripsByCustomer);
 
 
 module.exports = router;

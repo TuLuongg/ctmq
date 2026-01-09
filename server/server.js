@@ -12,6 +12,7 @@ const driverRoutes = require("./routes/driverRoutes");
 const customerRoutes = require("./routes/customerRoutes");
 const vehicleRoutes = require("./routes/vehicleRoutes");
 const paymentHistoryRoutes = require("./routes/paymentHistoryRoutes");
+const oddCustomerDebtRoutes = require("./routes/oddCustomerDebt.routes");
 const voucherRoutes = require("./routes/voucherRoutes");
 const expenseRoutes = require("./routes/expenseRoutes");
 
@@ -38,6 +39,7 @@ app.use("/api/drivers", driverRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api/vehicles", vehicleRoutes);
 app.use("/api/payment-history", paymentHistoryRoutes);
+app.use("/api/odd-debt", oddCustomerDebtRoutes);
 app.use("/api/vouchers", voucherRoutes);
 app.use("/api/expense", expenseRoutes);
 

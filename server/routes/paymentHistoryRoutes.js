@@ -20,14 +20,6 @@ const {
   addPaymentReceipt,
   rollbackPaymentReceipt,
   getPaymentHistoryByCustomer,
-
-  // ===== KH 26 – GIỮ NGUYÊN =====
-  getDebtForCustomer26,
-  addTripPayment,
-  getTripPaymentHistory,
-  deleteTripPayment,
-  updateTripNameCustomer,
-  updateTripNoteOdd
 } = require("../controllers/paymentHistoryController");
 
 // =====================================================
@@ -93,28 +85,5 @@ router.post("/debt-period/:debtCode/unlock", unlockDebtPeriod);
 // =====================================================
 // DELETE /api/payment/receipt/:receiptId
 router.delete("/receipt/:receiptId", rollbackPaymentReceipt);
-
-// =====================================================
-// 🚚 KHÁCH HÀNG 26 (GIỮ NGUYÊN LOGIC CŨ)
-// =====================================================
-
-// Công nợ KH 26 theo từng chuyến
-// GET /api/payment/customer26/debt?startDate=&endDate=
-router.get("/customer26/debt", getDebtForCustomer26);
-
-// Lịch sử thanh toán theo chuyến
-// GET /api/payment/trip/BK11.0023/history
-router.get("/trip/:maChuyenCode/history", getTripPaymentHistory);
-
-// Thêm thanh toán theo chuyến
-// POST /api/payment/trip/add
-router.post("/trip/add", addTripPayment);
-
-router.delete("/trip-payment/:paymentId", deleteTripPayment);
-
-//Cập nhật tên KH và ghi chú
-router.put("/update-name-customer", updateTripNameCustomer);
-router.put("/update-note-odd", updateTripNoteOdd);
-
 
 module.exports = router;

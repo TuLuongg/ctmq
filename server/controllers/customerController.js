@@ -5,6 +5,9 @@ const fs = require("fs");
 const path = require("path");
 const ExcelJS = require("exceljs");
 const ScheduleAdmin = require("../models/ScheduleAdmin");
+const CustomerCommissionHistory = require("../models/CustomerCommissionHistory");
+
+const toNum = (v) => Number(String(v || 0).replace(/[.,]/g, "")) || 0;
 
 // ==============================
 // DANH SÁCH
@@ -88,7 +91,6 @@ const updateCustomer = async (req, res) => {
         accountant: body.accountant,
         code: body.code,
         accUsername: body.accUsername,
-        percentHH: body.percentHH, // 🔥 TRIGGER RECALC
       },
       { new: true }
     );
@@ -469,6 +471,130 @@ const exportCustomers = async (req, res) => {
   }
 };
 
+// ==============================
+// 🔥 CẬP NHẬT HOA HỒNG / TIỀN CHUYẾN (CÓ LỊCH SỬ)
+// ==============================
+const updateCustomerCommission = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { percentHH = 0, oneTripMoney = 0, timeStart } = req.body;
+
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({ error: "ID không hợp lệ" });
+    }
+
+    if (!timeStart) {
+      return res.status(400).json({ error: "Thiếu timeStart" });
+    }
+
+    const customer = await Customer.findById(id);
+    if (!customer) {
+      return res.status(404).json({ error: "Không tìm thấy khách hàng" });
+    }
+
+    const startDate = new Date(timeStart);
+
+    // ===============================
+    // 1️⃣ ĐÓNG LỊCH SỬ CŨ
+    // ===============================
+    const currentHistory = await CustomerCommissionHistory.findOne({
+      customerCode: customer.code,
+      endDate: null,
+    });
+
+    if (currentHistory) {
+      currentHistory.endDate = startDate;
+      await currentHistory.save();
+    }
+
+    // ===============================
+    // 2️⃣ TẠO LỊCH SỬ MỚI
+    // ===============================
+    await CustomerCommissionHistory.create({
+      customerCode: customer.code,
+      percentHH: Number(percentHH) || 0,
+      moneyPerTrip: Number(oneTripMoney) || 0,
+      startDate,
+      endDate: null,
+      createdBy: req.user?.username || "",
+    });
+
+    // ===============================
+    // 3️⃣ UPDATE CUSTOMER
+    // ===============================
+    customer.percentHH = Number(percentHH) || 0;
+    customer.oneTripMoney = Number(oneTripMoney) || 0;
+    customer.timeStart = startDate;
+    await customer.save();
+
+    // ===============================
+    // 4️⃣ 🔥 UPDATE TẤT CẢ CHUYẾN
+    // ===============================
+    const schedules = await ScheduleAdmin.find({
+      maKH: customer.code,
+      isDeleted: false,
+      ngayGiaoHang: { $gte: startDate },
+    });
+
+    for (const sch of schedules) {
+      const cuocPhiBS = toNum(sch.cuocPhiBS);
+      const themDiem = toNum(sch.themDiem);
+      const hangVeBS = toNum(sch.hangVeBS);
+
+      const baseHH = cuocPhiBS + themDiem + hangVeBS;
+
+      if (Number(oneTripMoney) > 0) {
+        // ✅ TÍNH THEO TIỀN / CHUYẾN
+        sch.percentHH = 0;
+        sch.moneyHH = Number(oneTripMoney);
+        sch.moneyConLai = baseHH - sch.moneyHH;
+        sch.doanhThu = baseHH - sch.moneyHH - sch.cuocTraXN;
+      } else {
+        // ✅ TÍNH THEO %
+        const percent = Number(percentHH) || 0;
+        const moneyHH = Math.round((baseHH * percent) / 100);
+
+        sch.percentHH = percent;
+        sch.moneyHH = moneyHH;
+        sch.moneyConLai = baseHH - moneyHH;
+        sch.doanhThu = baseHH - sch.moneyHH - sch.cuocTraXN;
+      }
+
+      await sch.save();
+    }
+
+    res.json({
+      success: true,
+      message: "Cập nhật hoa hồng & cập nhật chuyến thành công",
+      updatedTrips: schedules.length,
+    });
+  } catch (err) {
+    console.error("❌ updateCustomerCommission error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ==============================
+// 📜 LỊCH SỬ HOA HỒNG KHÁCH HÀNG
+// ==============================
+const getCustomerCommissionHistory = async (req, res) => {
+  try {
+    const { code } = req.params;
+
+    if (!code) {
+      return res.status(400).json({ error: "Thiếu mã khách hàng" });
+    }
+
+    const history = await CustomerCommissionHistory.find({
+      customerCode: code,
+    }).sort({ startDate: -1 });
+
+    res.json(history);
+  } catch (err) {
+    console.error("❌ getCustomerCommissionHistory error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
 
 module.exports = {
   listCustomers,
@@ -480,5 +606,7 @@ module.exports = {
   toggleWarning,
   exportTripsByCustomer,
   deleteAllCustomers,
-  exportCustomers
+  exportCustomers,
+  updateCustomerCommission,
+  getCustomerCommissionHistory,
 };

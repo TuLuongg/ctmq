@@ -55,6 +55,8 @@ const scheduleAdminSchema = new mongoose.Schema(
     percentHH: { type: Number, default: 0 }, //%HH
     moneyHH: { type: Number, default: 0 }, //Tiền HH
     moneyConLai: { type: Number, default: 0 }, //Tiền còn lại
+    cuocTraXN: { type: Number, default: 0 }, //Cước trả xe ngoài
+    doanhThu: { type: Number, default: 0 }, //Doanh thu
 
     tongTien: { type: Number, default: 0 }, // tổng tiền chuyến
     conLai: { type: Number, default: 0 }, // còn lại = tongTien - daThanhToan
