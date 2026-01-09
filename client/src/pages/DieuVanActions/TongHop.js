@@ -422,6 +422,7 @@ export default function TongHop({ user, onLogout }) {
           luuCa: r["LƯU CA"] || "",
           luatChiPhiKhac: r["LUẬT CP KHÁC"] || "",
           ghiChu: r["GHI CHÚ"] || "",
+          KHdiemGiaoHang: r["TÊN KH GIAO"] || ""
         }))
         .filter((x) => x.maChuyen && String(x.maKH).trim() !== ""); // Chỉ lấy dòng có mã chuyến và mã KH
 

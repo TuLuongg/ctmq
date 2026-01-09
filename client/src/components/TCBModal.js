@@ -3,17 +3,32 @@ import axios from "axios";
 
 const formatMoney = (value) => {
   if (value === null || value === undefined) return "";
-  const str = String(value);
-  const number = str.replace(/\D/g, "");
-  return number.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+  let str = String(value);
+
+  // Giữ dấu - nếu có ở đầu
+  const isNegative = str.trim().startsWith("-");
+
+  // Bỏ hết ký tự không phải số
+  let number = str.replace(/\D/g, "");
+
+  if (!number) return isNegative ? "-" : "";
+
+  number = number.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+  return isNegative ? "-" + number : number;
 };
+
 
 
 const parseMoney = (value) => {
   if (typeof value === "number") return value;
   if (!value) return 0;
-  return Number(String(value).replace(/\./g, "")) || 0;
+
+  const cleaned = String(value).replace(/\./g, "");
+  return Number(cleaned) || 0;
 };
+
 
 
 export default function TCBModal({
