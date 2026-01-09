@@ -2,23 +2,31 @@ import axios from "axios";
 import API from "../api";
 
 const MONEY_LABELS = {
-  cuocPhi: "Cước phí BĐ",
-  bocXep: "Bốc xếp BĐ",
-  ve: "Vé BĐ",
-  hangVe: "Hàng về BĐ",
-  luuCa: "Lưu ca BĐ",
-  luatChiPhiKhac: "Chi phí khác BĐ",
+  cuocPhi: "Cước phí",
+  bocXep: "Bốc xếp",
+  ve: "Vé",
+  hangVe: "Hàng về",
+  luuCa: "Lưu ca",
+  luatChiPhiKhac: "Chi phí khác",
+  themDiem: "Thêm điểm",
 };
 
+// chỉ để HIỂN THỊ, không đụng dữ liệu gốc
 const formatMoney = (val) => {
-  const num = Number(val);
-  if (isNaN(num)) return "";
-  return num.toLocaleString("vi-VN");
+  if (val === null || val === undefined || val === "") return "";
+  const n = Number(val);
+  if (isNaN(n)) return val;
+  return n.toLocaleString("vi-VN");
 };
 
-const parseMoney = (val) => {
-  if (!val) return 0;
-  return Number(val.replace(/\./g, "").replace(/,/g, ""));
+const parseMoneyInput = (val) => {
+  if (!val) return "";
+
+  // giữ dấu -, bỏ hết ký tự khác số
+  const isNegative = val.startsWith("-");
+  const num = val.replace(/[^0-9]/g, "");
+
+  return (isNegative ? "-" : "") + num;
 };
 
 export default function CostEditModal({
@@ -51,7 +59,8 @@ export default function CostEditModal({
                 className="border px-2 py-1 w-full"
                 value={formatMoney(values[f])}
                 onChange={(e) => {
-                  const raw = parseMoney(e.target.value);
+                  const raw = parseMoneyInput(e.target.value);
+
                   setValues((prev) => ({
                     ...prev,
                     [f]: raw,
@@ -73,11 +82,22 @@ export default function CostEditModal({
           <button
             className="px-3 py-1 bg-green-600 text-white rounded"
             onClick={async () => {
-              await axios.put(`${API}/schedule-admin/${values._id}`, values, {
-                headers: {
-                  Authorization: `Bearer ${localStorage.getItem("token")}`,
+              await axios.put(
+                `${API}/odd-debt/update-money`,
+                {
+                  maChuyen: trip.maChuyen,
+                  ...moneyFields.reduce((acc, f) => {
+                    acc[f] = values[f];
+                    return acc;
+                  }, {}),
                 },
-              });
+                {
+                  headers: {
+                    Authorization: `Bearer ${localStorage.getItem("token")}`,
+                  },
+                }
+              );
+
               onClose();
               onSaved();
             }}

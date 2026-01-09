@@ -114,7 +114,7 @@ export default function TripPaymentModal({
     try {
       setLoading(true);
       const res = await axios.get(
-        `${API}/payment-history/trip/${maChuyenCode}/history`,
+        `${API}/odd-debt/payment/${maChuyenCode}`,
         {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         }
@@ -141,7 +141,7 @@ export default function TripPaymentModal({
 
     try {
       await axios.post(
-        `${API}/payment-history/trip/add`,
+        `${API}/odd-debt/payment`,
         {
           maChuyenCode,
           amount: numericAmount,
@@ -171,7 +171,7 @@ export default function TripPaymentModal({
   const handleDeletePayment = async (paymentId) => {
     if (!window.confirm("Bạn có chắc muốn xoá thanh toán này?")) return;
     try {
-      await axios.delete(`${API}/payment-history/trip-payment/${paymentId}`, {
+      await axios.delete(`${API}/odd-debt/payment/${paymentId}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
       loadPayments(); // reload danh sách sau khi xoá

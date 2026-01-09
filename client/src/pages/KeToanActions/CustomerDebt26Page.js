@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import { format } from "date-fns";
@@ -19,9 +19,23 @@ const removeVietnameseTones = (str = "") => {
 
 const DATE_COLUMNS = ["ngayBocHang", "ngayGiaoHang", "ngayCK"];
 
+const HIGHLIGHT_COLORS = {
+  yellow: "#FFF3CD", // vàng nhạt
+  green: "#E6F4EA", // xanh lá
+  blue: "#E7F1FF", // xanh dương
+  pink: "#FDE7F3", // hồng
+  purple: "#F3E8FF", // tím
+  orange: "#FFE8CC", // cam nhạt
+  red: "#FFE5E5", // đỏ nhạt
+  cyan: "#E6FFFA", // xanh ngọc
+  gray: "#F1F3F5", // xám
+  lime: "#F4FEEA", // xanh chuối
+};
+
 export default function CustomerDebt26Page() {
   const [trips, setTrips] = useState([]);
   const [selectedTrip, setSelectedTrip] = useState(null);
+  const [highlightSelectTrip, setHighlightSelectTrip] = useState(null);
 
   const getFirstDayOfMonth = () => {
     const now = new Date();
@@ -55,6 +69,7 @@ export default function CustomerDebt26Page() {
     { key: "maKH", label: "Mã KH", width: 50, visible: true },
     { key: "ghiChu", label: "Ghi chú gốc", width: 100, visible: true },
     { key: "cuocPhi", label: "Cước phí", width: 80, visible: true },
+    { key: "themDiem", label: "Thêm điểm", width: 80, visible: true },
     { key: "bocXep", label: "Bốc xếp", width: 80, visible: true },
     { key: "ve", label: "Vé", width: 80, visible: true },
     { key: "hangVe", label: "Hàng về", width: 80, visible: true },
@@ -68,10 +83,12 @@ export default function CustomerDebt26Page() {
     { key: "taiKhoanCK", label: "Tài khoản", width: 120, visible: true },
     { key: "noiDungCK", label: "Nội dung CK", width: 200, visible: true },
     { key: "noteOdd", label: "Ghi chú thêm", width: 120, visible: true },
+    { key: "debtCode", label: "Mã CN", width: 80, visible: true },
   ];
 
   const MONEY_FIELDS = [
     "cuocPhi",
+    "themDiem",
     "bocXep",
     "ve",
     "hangVe",
@@ -138,16 +155,17 @@ export default function CustomerDebt26Page() {
 
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
-  const [limit] = useState(100); // cố định 100 / trang
+  const [limit] = useState(50); // cố định 100 / trang
   const [totalTrips, setTotalTrips] = useState(0);
   const [pageInput, setPageInput] = useState(page);
+  const totalPages = Math.ceil(totalTrips / limit) || 1;
 
   const loadData = async (p = page) => {
     if (loading) return;
 
     setLoading(true);
     try {
-      const res = await axios.get(`${API}/payment-history/customer26/debt`, {
+      const res = await axios.get(`${API}/odd-debt`, {
         params: {
           startDate,
           endDate,
@@ -159,26 +177,24 @@ export default function CustomerDebt26Page() {
         },
       });
 
+      // 🔥 ĐÚNG KEY BE TRẢ VỀ
       const list = res.data?.chiTietChuyen || [];
-      const mapped = list.map((c) => ({
-        ...c.thongTinChuyen,
-        tongTien: c.tongTien,
-        daThanhToan: c.daThanhToan,
-        conLai: c.conLai,
-        ngayCK: c.ngayCK,
-        taiKhoanCK: c.taiKhoanCK,
-        noiDungCK: c.noiDungCK,
-        trangThai: c.conLai === 0 ? "green" : "red",
+
+      const mapped = list.map((t) => ({
+        ...t,
+        trangThai: Number(t.conLai || 0) === 0 ? "green" : "red",
       }));
 
       setTrips(mapped);
       setTotalTrips(res.data?.soChuyen || 0);
       setPage(p);
     } catch (err) {
-      console.error(err);
+      console.error("load odd debt error:", err);
       setTrips([]);
+      setTotalTrips(0);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -188,6 +204,96 @@ export default function CustomerDebt26Page() {
   useEffect(() => {
     setPageInput(page);
   }, [page]);
+
+  const [creatingDebt, setCreatingDebt] = useState(false);
+  const [syncingDebt, setSyncingDebt] = useState(false);
+  const [syncingToBase, setSyncingToBase] = useState(false);
+
+  const handleCreateOddDebt = async () => {
+    if (!window.confirm("Tạo công nợ cho các chuyến trong khoảng ngày này?"))
+      return;
+
+    try {
+      setCreatingDebt(true);
+      await axios.post(
+        `${API}/odd-debt/create`,
+        { startDate, endDate },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      alert("✅ Đã tạo công nợ khách lẻ");
+      loadData(1);
+    } catch (err) {
+      console.error(err);
+      alert("❌ Lỗi tạo công nợ");
+    } finally {
+      setCreatingDebt(false);
+    }
+  };
+
+  const handleSyncOddDebt = async () => {
+    if (
+      !window.confirm(
+        "Cập nhật các chuyến chưa có trong công nợ trong khoảng ngày này?"
+      )
+    )
+      return;
+
+    try {
+      setSyncingDebt(true);
+      await axios.post(
+        `${API}/odd-debt/sync`,
+        { startDate, endDate },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      alert("🔄 Đã cập nhật công nợ");
+      loadData(1);
+    } catch (err) {
+      console.error(err);
+      alert("❌ Lỗi cập nhật công nợ");
+    } finally {
+      setSyncingDebt(false);
+    }
+  };
+
+  const handleSyncOddToBase = async () => {
+    if (
+      !window.confirm(
+        "Chèn chi phí Khách Lẻ về chuyến gốc theo chi phí bổ sung theo khoảng ngày giao này?"
+      )
+    )
+      return;
+
+    try {
+      setSyncingToBase(true);
+
+      await axios.post(
+        `${API}/odd-debt/sync-to-base-by-date`,
+        { startDate, endDate },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      alert("Đã chèn chi phí về chuyến gốc :v");
+    } catch (err) {
+      console.error(err);
+      alert("❌ Lỗi chèn chi phí về chuyến gốc !!!");
+    } finally {
+      setSyncingToBase(false);
+    }
+  };
 
   const toggleColumn = (key) => {
     const newCols = columns.map((c) =>
@@ -213,11 +319,19 @@ export default function CustomerDebt26Page() {
     const tongTien = t.tongTien || 0;
     const conLai = t.conLai || 0;
 
-    if (conLai === 0) {
+    // ✅ Nếu tổng tiền = 0 → luôn là Chưa trả
+    if (tongTien === 0) {
+      color = "#ff3333";
+      label = "Chưa trả";
+    }
+    // ✅ Tổng tiền > 0 và còn lại = 0 → Hoàn tất
+    else if (conLai === 0) {
       color = "#00cc44";
       label = "Hoàn tất";
-    } else {
-      const tiLe = tongTien === 0 ? 0 : conLai / tongTien;
+    }
+    // ✅ Còn lại > 0
+    else {
+      const tiLe = conLai / tongTien;
       if (tiLe <= 0.2) {
         color = "#ffcc00";
         label = "Còn ít";
@@ -340,6 +454,52 @@ export default function CustomerDebt26Page() {
     });
     setShowCostModal(true);
   };
+
+  const updateHighlight = async (maChuyen, color) => {
+    try {
+      // gọi API
+      await axios.put(
+        `${API}/odd-debt/highlight`,
+        { maChuyen, color },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      // update state local
+      setTrips((prev) =>
+        prev.map((x) =>
+          x.maChuyen === maChuyen ? { ...x, highlightColor: color || null } : x
+        )
+      );
+    } catch (err) {
+      console.error("❌ updateHighlight error", err);
+      alert("Lỗi lưu highlight");
+    } finally {
+      setHighlightSelectTrip(null);
+    }
+  };
+
+  const highlightRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (
+        highlightSelectTrip &&
+        highlightRef.current &&
+        !highlightRef.current.contains(e.target)
+      ) {
+        setHighlightSelectTrip(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [highlightSelectTrip]);
 
   return (
     <div className="p-4 text-xs">
@@ -496,6 +656,35 @@ export default function CustomerDebt26Page() {
             >
               {loading ? "Đang tải..." : "Lọc"}
             </button>
+
+            <button
+              onClick={handleCreateOddDebt}
+              disabled={creatingDebt}
+              className={`px-4 py-2 text-white rounded text-xs
+      ${creatingDebt ? "bg-gray-400" : "bg-green-600 hover:bg-green-700"}
+    `}
+            >
+              {creatingDebt ? "Đang tạo..." : "Tạo công nợ"}
+            </button>
+
+            <button
+              onClick={handleSyncOddDebt}
+              disabled={syncingDebt}
+              className={`px-4 py-2 text-white rounded text-xs
+      ${syncingDebt ? "bg-gray-400" : "bg-orange-500 hover:bg-orange-600"}
+    `}
+            >
+              {syncingDebt ? "Đang cập nhật..." : "Cập nhật"}
+            </button>
+            <button
+              onClick={handleSyncOddToBase}
+              disabled={syncingToBase}
+              className={`px-4 py-2 text-white rounded text-xs
+    ${syncingToBase ? "bg-gray-400" : "bg-purple-600 hover:bg-purple-700"}
+  `}
+            >
+              {syncingToBase ? "Đang chèn..." : "Chèn về chuyến gốc"}
+            </button>
           </div>
           <div className="flex justify-between items-center gap-4 mb-3">
             {/* LEFT – update nameCustomer */}
@@ -515,7 +704,7 @@ export default function CustomerDebt26Page() {
                     return;
                   }
                   await axios.put(
-                    `${API}/payment-history/update-name-customer`,
+                    `${API}/odd-debt/name-customer`,
                     {
                       maChuyenList: selectedForNameCustomer,
                       nameCustomer: nameCustomerInput,
@@ -554,7 +743,7 @@ export default function CustomerDebt26Page() {
                     return;
                   }
                   await axios.put(
-                    `${API}/payment-history/update-note-odd`,
+                    `${API}/odd-debt/note`,
                     {
                       maChuyenList: selectedForNoteOdd,
                       noteOdd: noteOddInput,
@@ -745,7 +934,15 @@ export default function CustomerDebt26Page() {
               </thead>
               <tbody>
                 {filteredTrips.map((t) => (
-                  <tr key={t._id} className="h-[22px]">
+                  <tr
+                    key={t._id}
+                    className="h-[22px]"
+                    style={{
+                      backgroundColor: t.highlightColor
+                        ? HIGHLIGHT_COLORS[t.highlightColor] || t.highlightColor
+                        : undefined,
+                    }}
+                  >
                     {/* LEFT checkbox – nameCustomer */}
                     <td
                       className="border sticky left-[-1px] z-40 bg-white text-center"
@@ -802,6 +999,78 @@ export default function CustomerDebt26Page() {
                               onClick={() => openCostModal(t)}
                             >
                               <div className="text-right">{displayValue}</div>
+                            </td>
+                          );
+                        }
+
+                        if (col.key === "maChuyen") {
+                          return (
+                            <td
+                              key={col.key}
+                              className="border table-cell sticky left-[30px] z-20 relative cursor-pointer"
+                              style={{
+                                width: col.width,
+                                minWidth: col.width,
+                                maxWidth: col.width,
+                                backgroundColor: t.highlightColor
+                                  ? HIGHLIGHT_COLORS[t.highlightColor] ||
+                                    t.highlightColor
+                                  : "white",
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setHighlightSelectTrip(t.maChuyen);
+                              }}
+                            >
+                              <div className="truncate font-medium">
+                                {t.maChuyen}
+                              </div>
+
+                              {/* BẢNG CHỌN MÀU – BẬT NGAY */}
+                              {highlightSelectTrip === t.maChuyen && (
+                                <div
+                                  ref={highlightRef}
+                                  className="absolute top-0 left-full bg-white border shadow flex gap-1 p-1 z-[1000]"
+                                  style={{ pointerEvents: "auto" }}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {[
+                                    {
+                                      key: "",
+                                      label: "✖",
+                                      title: "Bỏ highlight",
+                                    },
+                                    { key: "yellow", label: "🟨" },
+                                    { key: "green", label: "🟩" },
+                                    { key: "pink", label: "🩷" },
+                                    { key: "blue", label: "🟦" },
+                                    { key: "purple", label: "🟪" },
+
+                                    // 🔥 thêm
+                                    { key: "orange", label: "🟧" },
+                                    { key: "red", label: "🟥" },
+                                    { key: "cyan", label: "🟦" },
+                                    { key: "gray", label: "⬜" },
+                                    { key: "lime", label: "🟩" },
+                                  ].map((c) => (
+                                    <button
+                                      key={c.key}
+                                      title={c.title}
+                                      className="w-5 h-5 border rounded hover:scale-110"
+                                      style={{
+                                        backgroundColor: c.key
+                                          ? HIGHLIGHT_COLORS[c.key]
+                                          : "transparent",
+                                      }}
+                                      onClick={() =>
+                                        updateHighlight(t.maChuyen, c.key)
+                                      }
+                                    >
+                                      {!c.key && c.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
                             </td>
                           );
                         }
@@ -908,31 +1177,24 @@ export default function CustomerDebt26Page() {
                 Trước
               </button>
 
-              <span className="text-xs">
-                Trang {page} / {Math.ceil(totalTrips / limit) || 1}
-              </span>
-
-              <input
-                type="number"
-                min={1}
-                max={Math.ceil(totalTrips / limit) || 1}
-                value={pageInput}
-                onChange={(e) => setPageInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    let p = Number(pageInput);
-                    const maxPage = Math.ceil(totalTrips / limit) || 1;
-                    if (p < 1) p = 1;
-                    if (p > maxPage) p = maxPage;
-                    loadData(p);
-                  }
-                }}
-                className="w-16 border px-2 py-1 text-xs text-center"
+              {/* 🔥 CHỌN TRANG */}
+              <select
+                value={page}
                 disabled={loading}
-              />
+                onChange={(e) => loadData(Number(e.target.value))}
+                className="border px-2 py-1 text-xs rounded cursor-pointer"
+              >
+                {Array.from({ length: totalPages }).map((_, i) => (
+                  <option key={i + 1} value={i + 1}>
+                    Trang {i + 1}
+                  </option>
+                ))}
+              </select>
+
+              <span className="text-xs text-gray-600">/ {totalPages}</span>
 
               <button
-                disabled={page >= Math.ceil(totalTrips / limit) || loading}
+                disabled={page >= totalPages || loading}
                 onClick={() => loadData(page + 1)}
                 className="px-3 py-1 border rounded disabled:opacity-50"
               >

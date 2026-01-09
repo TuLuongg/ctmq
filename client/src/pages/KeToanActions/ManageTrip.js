@@ -199,6 +199,8 @@ export default function ManageTrip({ user, onLogout }) {
     { key: "percentHH", label: "%HH" },
     { key: "moneyHH", label: "TIỀN HH" },
     { key: "moneyConLai", label: "TIỀN CÒN LẠI" },
+    { key: "cuocTraXN", label: "CƯỚC TRẢ XE NGOÀI" },
+    { key: "doanhThu", label: "DOANH THU" },
     { key: "dieuVan", label: "ĐIỀU VẬN" },
     { key: "createdBy", label: "NGƯỜI NHẬP" },
     { key: "ngayBoc", label: "NGÀY NHẬP" },
@@ -474,7 +476,6 @@ export default function ManageTrip({ user, onLogout }) {
         q.append("debtCodeEmpty", "1");
       }
 
-
       // 🔹 FILTER TEXT
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== "" && value !== null && value !== undefined) {
@@ -541,7 +542,7 @@ export default function ManageTrip({ user, onLogout }) {
     giaoFrom,
     giaoTo,
     onlyEmptyMaHoaDon,
-    onlyEmptyDebtCode
+    onlyEmptyDebtCode,
   ]);
 
   const [filterPos, setFilterPos] = useState({ x: 0, y: 0 });
@@ -842,6 +843,64 @@ export default function ManageTrip({ user, onLogout }) {
       setImportHoaDonLoading(false);
 
       // ✅ RESET FILE INPUT DÙ THÀNH CÔNG HAY THẤT BẠI
+      if (input) input.value = "";
+    }
+  };
+
+  const handleImportCTXNExcel = async (file) => {
+    if (!file) return;
+
+    const input = document.getElementById("importHoaDonInput");
+
+    try {
+      setImportHoaDonLoading(true);
+
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+
+      const rows = XLSX.utils.sheet_to_json(sheet, {
+        header: 1,
+        defval: "",
+      });
+
+      const records = [];
+
+      // bỏ header, bắt đầu từ dòng 2
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+
+        const maChuyen =
+          row[0] !== undefined && row[0] !== null ? String(row[0]).trim() : "";
+
+        const cuocTraXN =
+          row[1] !== undefined && row[1] !== null ? Number(row[1]) || 0 : 0;
+
+        if (maChuyen) {
+          records.push({ maChuyen, cuocTraXN });
+        }
+      }
+
+      if (!records.length) {
+        alert("Không có dữ liệu mã chuyến hợp lệ");
+        return;
+      }
+
+      console.log(records);
+
+      await axios.post(
+        `${API_URL}/import-ctxn`,
+        { records },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      alert(`Import thành công ${records.length} chuyến`);
+      fetchAllRides();
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.error || "Import cước trả XN thất bại");
+    } finally {
+      setImportHoaDonLoading(false);
       if (input) input.value = "";
     }
   };
@@ -1306,7 +1365,6 @@ export default function ManageTrip({ user, onLogout }) {
     return normalize(d || "").includes(normalize(searchDebtCode));
   });
 
-
   // ---------- Render ----------
   return (
     <div className="p-4 bg-gray-50 min-h-screen text-xs">
@@ -1527,6 +1585,24 @@ export default function ManageTrip({ user, onLogout }) {
               accept=".xlsx,.xls, .xlsm"
               disabled={importHoaDonLoading}
               onChange={(e) => handleImportHoaDonExcel(e.target.files[0])}
+            />
+          </label>
+
+          {/* IMPORT CƯỚC TRẢ XE NGOÀI */}
+          <label className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg">
+            {importHoaDonLoading
+              ? "Đang import..."
+              : "Import cước trả xe ngoài"}
+            <input
+              id="importHoaDonInput"
+              type="file"
+              hidden
+              accept=".xlsx,.xls, .xlsm"
+              disabled={importHoaDonLoading}
+              onClick={(e) => {
+                e.target.value = null;
+              }}
+              onChange={(e) => handleImportCTXNExcel(e.target.files[0])}
             />
           </label>
 
@@ -2986,7 +3062,7 @@ export default function ManageTrip({ user, onLogout }) {
                         </div>
                       ) : (
                         <div
-                          className="truncate"
+                          className="flex items-center gap-1"
                           style={{
                             textAlign: [
                               "cuocPhiBS",
@@ -3053,7 +3129,7 @@ export default function ManageTrip({ user, onLogout }) {
                           }}
                         >
                           {/* TEXT (có thể rỗng) */}
-                          <span className="truncate">
+                          <span className="truncate flex-1">
                             {numberColumns.includes(col.key)
                               ? formatNumber(cellValue)
                               : cellValue || ""}
@@ -3062,7 +3138,7 @@ export default function ManageTrip({ user, onLogout }) {
                           {/* ICON luôn sát phải */}
                           {col.key === "cpKhacBS" && (
                             <FaInfoCircle
-                              className="ml-auto shrink-0 text-gray-500 hover:text-blue-600 cursor-pointer"
+                              className="shrink-0 text-gray-500 hover:text-blue-600 cursor-pointer"
                               title="Chi tiết chi phí khác"
                               onClick={(e) => {
                                 e.stopPropagation();

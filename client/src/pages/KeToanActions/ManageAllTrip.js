@@ -62,6 +62,10 @@ const columnGroups = [
     label: "CHI PHÍ GỐC",
     keys: ["cuocPhi", "bocXep", "ve", "hangVe", "luuCa", "luatChiPhiKhac"],
   },
+  {
+    label: "HOA HỒNG",
+    keys: ["percentHH", "moneyHH", "moneyConLai"],
+  },
 ];
 
 const groupColumnKeys = columnGroups.flatMap((g) => g.keys);
@@ -210,6 +214,8 @@ export default function ManageTrip({ user, onLogout }) {
     { key: "percentHH", label: "%HH" },
     { key: "moneyHH", label: "TIỀN HH" },
     { key: "moneyConLai", label: "TIỀN CÒN LẠI" },
+    { key: "cuocTraXN", label: "CƯỚC TRẢ XE NGOÀI" },
+    { key: "doanhThu", label: "DOANH THU" },
     { key: "dieuVan", label: "ĐIỀU VẬN" },
     { key: "createdBy", label: "NGƯỜI NHẬP" },
     { key: "ngayBoc", label: "NGÀY NHẬP" },
@@ -980,6 +986,64 @@ export default function ManageTrip({ user, onLogout }) {
     }
   };
 
+  const handleImportCTXNExcel = async (file) => {
+    if (!file) return;
+
+    const input = document.getElementById("importHoaDonInput");
+
+    try {
+      setImportHoaDonLoading(true);
+
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+
+      const rows = XLSX.utils.sheet_to_json(sheet, {
+        header: 1,
+        defval: "",
+      });
+
+      const records = [];
+
+      // bỏ header, bắt đầu từ dòng 2
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+
+        const maChuyen =
+          row[0] !== undefined && row[0] !== null ? String(row[0]).trim() : "";
+
+        const cuocTraXN =
+          row[1] !== undefined && row[1] !== null ? Number(row[1]) || 0 : 0;
+
+        if (maChuyen) {
+          records.push({ maChuyen, cuocTraXN });
+        }
+      }
+
+      if (!records.length) {
+        alert("Không có dữ liệu mã chuyến hợp lệ");
+        return;
+      }
+
+      console.log(records);
+
+      await axios.post(
+        `${API_URL}/import-ctxn`,
+        { records },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      alert(`Import thành công ${records.length} chuyến`);
+      fetchAllRides();
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.error || "Import cước trả XN thất bại");
+    } finally {
+      setImportHoaDonLoading(false);
+      if (input) input.value = "";
+    }
+  };
+
   // 🔹 Xoá mã hóa đơn cho các chuyến đã chọn (dùng chung checkbox)
   const removeMaHoaDon = async () => {
     if (!selectedTrips.length) return alert("Vui lòng chọn ít nhất 1 chuyến!");
@@ -1056,8 +1120,6 @@ export default function ManageTrip({ user, onLogout }) {
       );
     }
   };
-
-  console.log("All Requests:", allRequests);
 
   useEffect(() => {
     fetchAllRequests();
@@ -1608,7 +1670,26 @@ export default function ManageTrip({ user, onLogout }) {
             hidden
             accept=".xlsx,.xls, .xlsm"
             disabled={importHoaDonLoading}
+            onClick={(e) => {
+              e.target.value = null;
+            }}
             onChange={(e) => handleImportHoaDonExcel(e.target.files[0])}
+          />
+        </label>
+
+        {/* IMPORT CƯỚC TRẢ XE NGOÀI */}
+        <label className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg">
+          {importHoaDonLoading ? "Đang import..." : "Import cước trả xe ngoài"}
+          <input
+            id="importHoaDonInput"
+            type="file"
+            hidden
+            accept=".xlsx,.xls, .xlsm"
+            disabled={importHoaDonLoading}
+            onClick={(e) => {
+              e.target.value = null;
+            }}
+            onChange={(e) => handleImportCTXNExcel(e.target.files[0])}
           />
         </label>
       </div>
@@ -2030,7 +2111,7 @@ export default function ManageTrip({ user, onLogout }) {
                                     ...p,
                                     khachHang: [],
                                   }));
-                                  setSearchKH(""); 
+                                  setSearchKH("");
                                   setPage(1);
                                   setOpenFilter(null);
                                 }}

@@ -1,13 +1,20 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { FaEdit, FaTrashAlt } from "react-icons/fa";
+import { TbRosetteDiscountFilled } from "react-icons/tb";
 import axios from "axios";
 import CustomerModal from "../../components/CustomerModal";
-import { format as formatDateFns } from "date-fns";
+import CustomerCommissionModal from "../../components/CustomerCommissionModal";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import API from "../../api";
 
 const apiCustomers = `${API}/customers`;
+
+const formatVND = (value) => {
+  if (!value || isNaN(value)) return "";
+  return Number(value).toLocaleString("vi-VN") + " VNĐ";
+};
 
 // columns for customers
 export const allColumns = [
@@ -17,7 +24,7 @@ export const allColumns = [
   { key: "mstCCCD", label: "MST/CCCD CHỦ HỘ" },
   { key: "address", label: "ĐỊA CHỈ" },
   { key: "accountant", label: "GHI CHÚ" },
-  { key: "percentHH", label: "%HH" },
+  { key: "percentHH", label: "HOA HỒNG" },
   { key: "accUsername", label: "User" },
 ];
 
@@ -276,7 +283,20 @@ export default function ManageCustomer() {
   // ---------- helpers ----------
   const formatCellValue = (cKey, value, idx, customer) => {
     if (cKey === "percentHH") {
-      return canViewPercentHH(customer) ? value ?? 0 : "NULL";
+      if (!canViewPercentHH(customer)) return "NULL";
+
+      const percent = customer?.percentHH;
+      const money = customer?.oneTripMoney;
+
+      if (percent && Number(percent) > 0) {
+        return `${percent}%`;
+      }
+
+      if (money && Number(money) > 0) {
+        return formatVND(money);
+      }
+
+      return ""; // hoặc "0"
     }
 
     return value;
@@ -460,6 +480,13 @@ export default function ManageCustomer() {
   };
 
   const [showColumnBox, setShowColumnBox] = useState(false);
+
+  const [showCommissionModal, setShowCommissionModal] = useState(false);
+  const [commissionCustomer, setCommissionCustomer] = useState(null);
+  const openCommissionModal = (customer) => {
+    setCommissionCustomer(customer);
+    setShowCommissionModal(true);
+  };
 
   return (
     <div className="p-4 bg-gray-50 min-h-screen text-xs">
@@ -889,7 +916,9 @@ export default function ManageCustomer() {
                     return (
                       <td
                         key={cKey}
-                        className="border p-1 align-top"
+                        className={`border p-1 align-top ${
+                          cKey === "percentHH" ? "text-right" : ""
+                        }`}
                         style={{
                           position: isFirst || isSecond ? "sticky" : "relative",
                           lineHeight: "20px", // ⭐ canh giữa theo chiều dọc
@@ -914,31 +943,60 @@ export default function ManageCustomer() {
                   })}
 
                   <td
-                    className="border p-2 flex gap-2 justify-center"
+                    className="border p-2 flex gap-3 justify-center items-center"
                     style={{ minWidth: 120, background: "#fff" }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                    }}
+                    onClick={(e) => e.stopPropagation()}
                   >
+                    {/* ===== SỬA / XÓA ===== */}
                     {canEditCustomer ? (
                       <>
+                        {/* SỬA */}
                         <button
                           onClick={() => handleEdit(c)}
-                          className="text-blue-600"
+                          title="Sửa khách hàng"
+                          className="text-blue-500 hover:text-blue-800 text-lg"
                         >
-                          Sửa
+                          <FaEdit />
                         </button>
+
+                        {/* XÓA */}
                         <button
                           onClick={() => handleDelete(c._id)}
-                          className="text-red-600"
+                          title="Xóa khách hàng"
+                          className="text-red-500 hover:text-red-800 text-lg"
                         >
-                          Xóa
+                          <FaTrashAlt />
                         </button>
                       </>
                     ) : (
-                      <span className="text-gray-400">Không có quyền</span>
+                      <>
+                        <FaEdit className="text-gray-400 text-lg cursor-not-allowed" />
+                        <FaTrashAlt className="text-gray-400 text-lg cursor-not-allowed" />
+                      </>
                     )}
+
+                    {/* ===== HOA HỒNG ===== */}
+                    <button
+                      onClick={() => {
+                        if (!canViewPercentHH(c)) {
+                          alert(
+                            "Bạn chỉ được sửa hoa hồng khách hàng của mình!"
+                          );
+                          return;
+                        }
+                        openCommissionModal(c);
+                      }}
+                      title="Thiết lập hoa hồng"
+                      className={`text-lg ${
+                        canViewPercentHH(c)
+                          ? "text-purple-500 hover:text-purple-800"
+                          : "text-gray-400 cursor-not-allowed"
+                      }`}
+                    >
+                      <TbRosetteDiscountFilled />
+                    </button>
                   </td>
+
                   <td
                     className="border p-1 text-center"
                     style={{ minWidth: 120, background: "#fff" }}
@@ -1073,6 +1131,20 @@ export default function ManageCustomer() {
             </div>
           </div>
         </div>
+      )}
+
+      {showCommissionModal && commissionCustomer && (
+        <CustomerCommissionModal
+          customer={commissionCustomer}
+          onClose={() => {
+            setShowCommissionModal(false);
+            setCommissionCustomer(null);
+          }}
+          onSaved={() => {
+            // reload danh sách nếu muốn
+            fetch(q);
+          }}
+        />
       )}
     </div>
   );

@@ -16,7 +16,6 @@ export default function CustomerModal({
     accountant: "",
     code: "",
     accUsername: "",
-    percentHH: "",
     createdBy: "",
   });
 
@@ -76,14 +75,10 @@ export default function CustomerModal({
 
       let res;
       if (initialData && initialData._id) {
-        res = await axios.put(`${apiBase}/${initialData._id}`, {
-          ...form,
-          percentHH: Number(form.percentHH) || 0, // ⚠️ ép số
-        });
+        res = await axios.put(`${apiBase}/${initialData._id}`, form);
       } else {
         res = await axios.post(apiBase, {
           ...form,
-          percentHH: Number(form.percentHH) || 0,
         });
       }
 
@@ -169,19 +164,6 @@ export default function CustomerModal({
             <input
               name="code"
               value={form.code}
-              onChange={handleChange}
-              className="border p-2 w-full rounded"
-            />
-          </div>
-
-          {/* Mã KH */}
-          <div>
-            <label className="block text-sm font-medium">
-              %HH (nhập số phần trăm là được)
-            </label>
-            <input
-              name="percentHH"
-              value={form.percentHH}
               onChange={handleChange}
               className="border p-2 w-full rounded"
             />

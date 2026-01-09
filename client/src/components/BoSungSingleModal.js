@@ -13,6 +13,7 @@ const LABELS = {
   luuCaBS: "Lưu ca",
   cpKhacBS: "Chi phí khác",
   themDiem: "Thêm điểm",
+  cuocTraXN: "Cước trả xe ngoài",
 };
 
 const formatMoney = (value) => {
@@ -25,7 +26,7 @@ const formatMoney = (value) => {
 };
 
 const parseMoney = (value) => {
-  if (!value) return 0;
+  if (value === "" || value === null || value === undefined) return "";
   const isNegative = /^-/.test(value);
   const num = Number(value.toString().replace(/[^0-9]/g, ""));
   return isNegative ? -num : num;
@@ -49,6 +50,7 @@ export default function BoSungSingleModal({
     luuCaBS: "",
     cpKhacBS: "",
     themDiem: "",
+    cuocTraXN: "",
   });
 
   const [saving, setSaving] = useState(false);
@@ -67,6 +69,7 @@ export default function BoSungSingleModal({
         luuCaBS: formatMoney(schedule.luuCaBS),
         cpKhacBS: formatMoney(schedule.cpKhacBS),
         themDiem: formatMoney(schedule.themDiem),
+        cuocTraXN: formatMoney(schedule.cuocTraXN),
       });
     }
   }, [schedule]);
@@ -81,6 +84,7 @@ export default function BoSungSingleModal({
     "luuCaBS",
     "cpKhacBS",
     "themDiem",
+    "cuocTraXN",
   ];
 
   const handleChange = (e) => {
@@ -108,6 +112,7 @@ export default function BoSungSingleModal({
         hangVeBS: parseMoney(form.hangVeBS),
         luuCaBS: parseMoney(form.luuCaBS),
         cpKhacBS: parseMoney(form.cpKhacBS),
+        cuocTraXN: form.cuocTraXN === "" ? 0 : parseMoney(form.cuocTraXN),
       };
 
       const res = await axios.put(
@@ -177,6 +182,16 @@ export default function BoSungSingleModal({
               />
             </div>
           ))}
+          
+          <div className="col-span-3">
+            <label className="block mb-1">{LABELS.cuocTraXN}</label>
+            <input
+              name="cuocTraXN"
+              value={form.cuocTraXN}
+              onChange={handleChange}
+              className="border rounded px-2 py-1 w-full"
+            />
+          </div>
         </div>
 
         <div className="flex justify-end gap-3 mt-5">
