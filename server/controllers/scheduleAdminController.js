@@ -240,6 +240,9 @@ const updateScheduleAdmin = async (req, res) => {
     // Cập nhật dữ liệu bình thường
     Object.assign(schedule, req.body);
 
+    // 🚀 PHẢI SAVE
+    await schedule.save();
+
     res.json(schedule);
   } catch (err) {
     console.error("Lỗi khi sửa chuyến:", err);
@@ -1325,6 +1328,7 @@ const importSchedulesFromExcel = async (req, res) => {
         luuCa: r.luuCa || "",
         luatChiPhiKhac: r.luatChiPhiKhac || "",
         ghiChu: r.ghiChu || "",
+        KHdiemGiaoHang: r.KHdiemGiaoHang || "",
 
         maChuyen,
         accountUsername,
