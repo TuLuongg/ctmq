@@ -68,7 +68,6 @@ const calcHoaHong = async (schedule) => {
 const escapeRegex = (str = "") => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // 🆕 Tạo chuyến mới
-// 🆕 Tạo chuyến mới
 const createScheduleAdmin = async (req, res) => {
   try {
     const { dieuVan, dieuVanID, ngayGiaoHang, ...data } = req.body;
@@ -90,6 +89,7 @@ const createScheduleAdmin = async (req, res) => {
     const monthStr = String(giaoDate.getMonth() + 1).padStart(2, "0");
     const yearStr = String(giaoDate.getFullYear()).slice(-2);
 
+    // ✅ REGEX ĐÚNG
     const regex = new RegExp(`^BK\\.${monthStr}\\.${yearStr}\\.\\d{4}$`);
 
     const lastRide = await ScheduleAdmin.findOne({ maChuyen: regex })
@@ -108,15 +108,15 @@ const createScheduleAdmin = async (req, res) => {
     )}`;
 
     const newSchedule = new ScheduleAdmin({
+      ...data,
       dieuVan: dieuVan || user.username,
       dieuVanID: dieuVanID || user._id,
       createdBy: user.fullname || user.username,
       maChuyen,
       ngayGiaoHang,
-      ...data,
     });
 
-    const savedSchedule = await newSchedule.save(); // 🔥 DÒNG QUYẾT ĐỊNH
+    const savedSchedule = await newSchedule.save();
 
     res.status(201).json(savedSchedule);
   } catch (err) {
@@ -130,7 +130,6 @@ const createScheduleAdmin = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
 
 // ✏️ Sửa chuyến với lưu lịch sử có điều kiện nâng cao
 const updateScheduleAdmin = async (req, res) => {
@@ -1265,11 +1264,15 @@ const importSchedulesFromExcel = async (req, res) => {
         continue;
       }
 
-      // 🔒 check khoá kỳ công nợ
-      const locked = await checkLockedDebtPeriod(maKH, r.ngayGiaoHang);
+      // 🔒 check khoá kỳ công nợ (THEO maKH + maChuyen)
+      let locked = null;
+      if (maKH && maChuyen) {
+        locked = await checkLockedDebtPeriod(maKH, maChuyen);
+      }
+
       if (locked) {
         console.log(
-          `⛔ Bỏ qua chuyến ${maChuyen} vì kỳ ${locked.debtCode} đã khoá`
+          `⛔ Bỏ qua chuyến ${maChuyen} vì kỳ ${locked.periodCode} đã khoá`
         );
         skipped++;
         skippedTrips.push(maChuyen);
@@ -1367,6 +1370,7 @@ const importSchedulesFromExcel = async (req, res) => {
   }
 };
 
+
 // ⚠️ Toggle cảnh báo cho chuyến
 const toggleWarning = async (req, res) => {
   try {
@@ -1392,16 +1396,21 @@ const toggleWarning = async (req, res) => {
   }
 };
 
-const checkLockedDebtPeriod = async (maKH, ngayGiaoHang) => {
-  if (!maKH || !ngayGiaoHang) return null;
+const checkLockedDebtPeriod = async (maKH, maChuyen) => {
+  if (!maKH || !maChuyen) return null;
+
+  const parts = maChuyen.split(".");
+  if (parts.length < 3) return null;
+
+  const periodCode = `${parts[0]}.${parts[1]}.${parts[2]}`;
 
   return await CustomerDebtPeriod.findOne({
     customerCode: maKH,
+    periodCode,        // VD: BK.01.26
     isLocked: true,
-    fromDate: { $lte: new Date(ngayGiaoHang) },
-    toDate: { $gte: new Date(ngayGiaoHang) },
   });
 };
+
 
 const cleanNumber = (v) => Number(String(v || 0).replace(/[.,]/g, "")) || 0;
 
