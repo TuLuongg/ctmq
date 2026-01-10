@@ -116,6 +116,8 @@ const createScheduleAdmin = async (req, res) => {
       ...data,
     });
 
+    const savedSchedule = await newSchedule.save(); 
+
     res.status(201).json(newSchedule);
   } catch (err) {
     if (err.code === 11000) {

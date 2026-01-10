@@ -16,9 +16,11 @@ router.post("/create", oddDebtCtrl.createOddDebtByDate);
 // POST /api/odd-debt/sync
 router.post("/sync", oddDebtCtrl.syncOddDebtByDate);
 
+router.get("/filter-all", oddDebtCtrl.getAllOddDebtFilterOptions);
+
 // 🔹 Lấy danh sách công nợ KH lẻ
 // GET /api/odd-debt?startDate=&endDate=&page=&limit=
-router.get("/", oddDebtCtrl.getOddCustomerDebt);
+router.get("/all", oddDebtCtrl.getOddCustomerDebt);
 
 // ===============================
 // 📌 THANH TOÁN THEO CHUYẾN
@@ -53,8 +55,6 @@ router.put("/update-money", oddDebtCtrl.updateOddTripMoney);
 
 router.post("/sync-to-base-by-date", oddDebtCtrl.syncOddToBaseByDate);
 
-router.put("/highlight", oddDebtCtrl.updateHighlight)
-
-
+router.put("/highlight", oddDebtCtrl.updateHighlight);
 
 module.exports = router;

@@ -264,6 +264,52 @@ exports.getOddCustomerDebt = async (req, res) => {
   }
 };
 
+// ==============================
+// Lấy tất cả filter options theo khoảng ngày giao
+// ==============================
+exports.getAllOddDebtFilterOptions = async (req, res) => {
+  try {
+    const { fromDate, toDate } = req.query;
+
+    const baseFilter = {
+      isDeleted: { $ne: true },
+    };
+
+    // ===== THÊM LỌC NGÀY GIAO =====
+    if (fromDate || toDate) {
+      baseFilter.ngayGiaoHang = {};
+      if (fromDate)
+        baseFilter.ngayGiaoHang.$gte = new Date(fromDate + "T00:00:00");
+      if (toDate) baseFilter.ngayGiaoHang.$lte = new Date(toDate + "T23:59:59");
+    }
+
+    const [
+      khachHang,
+      tenLaiXe,
+      bienSoXe,
+      dienGiai,
+      cuocPhi,
+    ] = await Promise.all([
+      SchCustomerOdd.distinct("khachHang", baseFilter),
+      SchCustomerOdd.distinct("tenLaiXe", baseFilter),
+      SchCustomerOdd.distinct("bienSoXe", baseFilter),
+      SchCustomerOdd.distinct("dienGiai", baseFilter),
+      SchCustomerOdd.distinct("cuocPhi", baseFilter),
+    ]);
+
+    res.json({
+      khachHang: khachHang.filter(Boolean).sort(),
+      tenLaiXe: tenLaiXe.filter(Boolean).sort(),
+      bienSoXe: bienSoXe.filter(Boolean).sort(),
+      dienGiai: dienGiai.filter(Boolean).sort(),
+      cuocPhi: cuocPhi.filter(Boolean).sort(),
+    });
+  } catch (err) {
+    console.error("❌ Filter options error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // =====================================================
 // 📌 LỊCH SỬ THANH TOÁN THEO CHUYẾN
 // =====================================================
