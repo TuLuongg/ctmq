@@ -147,13 +147,19 @@ const updateScheduleAdmin = async (req, res) => {
     const newDate = req.body.ngayGiaoHang || oldDate;
 
     // 🔒 Kiểm tra khóa công nợ
-    const lockedOld = await checkLockedDebtPeriod(schedule.maKH, oldDate);
+    const lockedOld = await checkLockedDebtPeriod(
+      schedule.maKH,
+      schedule.maChuyen
+    );
     if (lockedOld)
       return res.status(400).json({
         error: `Kỳ công nợ ${lockedOld.debtCode} đã khoá, không thể sửa chuyến`,
       });
 
-    const lockedNew = await checkLockedDebtPeriod(schedule.maKH, newDate);
+    const lockedNew = await checkLockedDebtPeriod(
+      schedule.maKH,
+      schedule.maChuyen
+    );
     if (lockedNew)
       return res.status(400).json({
         error: `Kỳ công nợ ${lockedNew.debtCode} đã khoá, không thể đổi ngày chuyến`,
@@ -1370,7 +1376,6 @@ const importSchedulesFromExcel = async (req, res) => {
   }
 };
 
-
 // ⚠️ Toggle cảnh báo cho chuyến
 const toggleWarning = async (req, res) => {
   try {
@@ -1398,6 +1403,7 @@ const toggleWarning = async (req, res) => {
 
 const checkLockedDebtPeriod = async (maKH, maChuyen) => {
   if (!maKH || !maChuyen) return null;
+  if (typeof maChuyen !== "string") return null; // 🛡️ chống nổ
 
   const parts = maChuyen.split(".");
   if (parts.length < 3) return null;
@@ -1406,11 +1412,10 @@ const checkLockedDebtPeriod = async (maKH, maChuyen) => {
 
   return await CustomerDebtPeriod.findOne({
     customerCode: maKH,
-    periodCode,        // VD: BK.01.26
+    periodCode,
     isLocked: true,
   });
 };
-
 
 const cleanNumber = (v) => Number(String(v || 0).replace(/[.,]/g, "")) || 0;
 
