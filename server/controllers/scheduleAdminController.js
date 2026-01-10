@@ -68,6 +68,7 @@ const calcHoaHong = async (schedule) => {
 const escapeRegex = (str = "") => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // 🆕 Tạo chuyến mới
+// 🆕 Tạo chuyến mới
 const createScheduleAdmin = async (req, res) => {
   try {
     const { dieuVan, dieuVanID, ngayGiaoHang, ...data } = req.body;
@@ -89,7 +90,6 @@ const createScheduleAdmin = async (req, res) => {
     const monthStr = String(giaoDate.getMonth() + 1).padStart(2, "0");
     const yearStr = String(giaoDate.getFullYear()).slice(-2);
 
-    // ✅ REGEX ĐÚNG
     const regex = new RegExp(`^BK\\.${monthStr}\\.${yearStr}\\.\\d{4}$`);
 
     const lastRide = await ScheduleAdmin.findOne({ maChuyen: regex })
@@ -116,9 +116,9 @@ const createScheduleAdmin = async (req, res) => {
       ...data,
     });
 
-    const savedSchedule = await newSchedule.save(); 
+    const savedSchedule = await newSchedule.save(); // 🔥 DÒNG QUYẾT ĐỊNH
 
-    res.status(201).json(newSchedule);
+    res.status(201).json(savedSchedule);
   } catch (err) {
     if (err.code === 11000) {
       return res.status(409).json({
@@ -130,6 +130,7 @@ const createScheduleAdmin = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 // ✏️ Sửa chuyến với lưu lịch sử có điều kiện nâng cao
 const updateScheduleAdmin = async (req, res) => {
