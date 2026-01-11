@@ -191,6 +191,7 @@ export default function CustomerDebtPage() {
             debtCode: p.debtCode,
             maKH: c.code,
             tenKH: c.name,
+            userAssigned: c.accUsername,
             fromDate: p.fromDate ? new Date(p.fromDate) : null,
             toDate: p.toDate ? new Date(p.toDate) : null,
             thangQuanLy: p.manageMonth,

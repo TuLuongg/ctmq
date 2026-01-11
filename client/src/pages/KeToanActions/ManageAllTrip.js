@@ -70,6 +70,39 @@ const columnGroups = [
 
 const groupColumnKeys = columnGroups.flatMap((g) => g.keys);
 
+const parseExcelNumber = (val) => {
+  if (val === null || val === undefined || val === "") return "0";
+
+  // Excel đã là number
+  if (typeof val === "number") {
+    return Math.round(val).toString();
+  }
+
+  let str = val.toString().trim();
+
+  // bỏ khoảng trắng
+  str = str.replace(/\s+/g, "");
+
+  // case: 1.234,56 → 1234.56
+  if (str.includes(",") && str.includes(".")) {
+    if (str.lastIndexOf(",") > str.lastIndexOf(".")) {
+      str = str.replace(/\./g, "").replace(",", ".");
+    } else {
+      str = str.replace(/,/g, "");
+    }
+  }
+  // case: 10000,5 → 10000.5
+  else if (str.includes(",")) {
+    str = str.replace(",", ".");
+  }
+
+  const num = Number(str);
+  if (isNaN(num)) return "0";
+
+  // ✅ làm tròn & trả về STRING
+  return Math.round(num).toString();
+};
+
 export default function ManageTrip({ user, onLogout }) {
   const [rides, setRides] = useState([]);
   const [rideDraft, setRideDraft] = useState(null);
@@ -864,13 +897,13 @@ export default function ManageTrip({ user, onLogout }) {
         ltState: (obj["LT"] ?? "").toString(),
         onlState: (obj["ONL"] ?? "").toString(),
         offState: (obj["OFF"] ?? "").toString(),
-        cuocPhiBS: (obj["CƯỚC PHÍ"] ?? obj["CUOC PHI"] ?? "0").toString(),
-        bocXepBS: (obj["BỐC XẾP"] ?? "0").toString(),
-        veBS: (obj["VÉ"] ?? "0").toString(),
-        hangVeBS: (obj["HÀNG VỀ"] ?? "0").toString(),
-        luuCaBS: (obj["LƯU CA"] ?? "0").toString(),
-        cpKhacBS: (obj["CP KHÁC"] ?? "0").toString(),
-        themDiem: (obj["THÊM ĐIỂM"] ?? "").toString(),
+        cuocPhiBS: parseExcelNumber(obj["CƯỚC PHÍ"] ?? obj["CUOC PHI"]),
+        bocXepBS: parseExcelNumber(obj["BỐC XẾP"]),
+        veBS: parseExcelNumber(obj["VÉ"]),
+        hangVeBS: parseExcelNumber(obj["HÀNG VỀ"]),
+        luuCaBS: parseExcelNumber(obj["LƯU CA"]),
+        cpKhacBS: parseExcelNumber(obj["CP KHÁC"]),
+        themDiem: parseExcelNumber(obj["THÊM ĐIỂM"]),
       };
 
       if (r.maChuyen) updates.push(r);
@@ -1312,6 +1345,8 @@ export default function ManageTrip({ user, onLogout }) {
     "themDiem",
     "moneyHH",
     "moneyConLai",
+    "cuocTraXN",
+    "doanhThu",
   ];
 
   const formatNumber = (n) => {
@@ -3146,6 +3181,8 @@ export default function ManageTrip({ user, onLogout }) {
                               "percentHH",
                               "moneyHH",
                               "moneyConLai",
+                              "cuocTraXN",
+                              "doanhThu",
                             ].includes(col.key)
                               ? "right"
                               : "left",
@@ -3166,6 +3203,8 @@ export default function ManageTrip({ user, onLogout }) {
                               "percentHH",
                               "moneyHH",
                               "moneyConLai",
+                              "cuocTraXN",
+                              "doanhThu",
                             ].includes(col.key)
                               ? "4px"
                               : "0",
@@ -3177,6 +3216,7 @@ export default function ManageTrip({ user, onLogout }) {
                               "luuCaBS",
                               "cpKhacBS",
                               "themDiem",
+                              "cuocTraXN",
                             ].includes(col.key)
                               ? "700"
                               : "normal",
@@ -3188,6 +3228,7 @@ export default function ManageTrip({ user, onLogout }) {
                               "luuCaBS",
                               "cpKhacBS",
                               "themDiem",
+                              "cuocTraXN",
                             ].includes(col.key)
                               ? "#1766ddff"
                               : "black",
