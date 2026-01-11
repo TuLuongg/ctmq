@@ -540,15 +540,22 @@ const updateCustomerCommission = async (req, res) => {
       const cuocPhiBS = toNum(sch.cuocPhiBS);
       const themDiem = toNum(sch.themDiem);
       const hangVeBS = toNum(sch.hangVeBS);
+      const veBS = toNum(sch.veBS);
+      const bocXepBS = toNum(sch.bocXepBS);
+      const luuCaBS = toNum(sch.luuCaBS);
+      const cpKhacBS = toNum(sch.cpKhacBS);
+      const cuocTraXN = toNum(sch.cuocTraXN);
 
       const baseHH = cuocPhiBS + themDiem + hangVeBS;
+      const total =
+        cuocPhiBS + themDiem + hangVeBS + veBS + bocXepBS + luuCaBS + cpKhacBS;
 
       if (Number(oneTripMoney) > 0) {
         // ✅ TÍNH THEO TIỀN / CHUYẾN
         sch.percentHH = 0;
         sch.moneyHH = Number(oneTripMoney);
-        sch.moneyConLai = baseHH - sch.moneyHH;
-        sch.doanhThu = baseHH - sch.moneyHH - sch.cuocTraXN;
+        sch.moneyConLai = total - sch.moneyHH;
+        sch.doanhThu = total - sch.moneyHH - cuocTraXN;
       } else {
         // ✅ TÍNH THEO %
         const percent = Number(percentHH) || 0;
@@ -556,8 +563,8 @@ const updateCustomerCommission = async (req, res) => {
 
         sch.percentHH = percent;
         sch.moneyHH = moneyHH;
-        sch.moneyConLai = baseHH - moneyHH;
-        sch.doanhThu = baseHH - sch.moneyHH - sch.cuocTraXN;
+        sch.moneyConLai = total - moneyHH;
+        sch.doanhThu = total - sch.moneyHH - cuocTraXN;
       }
 
       await sch.save();

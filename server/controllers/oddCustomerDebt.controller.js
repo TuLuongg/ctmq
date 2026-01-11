@@ -201,10 +201,27 @@ exports.syncOddDebtByDate = async (req, res) => {
 
 // =====================================================
 // 📌 LẤY CÔNG NỢ KHÁCH LẺ (KH = 26)
+// + FILTER MẢNG FIELD
+// + SORT ABC & SORT NGÀY GIAO
 // =====================================================
 exports.getOddCustomerDebt = async (req, res) => {
   try {
-    let { startDate, endDate, page = 1, limit = 50 } = req.query;
+    let {
+      startDate,
+      endDate,
+      page = 1,
+      limit = 50,
+
+      // ===== FILTER =====
+      nameCustomer,
+      tenLaiXe,
+      bienSoXe,
+      dienGiai,
+      cuocPhi,
+
+      // ===== SORT =====
+      sortDate, // asc | desc
+    } = req.query;
 
     if (!startDate || !endDate) {
       return res.status(400).json({ error: "Thiếu startDate hoặc endDate" });
@@ -222,12 +239,80 @@ exports.getOddCustomerDebt = async (req, res) => {
       ngayGiaoHang: { $gte: start, $lt: end },
     };
 
+    // ===============================
+    // 🔍 FILTER THEO MẢNG FIELD
+    // ===============================
+
+    if (nameCustomer) {
+      const arr = Array.isArray(nameCustomer) ? nameCustomer : [nameCustomer];
+      condition.nameCustomer = { $in: arr };
+    }
+
+    if (tenLaiXe) {
+      const arr = Array.isArray(tenLaiXe) ? tenLaiXe : [tenLaiXe];
+      condition.tenLaiXe = { $in: arr };
+    }
+
+    if (bienSoXe) {
+      const arr = Array.isArray(bienSoXe) ? bienSoXe : [bienSoXe];
+      condition.bienSoXe = { $in: arr };
+    }
+
+    if (dienGiai) {
+      const arr = Array.isArray(dienGiai) ? dienGiai : [dienGiai];
+      condition.dienGiai = { $in: arr };
+    }
+
+    if (cuocPhi) {
+      const arr = Array.isArray(cuocPhi) ? cuocPhi : [cuocPhi];
+      condition.cuocPhi = { $in: arr };
+    }
+
+    // ===============================
+    // 🔃 SORT
+    // ===============================
+
+    // ===============================
+    // 🔃 SORT (DYNAMIC – FE TRUYỀN)
+    // ===============================
+    let sortObj = {};
+
+    // FE truyền sort dạng JSON
+    if (req.query.sort) {
+      try {
+        let sort = req.query.sort;
+
+        if (typeof sort === "string") {
+          sort = JSON.parse(sort);
+        }
+
+        if (Array.isArray(sort)) {
+          sort.forEach((s) => {
+            if (s?.field) {
+              sortObj[s.field] = s.order === "asc" ? 1 : -1;
+            }
+          });
+        }
+      } catch (e) {
+        console.warn("⚠️ Sort parse error");
+      }
+    }
+
+    // fallback mặc định (nếu FE không truyền)
+    if (Object.keys(sortObj).length === 0) {
+      sortObj = {
+        ngayGiaoHang: req.query.sortDate === "asc" ? 1 : -1,
+        nameCustomer: 1,
+        dienGiai: 1,
+      };
+    }
+
     const skip = (page - 1) * limit;
 
     const [total, trips] = await Promise.all([
       SchCustomerOdd.countDocuments(condition),
       SchCustomerOdd.find(condition)
-        .sort({ ngayGiaoHang: -1 })
+        .sort(sortObj)
         .skip(skip)
         .limit(limit)
         .lean(),
@@ -250,7 +335,6 @@ exports.getOddCustomerDebt = async (req, res) => {
       })
     );
 
-    // ✅ TRẢ DATA CHO FE
     res.json({
       maKH: "26",
       soChuyen: total,
@@ -283,22 +367,17 @@ exports.getAllOddDebtFilterOptions = async (req, res) => {
       if (toDate) baseFilter.ngayGiaoHang.$lte = new Date(toDate + "T23:59:59");
     }
 
-    const [
-      khachHang,
-      tenLaiXe,
-      bienSoXe,
-      dienGiai,
-      cuocPhi,
-    ] = await Promise.all([
-      SchCustomerOdd.distinct("khachHang", baseFilter),
-      SchCustomerOdd.distinct("tenLaiXe", baseFilter),
-      SchCustomerOdd.distinct("bienSoXe", baseFilter),
-      SchCustomerOdd.distinct("dienGiai", baseFilter),
-      SchCustomerOdd.distinct("cuocPhi", baseFilter),
-    ]);
+    const [nameCustomer, tenLaiXe, bienSoXe, dienGiai, cuocPhi] =
+      await Promise.all([
+        SchCustomerOdd.distinct("nameCustomer", baseFilter),
+        SchCustomerOdd.distinct("tenLaiXe", baseFilter),
+        SchCustomerOdd.distinct("bienSoXe", baseFilter),
+        SchCustomerOdd.distinct("dienGiai", baseFilter),
+        SchCustomerOdd.distinct("cuocPhi", baseFilter),
+      ]);
 
     res.json({
-      khachHang: khachHang.filter(Boolean).sort(),
+      nameCustomer: nameCustomer.filter(Boolean).sort(),
       tenLaiXe: tenLaiXe.filter(Boolean).sort(),
       bienSoXe: bienSoXe.filter(Boolean).sort(),
       dienGiai: dienGiai.filter(Boolean).sort(),
@@ -437,7 +516,6 @@ exports.deleteTripPayment = async (req, res) => {
   }
 };
 
-
 // =====================================================
 // ✏️ CẬP NHẬT nameCustomer THEO DANH SÁCH CHUYẾN
 // =====================================================
@@ -539,8 +617,7 @@ exports.updateOddTripMoney = async (req, res) => {
     if (ve !== undefined) trip.ve = ve;
     if (hangVe !== undefined) trip.hangVe = hangVe;
     if (luuCa !== undefined) trip.luuCa = luuCa;
-    if (luatChiPhiKhac !== undefined)
-      trip.luatChiPhiKhac = luatChiPhiKhac;
+    if (luatChiPhiKhac !== undefined) trip.luatChiPhiKhac = luatChiPhiKhac;
     if (themDiem !== undefined) trip.themDiem = themDiem;
     if (daThanhToan !== undefined) trip.daThanhToan = daThanhToan;
 
@@ -652,17 +729,13 @@ exports.syncOddToBaseByDate = async (req, res) => {
   }
 };
 
-
 // =====================================================
 // HIGHLIGHT
 // =====================================================
 exports.updateHighlight = async (req, res) => {
   const { maChuyen, color } = req.body;
 
-  await SchCustomerOdd.updateOne(
-    { maChuyen },
-    { highlightColor: color || "" }
-  );
+  await SchCustomerOdd.updateOne({ maChuyen }, { highlightColor: color || "" });
 
   res.json({ success: true });
 };

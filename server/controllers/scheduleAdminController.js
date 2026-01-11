@@ -6,6 +6,7 @@ const ExcelJS = require("exceljs");
 const path = require("path");
 const mongoose = require("mongoose");
 const CustomerCommissionHistory = require("../models/CustomerCommissionHistory");
+const Counter = require("../models/Counter");
 
 const calcHoaHong = async (schedule) => {
   if (!schedule?.maKH || !schedule?.ngayGiaoHang) {
@@ -34,11 +35,16 @@ const calcHoaHong = async (schedule) => {
   const cuocPhiBS = toNum(schedule.cuocPhiBS);
   const themDiem = toNum(schedule.themDiem);
   const hangVeBS = toNum(schedule.hangVeBS);
+  const bocXepBS = toNum(schedule.bocXepBS)
+  const veBS = toNum(schedule.veBS);
+  const luuCaBS = toNum(schedule.luuCaBS);
+  const cpKhacBS = toNum(schedule.cpKhac);
   const cuocTraXN = toNum(schedule.cuocTraXN);
 
   const baseHH = cuocPhiBS + themDiem + hangVeBS;
+  const total = cuocPhiBS + themDiem + hangVeBS + veBS + bocXepBS + luuCaBS + cpKhacBS;
 
-  if (baseHH <= 0) {
+  if (total <= 0) {
     schedule.percentHH = 0;
     schedule.moneyHH = 0;
     schedule.moneyConLai = 0;
@@ -56,7 +62,7 @@ const calcHoaHong = async (schedule) => {
     schedule.percentHH = percentHH;
   }
 
-  const moneyConLai = baseHH - moneyHH;
+  const moneyConLai = total - moneyHH;
 
   schedule.moneyHH = moneyHH;
   schedule.moneyConLai = moneyConLai;
@@ -82,32 +88,46 @@ const createScheduleAdmin = async (req, res) => {
     }
 
     const giaoDate = new Date(ngayGiaoHang);
-    if (isNaN(giaoDate.getTime())) {
+    if (isNaN(giaoDate)) {
       return res.status(400).json({ error: "ngayGiaoHang không hợp lệ" });
     }
 
     const monthStr = String(giaoDate.getMonth() + 1).padStart(2, "0");
     const yearStr = String(giaoDate.getFullYear()).slice(-2);
 
-    // ✅ REGEX ĐÚNG
-    const regex = new RegExp(`^BK\\.${monthStr}\\.${yearStr}\\.\\d{4}$`);
+    // 👉 key theo tháng
+    const counterKey = `BK${monthStr}`;
+    const regex = new RegExp(`^${counterKey}\\.\\d{4}$`);
 
+    // 🔍 1️⃣ Tìm mã chuyến lớn nhất đang có
     const lastRide = await ScheduleAdmin.findOne({ maChuyen: regex })
       .sort({ maChuyen: -1 })
       .lean();
 
-    let nextNum = 1;
+    let lastNumber = 0;
     if (lastRide?.maChuyen) {
-      const parts = lastRide.maChuyen.split(".");
-      nextNum = parseInt(parts[parts.length - 1], 10) + 1;
+      lastNumber = parseInt(lastRide.maChuyen.split(".").pop(), 10);
     }
 
-    const maChuyen = `BK.${monthStr}.${yearStr}.${String(nextNum).padStart(
-      4,
-      "0"
-    )}`;
+    // 🔐 2️⃣ Counter atomic
+    // 1️⃣ đảm bảo counter tồn tại
+    await Counter.updateOne(
+      { key: counterKey },
+      { $setOnInsert: { seq: lastNumber } },
+      { upsert: true }
+    );
 
-    const newSchedule = new ScheduleAdmin({
+    // 2️⃣ tăng seq (atomic – không bao giờ trùng)
+    const counter = await Counter.findOneAndUpdate(
+      { key: counterKey },
+      { $inc: { seq: 1 } },
+      { new: true }
+    );
+
+    const maChuyen = `${counterKey}.${String(counter.seq).padStart(4, "0")}`;
+
+    // 🧾 3️⃣ Tạo chuyến
+    const schedule = await ScheduleAdmin.create({
       ...data,
       dieuVan: dieuVan || user.username,
       dieuVanID: dieuVanID || user._id,
@@ -116,18 +136,10 @@ const createScheduleAdmin = async (req, res) => {
       ngayGiaoHang,
     });
 
-    const savedSchedule = await newSchedule.save();
-
-    res.status(201).json(savedSchedule);
+    return res.status(201).json(schedule);
   } catch (err) {
-    if (err.code === 11000) {
-      return res.status(409).json({
-        error: "Mã chuyến bị trùng, vui lòng thử lại",
-      });
-    }
-
-    console.error("❌ Lỗi khi tạo chuyến:", err);
-    res.status(500).json({ error: err.message });
+    console.error("❌ Lỗi tạo chuyến:", err);
+    return res.status(500).json({ error: err.message });
   }
 };
 
