@@ -35,14 +35,15 @@ const calcHoaHong = async (schedule) => {
   const cuocPhiBS = toNum(schedule.cuocPhiBS);
   const themDiem = toNum(schedule.themDiem);
   const hangVeBS = toNum(schedule.hangVeBS);
-  const bocXepBS = toNum(schedule.bocXepBS)
+  const bocXepBS = toNum(schedule.bocXepBS);
   const veBS = toNum(schedule.veBS);
   const luuCaBS = toNum(schedule.luuCaBS);
   const cpKhacBS = toNum(schedule.cpKhac);
   const cuocTraXN = toNum(schedule.cuocTraXN);
 
   const baseHH = cuocPhiBS + themDiem + hangVeBS;
-  const total = cuocPhiBS + themDiem + hangVeBS + veBS + bocXepBS + luuCaBS + cpKhacBS;
+  const total =
+    cuocPhiBS + themDiem + hangVeBS + veBS + bocXepBS + luuCaBS + cpKhacBS;
 
   if (total <= 0) {
     schedule.percentHH = 0;
@@ -111,20 +112,24 @@ const createScheduleAdmin = async (req, res) => {
 
     // 🔐 2️⃣ Counter atomic
     // 1️⃣ đảm bảo counter tồn tại
-    await Counter.updateOne(
-      { key: counterKey },
-      { $setOnInsert: { seq: lastNumber } },
-      { upsert: true }
-    );
+    const counter = await Counter.findOne({ key: counterKey });
+
+    if (!counter || counter.seq < lastNumber) {
+      await Counter.updateOne(
+        { key: counterKey },
+        { $set: { seq: lastNumber } },
+        { upsert: true }
+      );
+    }
 
     // 2️⃣ tăng seq (atomic – không bao giờ trùng)
-    const counter = await Counter.findOneAndUpdate(
+    const updated = await Counter.findOneAndUpdate(
       { key: counterKey },
       { $inc: { seq: 1 } },
       { new: true }
     );
 
-    const maChuyen = `${counterKey}.${String(counter.seq).padStart(4, "0")}`;
+    const maChuyen = `${counterKey}.${String(updated.seq).padStart(4, "0")}`;
 
     // 🧾 3️⃣ Tạo chuyến
     const schedule = await ScheduleAdmin.create({
