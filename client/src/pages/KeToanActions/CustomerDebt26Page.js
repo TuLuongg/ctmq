@@ -195,6 +195,7 @@ export default function CustomerDebt26Page() {
     bienSoXe: [],
     dienGiai: [],
     cuocPhi: [],
+    daThanhToan: [],
   });
 
   const [excelSelected, setExcelSelected] = useState({
@@ -203,6 +204,7 @@ export default function CustomerDebt26Page() {
     bienSoXe: [],
     dienGiai: [],
     cuocPhi: [],
+    daThanhToan: [],
   });
 
   useEffect(() => {
@@ -223,6 +225,7 @@ export default function CustomerDebt26Page() {
   const [searchPlate, setSearchPlate] = useState("");
   const [searchDGiai, setSearchDGiai] = useState("");
   const [searchCuocPhiBD, setSearchCuocPhiBD] = useState("");
+  const [searchDTT, setSearchDTT] = useState("");
 
   // ===== SORT (match BE getOddCustomerDebt) =====
   const SORTABLE_COLUMNS = {
@@ -284,6 +287,9 @@ export default function CustomerDebt26Page() {
       if (excelSelected.cuocPhi.length > 0) {
         excelSelected.cuocPhi.forEach((v) => q.append("cuocPhi", v));
       }
+      if (excelSelected.daThanhToan.length > 0) {
+        excelSelected.daThanhToan.forEach((v) => q.append("daThanhToan", v));
+      }
       // ===== SORT (match BE) =====
       if (sort.length > 0) {
         q.append("sort", JSON.stringify(sort));
@@ -327,6 +333,7 @@ export default function CustomerDebt26Page() {
     excelSelected.bienSoXe.join("|"),
     excelSelected.dienGiai.join("|"),
     excelSelected.cuocPhi.join("|"),
+    excelSelected.daThanhToan.join("|"),
     JSON.stringify(moneyFilter),
     sort,
   ]);
@@ -550,7 +557,23 @@ export default function CustomerDebt26Page() {
   );
 
   const [showColumnSetting, setShowColumnSetting] = useState(false);
-  const clearAllFilters = () => {};
+  const clearAllFilters = () => {
+    setFilters("")
+    setExcelSelected({
+      nameCustomer: [],
+      tenLaiXe: [],
+      bienSoXe: [],
+      dienGiai: [],
+      cuocPhi: [],
+      daThanhToan: [],
+    });
+    setSearchKH("");
+    setSearchDriver("");
+    setSearchDGiai("");
+    setSearchCuocPhiBD("");
+    setSearchDTT("");
+    setPage(1);
+  };
 
   // checkbox selection
   const [selectedForNameCustomer, setSelectedForNameCustomer] = useState([]);
@@ -660,6 +683,11 @@ export default function CustomerDebt26Page() {
   const filteredCuocPhi = (excelOptions.cuocPhi || []).filter((cp) => {
     if (!searchCuocPhiBD) return true;
     return normalize(cp).includes(normalize(searchCuocPhiBD));
+  });
+
+  const filteredDTT = (excelOptions.daThanhToan || []).filter((dt) => {
+    if (!searchDTT) return true;
+    return normalize(dt).includes(normalize(searchDTT));
   });
 
   const renderSortIcon = (field) => {
@@ -1643,6 +1671,118 @@ export default function CustomerDebt26Page() {
                                   </>
                                 )}
 
+                                {/* ===== FILTER ĐÃ THANH TOÁN (STRING) ===== */}
+                                {openFilter === "daThanhToan" && (
+                                  <>
+                                    <input
+                                      className="border w-full px-2 py-1 mb-1"
+                                      placeholder="Tìm nhanh..."
+                                      value={searchDTT}
+                                      onChange={(e) =>
+                                        setSearchDTT(e.target.value)
+                                      }
+                                    />
+
+                                    <label className="flex gap-1 items-center mb-1 font-semibold">
+                                      <input
+                                        type="checkbox"
+                                        checked={
+                                          filteredDTT.length > 0 &&
+                                          filteredDTT.every((dt) =>
+                                            excelSelected.daThanhToan.includes(
+                                              dt
+                                            )
+                                          )
+                                        }
+                                        onChange={() => {
+                                          setExcelSelected((prev) => {
+                                            const isAllSelected =
+                                              filteredDTT.every((dt) =>
+                                                prev.daThanhToan.includes(dt)
+                                              );
+                                            return {
+                                              ...prev,
+                                              daThanhToan: isAllSelected
+                                                ? prev.daThanhToan.filter(
+                                                    (x) =>
+                                                      !filteredDTT.includes(x)
+                                                  )
+                                                : [
+                                                    ...prev.daThanhToan,
+                                                    ...filteredDTT.filter(
+                                                      (x) =>
+                                                        !prev.daThanhToan.includes(
+                                                          x
+                                                        )
+                                                    ),
+                                                  ],
+                                            };
+                                          });
+                                          setPage(1);
+                                        }}
+                                      />
+                                      Chọn tất cả ({filteredDTT.length})
+                                    </label>
+
+                                    <div className="max-h-40 overflow-y-auto border p-1">
+                                      {filteredDTT.map((dt) => (
+                                        <label
+                                          key={dt}
+                                          className="flex gap-1 items-center"
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={excelSelected.daThanhToan.includes(
+                                              dt
+                                            )}
+                                            onChange={() =>
+                                              setExcelSelected((prev) => ({
+                                                ...prev,
+                                                daThanhToan:
+                                                  prev.daThanhToan.includes(dt)
+                                                    ? prev.daThanhToan.filter(
+                                                        (x) => x !== dt
+                                                      )
+                                                    : [...prev.daThanhToan, dt],
+                                              }))
+                                            }
+                                          />
+                                          <span className="truncate">
+                                            {formatNumber(dt)}
+                                          </span>
+                                        </label>
+                                      ))}
+                                    </div>
+
+                                    <div className="flex gap-1 mt-2">
+                                      <button
+                                        className="flex-1 bg-blue-600 text-white px-2 py-1 rounded"
+                                        onClick={() => {
+                                          setPage(1);
+                                          setOpenFilter(null);
+                                        }}
+                                      >
+                                        Áp dụng
+                                      </button>
+
+                                      <button
+                                        className="flex-1 bg-gray-200 px-2 py-1 rounded"
+                                        onClick={() => {
+                                          setExcelSelected((prev) => ({
+                                            ...prev,
+                                            daThanhToan: [],
+                                          }));
+                                          setSearchDTT("");
+                                          setPage(1);
+                                          setOpenFilter(null);
+                                        }}
+                                      >
+                                        Xóa
+                                      </button>
+                                    </div>
+                                  </>
+                                )}
+
                                 {/* ===== FILTER CÁC CỘT CÒN LẠI (TEXT / DATE) ===== */}
                                 {![
                                   "nameCustomer",
@@ -1650,6 +1790,7 @@ export default function CustomerDebt26Page() {
                                   "bienSoXe",
                                   "dienGiai",
                                   "cuocPhi",
+                                  "daThanhToan",
                                 ].includes(openFilter) &&
                                   !moneyColumns.includes(openFilter) && (
                                     <>
