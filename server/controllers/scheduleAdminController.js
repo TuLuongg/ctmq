@@ -96,13 +96,15 @@ const createScheduleAdmin = async (req, res) => {
     const monthStr = String(giaoDate.getMonth() + 1).padStart(2, "0");
     const yearStr = String(giaoDate.getFullYear()).slice(-2);
 
-    // 👉 key theo tháng
-    const counterKey = `BK${monthStr}`;
+    // 👉 key theo tháng + năm (RẤT QUAN TRỌNG)
+    const counterKey = `BK${monthStr}.${yearStr}`;
+
+    // 👉 match đúng format BKMM.YY.XXXX
     const regex = new RegExp(`^${counterKey}\\.\\d{4}$`);
 
-    // 🔍 1️⃣ Tìm mã chuyến lớn nhất đang có
+    // 🔍 1️⃣ Tìm mã chuyến lớn nhất trong cùng tháng + năm
     const lastRide = await ScheduleAdmin.findOne({ maChuyen: regex })
-      .sort({ maChuyen: -1 })
+      .sort({ maChuyen: -1 }) // safe vì XXXX fixed-width
       .lean();
 
     let lastNumber = 0;
@@ -110,8 +112,7 @@ const createScheduleAdmin = async (req, res) => {
       lastNumber = parseInt(lastRide.maChuyen.split(".").pop(), 10);
     }
 
-    // 🔐 2️⃣ Counter atomic
-    // 1️⃣ đảm bảo counter tồn tại
+    // 🔐 2️⃣ Sync Counter nếu bị tụt
     const counter = await Counter.findOne({ key: counterKey });
 
     if (!counter || counter.seq < lastNumber) {
@@ -122,7 +123,7 @@ const createScheduleAdmin = async (req, res) => {
       );
     }
 
-    // 2️⃣ tăng seq (atomic – không bao giờ trùng)
+    // 🔐 3️⃣ Tăng seq (atomic – KHÔNG BAO GIỜ TRÙNG)
     const updated = await Counter.findOneAndUpdate(
       { key: counterKey },
       { $inc: { seq: 1 } },
@@ -131,7 +132,7 @@ const createScheduleAdmin = async (req, res) => {
 
     const maChuyen = `${counterKey}.${String(updated.seq).padStart(4, "0")}`;
 
-    // 🧾 3️⃣ Tạo chuyến
+    // 🧾 4️⃣ Tạo chuyến
     const schedule = await ScheduleAdmin.create({
       ...data,
       dieuVan: dieuVan || user.username,
@@ -147,6 +148,7 @@ const createScheduleAdmin = async (req, res) => {
     return res.status(500).json({ error: err.message });
   }
 };
+
 
 // ✏️ Sửa chuyến với lưu lịch sử có điều kiện nâng cao
 const updateScheduleAdmin = async (req, res) => {

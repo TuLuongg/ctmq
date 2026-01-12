@@ -218,6 +218,7 @@ exports.getOddCustomerDebt = async (req, res) => {
       bienSoXe,
       dienGiai,
       cuocPhi,
+      daThanhToan,
 
       // ===== SORT =====
       sortDate, // asc | desc
@@ -266,6 +267,11 @@ exports.getOddCustomerDebt = async (req, res) => {
     if (cuocPhi) {
       const arr = Array.isArray(cuocPhi) ? cuocPhi : [cuocPhi];
       condition.cuocPhi = { $in: arr };
+    }
+
+    if (daThanhToan) {
+      const arr = Array.isArray(daThanhToan) ? daThanhToan : [daThanhToan];
+      condition.daThanhToan = { $in: arr };
     }
 
     // ===============================
@@ -367,13 +373,14 @@ exports.getAllOddDebtFilterOptions = async (req, res) => {
       if (toDate) baseFilter.ngayGiaoHang.$lte = new Date(toDate + "T23:59:59");
     }
 
-    const [nameCustomer, tenLaiXe, bienSoXe, dienGiai, cuocPhi] =
+    const [nameCustomer, tenLaiXe, bienSoXe, dienGiai, cuocPhi, daThanhToan] =
       await Promise.all([
         SchCustomerOdd.distinct("nameCustomer", baseFilter),
         SchCustomerOdd.distinct("tenLaiXe", baseFilter),
         SchCustomerOdd.distinct("bienSoXe", baseFilter),
         SchCustomerOdd.distinct("dienGiai", baseFilter),
         SchCustomerOdd.distinct("cuocPhi", baseFilter),
+        SchCustomerOdd.distinct("daThanhToan", baseFilter),
       ]);
 
     res.json({
@@ -382,6 +389,7 @@ exports.getAllOddDebtFilterOptions = async (req, res) => {
       bienSoXe: bienSoXe.filter(Boolean).sort(),
       dienGiai: dienGiai.filter(Boolean).sort(),
       cuocPhi: cuocPhi.filter(Boolean).sort(),
+      daThanhToan: daThanhToan.filter(Boolean).sort(),
     });
   } catch (err) {
     console.error("❌ Filter options error:", err);
@@ -442,8 +450,16 @@ exports.addTripPayment = async (req, res) => {
       return res.status(404).json({ error: "Không tìm thấy chuyến" });
     }
 
-    oddTrip.daThanhToan += Number(amount);
-    oddTrip.conLai = oddTrip.tongTien - oddTrip.daThanhToan;
+    const currentPaid = parseMoneyStr(oddTrip.daThanhToan); // number
+    const payAmount = Number(amount) || 0;
+
+    const newPaid = currentPaid + payAmount;
+
+    // ✅ LƯU LẠI DẠNG STRING
+    oddTrip.daThanhToan = newPaid.toString();
+
+    oddTrip.conLai = Number(oddTrip.tongTien) - newPaid;
+
     oddTrip.status =
       oddTrip.conLai <= 0
         ? "HOAN_TAT"
@@ -490,7 +506,12 @@ exports.deleteTripPayment = async (req, res) => {
       return res.status(404).json({ error: "Không tìm thấy chuyến" });
     }
 
-    oddTrip.daThanhToan -= Number(amount);
+    const currentPaid = parseMoneyStr(oddTrip.daThanhToan);
+    const newPaid = Math.max(0, currentPaid - Number(amount));
+
+    oddTrip.daThanhToan = newPaid.toString();
+    oddTrip.conLai = Number(oddTrip.tongTien) - newPaid;
+
     if (oddTrip.daThanhToan < 0) oddTrip.daThanhToan = 0;
 
     oddTrip.conLai = oddTrip.tongTien - oddTrip.daThanhToan;
