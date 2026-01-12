@@ -149,7 +149,6 @@ const createScheduleAdmin = async (req, res) => {
   }
 };
 
-
 // ✏️ Sửa chuyến với lưu lịch sử có điều kiện nâng cao
 const updateScheduleAdmin = async (req, res) => {
   try {
@@ -929,21 +928,122 @@ const getSchedulesByAccountant = async (req, res) => {
 // ==============================
 // Lấy tất cả filter options theo khoảng ngày giao
 // ==============================
+
+const buildScheduleFilter = (query) => {
+  const filter = { isDeleted: { $ne: true } };
+  const andConditions = [];
+
+  // ===== LỌC NGÀY GIAO =====
+  const { giaoFrom, giaoTo } = query;
+  if (giaoFrom || giaoTo) {
+    const range = {};
+    if (giaoFrom) range.$gte = new Date(giaoFrom);
+    if (giaoTo) {
+      const end = new Date(giaoTo);
+      end.setHours(23, 59, 59, 999);
+      range.$lte = end;
+    }
+    andConditions.push({ ngayGiaoHang: range });
+  }
+
+  // ===== ARRAY FILTER =====
+  const arrayFilterMap = {
+    khachHang: "khachHang",
+    tenLaiXe: "tenLaiXe",
+    bienSoXe: "bienSoXe",
+    dienGiai: "dienGiai",
+    cuocPhi: "cuocPhi",
+    maHoaDon: "maHoaDon",
+    debtCode: "debtCode",
+  };
+
+  for (const [queryKey, field] of Object.entries(arrayFilterMap)) {
+    if (
+      (queryKey === "maHoaDon" && query.maHoaDonEmpty === "1") ||
+      (queryKey === "debtCode" && query.debtCodeEmpty === "1")
+    ) {
+      continue;
+    }
+
+    let values = query[queryKey] || query[`${queryKey}[]`];
+    if (!values) continue;
+    if (!Array.isArray(values)) values = [values];
+
+    values = values.map((v) => v?.toString().trim()).filter(Boolean);
+    if (!values.length) continue;
+
+    andConditions.push({ [field]: { $in: values } });
+  }
+
+  // ===== EMPTY FILTER =====
+  if (query.maHoaDonEmpty === "1") {
+    andConditions.push({
+      $or: [
+        { maHoaDon: { $exists: false } },
+        { maHoaDon: null },
+        { maHoaDon: "" },
+      ],
+    });
+  }
+
+  if (query.debtCodeEmpty === "1") {
+    andConditions.push({
+      $or: [
+        { debtCode: { $exists: false } },
+        { debtCode: null },
+        { debtCode: "" },
+      ],
+    });
+  }
+
+  // ===== MONEY FILTER =====
+  const moneyFields = [
+    "bocXep",
+    "ve",
+    "hangVe",
+    "luuCa",
+    "luatChiPhiKhac",
+    "cuocPhiBS",
+    "bocXepBS",
+    "veBS",
+    "hangVeBS",
+    "luuCaBS",
+    "cpKhacBS",
+    "daThanhToan",
+  ];
+
+  moneyFields.forEach((field) => {
+    const isEmpty = query[`${field}Empty`];
+    const isFilled = query[`${field}Filled`];
+
+    if (isEmpty && !isFilled) {
+      andConditions.push({
+        $or: [
+          { [field]: { $exists: false } },
+          { [field]: null },
+          { [field]: "" },
+        ],
+      });
+    }
+
+    if (isFilled && !isEmpty) {
+      andConditions.push({
+        [field]: { $nin: ["", null] },
+      });
+    }
+  });
+
+  if (andConditions.length) {
+    filter.$and = andConditions;
+  }
+
+  return filter;
+};
+
 const getAllScheduleFilterOptions = async (req, res) => {
   try {
-    const { fromDate, toDate } = req.query;
-
-    const baseFilter = {
-      isDeleted: { $ne: true },
-    };
-
-    // ===== THÊM LỌC NGÀY GIAO =====
-    if (fromDate || toDate) {
-      baseFilter.ngayGiaoHang = {};
-      if (fromDate)
-        baseFilter.ngayGiaoHang.$gte = new Date(fromDate + "T00:00:00");
-      if (toDate) baseFilter.ngayGiaoHang.$lte = new Date(toDate + "T23:59:59");
-    }
+    // 🔥 DÙNG CHUNG FILTER
+    const filter = buildScheduleFilter(req.query);
 
     const [
       khachHang,
@@ -954,13 +1054,13 @@ const getAllScheduleFilterOptions = async (req, res) => {
       maHoaDon,
       debtCode,
     ] = await Promise.all([
-      ScheduleAdmin.distinct("khachHang", baseFilter),
-      ScheduleAdmin.distinct("tenLaiXe", baseFilter),
-      ScheduleAdmin.distinct("bienSoXe", baseFilter),
-      ScheduleAdmin.distinct("dienGiai", baseFilter),
-      ScheduleAdmin.distinct("cuocPhi", baseFilter),
-      ScheduleAdmin.distinct("maHoaDon", baseFilter),
-      ScheduleAdmin.distinct("debtCode", baseFilter),
+      ScheduleAdmin.distinct("khachHang", filter),
+      ScheduleAdmin.distinct("tenLaiXe", filter),
+      ScheduleAdmin.distinct("bienSoXe", filter),
+      ScheduleAdmin.distinct("dienGiai", filter),
+      ScheduleAdmin.distinct("cuocPhi", filter),
+      ScheduleAdmin.distinct("maHoaDon", filter),
+      ScheduleAdmin.distinct("debtCode", filter),
     ]);
 
     res.json({

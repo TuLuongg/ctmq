@@ -707,12 +707,17 @@ exports.toggleTripPaymentType = async (req, res) => {
 // =====================================================
 exports.addPaymentReceipt = async (req, res) => {
   try {
-    const { debtCode, customerCode, amount, method, note, createdBy } =
+    const { debtCode, customerCode, amount, method, note, paymentDate, createdBy } =
       req.body;
 
     if (!customerCode || !amount) {
       return res.status(400).json({ error: "Thiếu customerCode hoặc amount" });
     }
+
+    const paidAt = paymentDate
+  ? new Date(paymentDate + "T00:00:00")
+  : new Date();
+
 
     let remainMoney = parseFloat(amount);
     const allocations = [];
@@ -753,6 +758,7 @@ exports.addPaymentReceipt = async (req, res) => {
       note,
       allocations, // mảng allocations đúng model
       createdBy,
+      paymentDate: paidAt,
     });
 
     await receipt.save();
