@@ -462,18 +462,37 @@ export default function ManageTrip({ user, onLogout }) {
     debtCode: [],
   });
 
-  useEffect(() => {
-    axios
-      .get(`${API_URL}/accountant/filter-all`, {
-        headers: { Authorization: `Bearer ${token}` },
-        params: {
-          fromDate: giaoFrom || undefined,
-          toDate: giaoTo || undefined,
-        },
-      })
-      .then((res) => setExcelOptions(res.data))
-      .catch((err) => console.error("❌ fetch filter-all error:", err));
-  }, [giaoFrom, giaoTo]);
+  const buildQueryParams = () => {
+  const q = {};
+
+  if (giaoFrom) q.giaoFrom = giaoFrom;
+  if (giaoTo) q.giaoTo = giaoTo;
+
+  // excelSelected
+  Object.entries(excelSelected).forEach(([key, arr]) => {
+    if (Array.isArray(arr) && arr.length > 0) {
+      q[key] = arr;
+    }
+  });
+
+  if (onlyEmptyMaHoaDon) q.maHoaDonEmpty = "1";
+  if (onlyEmptyDebtCode) q.debtCodeEmpty = "1";
+
+  // filter text
+  Object.entries(filters).forEach(([k, v]) => {
+    if (v !== "" && v !== null && v !== undefined) {
+      q[k] = v;
+    }
+  });
+
+  // money filter
+  Object.entries(moneyFilter).forEach(([k, v]) => {
+    if (v.empty) q[`${k}Empty`] = "1";
+    if (v.filled) q[`${k}Filled`] = "1";
+  });
+
+  return q;
+};
 
   const [searchKH, setSearchKH] = useState("");
   const [searchDriver, setSearchDriver] = useState("");
@@ -506,6 +525,33 @@ export default function ManageTrip({ user, onLogout }) {
 
   const [onlyEmptyMaHoaDon, setOnlyEmptyMaHoaDon] = useState(false);
   const [onlyEmptyDebtCode, setOnlyEmptyDebtCode] = useState(false);
+
+  useEffect(() => {
+  axios
+    .get(`${API_URL}/accountant/filter-all`, {
+      headers: { Authorization: `Bearer ${token}` },
+      params: buildQueryParams(),
+      paramsSerializer: { indexes: null },
+    })
+    .then((res) => setExcelOptions(res.data))
+    .catch((err) =>
+      console.error("❌ fetch filter-all error:", err.response?.data || err)
+    );
+}, [
+  giaoFrom,
+  giaoTo,
+  excelSelected.khachHang.join("|"),
+  excelSelected.tenLaiXe.join("|"),
+  excelSelected.bienSoXe.join("|"),
+  excelSelected.dienGiai.join("|"),
+  excelSelected.cuocPhi.join("|"),
+  excelSelected.maHoaDon.join("|"),
+  excelSelected.debtCode.join("|"),
+  JSON.stringify(filters),
+  JSON.stringify(moneyFilter),
+  onlyEmptyMaHoaDon,
+  onlyEmptyDebtCode,
+]);
 
   // 🔹 Lấy tất cả chuyến (có filter)
   const fetchAllRides = async () => {

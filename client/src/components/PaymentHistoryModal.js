@@ -82,6 +82,11 @@ export default function PaymentHistoryModal({
   const [note, setNote] = useState("");
   const token = localStorage.getItem("token");
 
+  const [paymentDate, setPaymentDate] = useState(() => {
+    // mặc định hôm nay (YYYY-MM-DD)
+    return new Date().toISOString().slice(0, 10);
+  });
+
   const METHOD_LABEL = {
     PERSONAL_VCB: "TK cá nhân - VCB",
     PERSONAL_TCB: "TK cá nhân - TCB",
@@ -121,6 +126,7 @@ export default function PaymentHistoryModal({
           amount: Number(amount),
           method,
           note,
+          paymentDate,
           createdBy: localStorage.getItem("username") || "unknown",
         },
         {
@@ -142,7 +148,7 @@ export default function PaymentHistoryModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl w-[700px] max-h-[90vh] p-5 flex flex-col">
+      <div className="bg-white rounded-xl w-[900px] max-h-[90vh] p-5 flex flex-col">
         <div className="flex justify-between items-center mb-3">
           <h2 className="text-xl font-semibold">
             Lịch sử thanh toán — KH {customerCode}
@@ -153,6 +159,13 @@ export default function PaymentHistoryModal({
         </div>
 
         <div className="flex gap-2 mb-4">
+          <input
+            type="date"
+            className="border p-2 rounded"
+            value={paymentDate}
+            onChange={(e) => setPaymentDate(e.target.value)}
+          />
+
           <input
             type="text"
             placeholder="Số tiền"
@@ -217,7 +230,7 @@ export default function PaymentHistoryModal({
               {history.map((h) => (
                 <tr key={h.receiptId}>
                   <td className="p-2 border">
-                    {new Date(h.createdAt).toLocaleDateString("vi-VN")}
+                    {new Date(h.paymentDate || h.createdAt).toLocaleDateString("vi-VN")}
                   </td>
                   <td className="p-2 border font-semibold text-blue-600">
                     {h.amount.toLocaleString()}
