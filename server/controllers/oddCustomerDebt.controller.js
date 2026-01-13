@@ -1,6 +1,8 @@
 const TripPayment = require("../models/TripPayment");
 const ScheduleAdmin = require("../models/ScheduleAdmin");
 const SchCustomerOdd = require("../models/SchCustomerOdd");
+const ExcelJS = require("exceljs");
+const path = require("path");
 
 // ===============================
 // 🔧 CALC COST – KH LẺ
@@ -130,18 +132,20 @@ exports.createOddDebtByDate = async (req, res) => {
 };
 
 // =====================================================
-// 📌 CẬP NHẬT CÁC CHUYẾN TRONG CÔNG NỢ
+// 📌 SYNC DỮ LIỆU TỪ CHUYẾN GỐC → KH LẺ (THEO NGÀY GIAO)
 // =====================================================
 exports.syncOddDebtByDate = async (req, res) => {
   try {
     const { startDate, endDate } = req.body;
-    if (!startDate || !endDate)
+    if (!startDate || !endDate) {
       return res.status(400).json({ error: "Thiếu ngày" });
+    }
 
     const start = new Date(startDate);
     const end = new Date(endDate);
     end.setDate(end.getDate() + 1);
 
+    // 1️⃣ Lấy chuyến gốc
     const baseTrips = await ScheduleAdmin.find({
       maKH: "26",
       ngayGiaoHang: { $gte: start, $lt: end },
@@ -150,12 +154,14 @@ exports.syncOddDebtByDate = async (req, res) => {
     const ops = [];
 
     for (const t of baseTrips) {
-      // 🚫 chuyến gốc đã chốt công nợ → bỏ qua
-      if (t.debtCode) continue;
+      const oddTrip = await SchCustomerOdd.findOne({
+        maChuyen: t.maChuyen,
+        isLocked: { $ne: true }, // 🚫 chuyến đã khoá thì bỏ
+      });
 
-      const oddTrip = await SchCustomerOdd.findOne({ maChuyen: t.maChuyen });
       if (!oddTrip) continue;
 
+      // 2️⃣ TÍNH TIỀN TỪ CHUYẾN GỐC
       const tongTien = calcOddTotalFromBaseTrip(t);
       const daThanhToan = num(t.daThanhToan);
       const conLai = tongTien - daThanhToan;
@@ -165,6 +171,19 @@ exports.syncOddDebtByDate = async (req, res) => {
           filter: { maChuyen: t.maChuyen },
           update: {
             $set: {
+              // ===== COPY TỪ CHUYẾN GỐC =====
+              tenLaiXe: t.tenLaiXe,
+              bienSoXe: t.bienSoXe,
+              dienGiai: t.dienGiai,
+              ngayBocHang: t.ngayBocHang,
+              ngayGiaoHang: t.ngayGiaoHang,
+              diemXepHang: t.diemXepHang,
+              diemDoHang: t.diemDoHang,
+              soDiem: t.soDiem,
+              trongLuong: t.trongLuong,
+              ghiChu: t.ghiChu,
+
+              // ===== TIỀN =====
               cuocPhi: t.cuocPhi,
               bocXep: t.bocXep,
               ve: t.ve,
@@ -172,9 +191,11 @@ exports.syncOddDebtByDate = async (req, res) => {
               luuCa: t.luuCa,
               luatChiPhiKhac: t.luatChiPhiKhac,
               themDiem: t.themDiem,
+
               daThanhToan,
               tongTien,
               conLai,
+
               status:
                 conLai <= 0
                   ? "HOAN_TAT"
@@ -187,15 +208,17 @@ exports.syncOddDebtByDate = async (req, res) => {
       });
     }
 
-    if (ops.length) await SchCustomerOdd.bulkWrite(ops);
+    if (ops.length) {
+      await SchCustomerOdd.bulkWrite(ops);
+    }
 
     res.json({
-      message: "Đã cập nhật công nợ KH lẻ",
+      message: "Đã sync dữ liệu từ chuyến gốc → KH lẻ",
       soChuyenCapNhat: ops.length,
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Lỗi cập nhật công nợ KH lẻ" });
+    res.status(500).json({ error: "Lỗi sync KH lẻ từ chuyến gốc" });
   }
 };
 
@@ -219,9 +242,6 @@ exports.getOddCustomerDebt = async (req, res) => {
       dienGiai,
       cuocPhi,
       daThanhToan,
-
-      // ===== SORT =====
-      sortDate, // asc | desc
     } = req.query;
 
     if (!startDate || !endDate) {
@@ -275,8 +295,50 @@ exports.getOddCustomerDebt = async (req, res) => {
     }
 
     // ===============================
-    // 🔃 SORT
+    // 🔍 FILTER CÁC TRƯỜNG CÒN LẠI (CHUNG)
     // ===============================
+
+    // các field string search
+    const TEXT_FIELDS = [
+      "ghiChu",
+      "noteOdd",
+      "maChuyen",
+      "diemXepHang",
+      "diemDoHang",
+      "soDiem",
+      "trongLuong",
+      "themDiem",
+      "bocXep",
+      "ve",
+      "hangVe",
+      "luuCa",
+      "luatChiPhiKhac",
+    ];
+
+    // field number
+    const NUMBER_FIELDS = ["tongTien", "conLai"];
+
+    // ===== TEXT =====
+    TEXT_FIELDS.forEach((field) => {
+      if (req.query[field]) {
+        condition[field] = {
+          $regex: req.query[field],
+          $options: "i",
+        };
+      }
+    });
+
+    // ===== NUMBER =====
+    NUMBER_FIELDS.forEach((field) => {
+      const from = req.query[`${field}From`];
+      const to = req.query[`${field}To`];
+
+      if (from || to) {
+        condition[field] = {};
+        if (from) condition[field].$gte = Number(from);
+        if (to) condition[field].$lte = Number(to);
+      }
+    });
 
     // ===============================
     // 🔃 SORT (DYNAMIC – FE TRUYỀN)
@@ -315,14 +377,32 @@ exports.getOddCustomerDebt = async (req, res) => {
 
     const skip = (page - 1) * limit;
 
-    const [total, trips] = await Promise.all([
+    const [total, trips, sumResult] = await Promise.all([
+      // số chuyến (có phân trang)
       SchCustomerOdd.countDocuments(condition),
+
+      // danh sách chuyến theo page
       SchCustomerOdd.find(condition)
         .sort(sortObj)
         .skip(skip)
         .limit(limit)
         .lean(),
+
+      // 🔥 TÍNH TỔNG TOÀN BỘ (KHÔNG LIMIT)
+      SchCustomerOdd.aggregate([
+        { $match: condition },
+        {
+          $group: {
+            _id: null,
+            tongTien: { $sum: "$tongTien" },
+            conLai: { $sum: "$conLai" },
+          },
+        },
+      ]),
     ]);
+
+    const tongTienAll = sumResult[0]?.tongTien || 0;
+    const conLaiAll = sumResult[0]?.conLai || 0;
 
     const list = await Promise.all(
       trips.map(async (t) => {
@@ -346,6 +426,8 @@ exports.getOddCustomerDebt = async (req, res) => {
       soChuyen: total,
       page,
       limit,
+      tongTienAll,
+      conLaiAll,
       chiTietChuyen: list,
     });
   } catch (err) {
@@ -430,6 +512,16 @@ exports.addTripPayment = async (req, res) => {
       return res.status(400).json({ error: "Thiếu maChuyenCode hoặc amount" });
     }
 
+    // 2️⃣ Cập nhật SCH CUSTOMER ODD
+    const oddTrip = await SchCustomerOdd.findOne({ maChuyen: maChuyenCode });
+    if (!oddTrip) {
+      return res.status(404).json({ error: "Không tìm thấy chuyến" });
+    }
+
+    if (oddTrip.isLocked) {
+      return res.status(403).json({ error: "Chuyến đã bị khoá" });
+    }
+
     const createdDayDate = createdDay
       ? new Date(createdDay + "T00:00:00.000Z")
       : new Date();
@@ -443,12 +535,6 @@ exports.addTripPayment = async (req, res) => {
       createdBy: createdBy || "",
       createdDay: createdDayDate,
     });
-
-    // 2️⃣ Cập nhật SCH CUSTOMER ODD
-    const oddTrip = await SchCustomerOdd.findOne({ maChuyen: maChuyenCode });
-    if (!oddTrip) {
-      return res.status(404).json({ error: "Không tìm thấy chuyến" });
-    }
 
     const currentPaid = parseMoneyStr(oddTrip.daThanhToan); // number
     const payAmount = Number(amount) || 0;
@@ -499,12 +585,19 @@ exports.deleteTripPayment = async (req, res) => {
 
     const { maChuyenCode, amount } = payment;
 
-    await payment.deleteOne();
-
     const oddTrip = await SchCustomerOdd.findOne({ maChuyen: maChuyenCode });
     if (!oddTrip) {
       return res.status(404).json({ error: "Không tìm thấy chuyến" });
     }
+
+    // 🚫 CHUYẾN ĐÃ KHOÁ → KHÔNG CHO XOÁ THANH TOÁN
+    if (oddTrip.isLocked) {
+      return res.status(403).json({
+        error: "Chuyến đã bị khoá, không được xoá thanh toán",
+      });
+    }
+
+    await payment.deleteOne();
 
     const currentPaid = parseMoneyStr(oddTrip.daThanhToan);
     const newPaid = Math.max(0, currentPaid - Number(amount));
@@ -553,7 +646,10 @@ exports.updateTripNameCustomer = async (req, res) => {
     }
 
     const result = await SchCustomerOdd.updateMany(
-      { maChuyen: { $in: maChuyenList } },
+      {
+        maChuyen: { $in: maChuyenList },
+        isLocked: { $ne: true },
+      },
       { $set: { nameCustomer } }
     );
 
@@ -585,7 +681,10 @@ exports.updateTripNoteOdd = async (req, res) => {
     }
 
     const result = await SchCustomerOdd.updateMany(
-      { maChuyen: { $in: maChuyenList } },
+      {
+        maChuyen: { $in: maChuyenList },
+        isLocked: { $ne: true },
+      },
       { $set: { noteOdd } }
     );
 
@@ -630,6 +729,10 @@ exports.updateOddTripMoney = async (req, res) => {
     const trip = await SchCustomerOdd.findOne({ maChuyen });
     if (!trip) {
       return res.status(404).json({ error: "Không tìm thấy chuyến" });
+    }
+
+    if (trip.isLocked) {
+      return res.status(403).json({ error: "Chuyến đã bị khoá" });
     }
 
     // ✅ GHI STRING NGUYÊN VẸN (CHO PHÉP ÂM)
@@ -759,4 +862,187 @@ exports.updateHighlight = async (req, res) => {
   await SchCustomerOdd.updateOne({ maChuyen }, { highlightColor: color || "" });
 
   res.json({ success: true });
+};
+
+// =====================================================
+// 🔒 KHOÁ CHUYẾN KH LẺ THEO KHOẢNG NGÀY GIAO
+// =====================================================
+exports.lockOddTripsByDate = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.body;
+    if (!startDate || !endDate) {
+      return res.status(400).json({ error: "Thiếu startDate hoặc endDate" });
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    end.setDate(end.getDate() + 1);
+
+    const result = await SchCustomerOdd.updateMany(
+      {
+        ngayGiaoHang: { $gte: start, $lt: end },
+      },
+      { $set: { isLocked: true } }
+    );
+
+    res.json({
+      message: "Đã khoá chuyến theo khoảng ngày giao",
+      locked: result.modifiedCount,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Lỗi khoá chuyến theo ngày" });
+  }
+};
+
+// =====================================================
+// 🔁 TOGGLE KHOÁ / MỞ 1 CHUYẾN KH LẺ
+// =====================================================
+exports.toggleLockOddTrip = async (req, res) => {
+  try {
+    const { maChuyen } = req.body;
+    if (!maChuyen) {
+      return res.status(400).json({ error: "Thiếu maChuyen" });
+    }
+
+    const trip = await SchCustomerOdd.findOne({ maChuyen });
+    if (!trip) {
+      return res.status(404).json({ error: "Không tìm thấy chuyến" });
+    }
+
+    trip.isLocked = !trip.isLocked;
+    await trip.save();
+
+    res.json({
+      message: trip.isLocked ? "Đã khoá chuyến" : "Đã mở khoá chuyến",
+      maChuyen,
+      isLocked: trip.isLocked,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Lỗi toggle khoá chuyến" });
+  }
+};
+
+// ===================================
+// XUẤT FILE EXCEL CÔNG NỢ KHÁCH LẺ
+// ===================================
+const STATUS_VI = {
+  CHUA_TRA: "Chưa trả",
+  TRA_MOT_PHAN: "Trả một phần",
+  HOAN_TAT: "Hoàn tất",
+};
+
+const METHOD_VI = {
+  PERSONAL_VCB: "VCB cá nhân",
+  PERSONAL_TCB: "TCB cá nhân",
+  COMPANY_VCB: "VCB công ty",
+  COMPANY_TCB: "TCB công ty",
+  CASH: "Tiền mặt",
+  OTHER: "Khác",
+};
+
+exports.exportOddDebtByDateRange = async (req, res) => {
+  try {
+    const { from, to } = req.body;
+    if (!from || !to) {
+      return res.status(400).json({ message: "Thiếu from hoặc to" });
+    }
+
+    const fromDate = new Date(from + "T00:00:00");
+    const toDate = new Date(to + "T23:59:59");
+
+    const trips = await SchCustomerOdd.find({
+      maKH: "26",
+      ngayGiaoHang: { $gte: fromDate, $lte: toDate },
+    })
+      .sort({ ngayGiaoHang: 1 })
+      .lean();
+
+    if (!trips.length) {
+      return res.status(400).json({ message: "Không có dữ liệu KH lẻ" });
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(
+      path.join(__dirname, "../templates/DSC_KL.xlsx")
+    );
+
+    const sheet = workbook.getWorksheet("Sheet1");
+    const startRow = 2;
+
+    // ======================
+    // GHI DỮ LIỆU + PAYMENT
+    // ======================
+    let rowIndex = startRow;
+
+    for (const t of trips) {
+      const row = sheet.getRow(rowIndex++);
+
+      // 🔹 PAYMENT GẦN NHẤT
+      const payment = await TripPayment.findOne({
+        maChuyenCode: t.maChuyen,
+      })
+        .sort({ createdAt: -1 })
+        .lean();
+
+      row.getCell("A").value = t.maKH || "";
+      row.getCell("B").value = t.maChuyen || "";
+      row.getCell("C").value = t.tenLaiXe || "";
+      row.getCell("D").value = t.nameCustomer || "KH LẺ";
+      row.getCell("E").value = t.dienGiai || "";
+
+      row.getCell("F").value = t.ngayBocHang ? new Date(t.ngayBocHang) : "";
+      row.getCell("G").value = t.ngayGiaoHang ? new Date(t.ngayGiaoHang) : "";
+
+      row.getCell("H").value = t.diemXepHang || "";
+      row.getCell("I").value = t.diemDoHang || "";
+      row.getCell("J").value = t.soDiem || "";
+      row.getCell("K").value = t.trongLuong || "";
+      row.getCell("L").value = t.bienSoXe || "";
+
+      // ===== TIỀN KH LẺ =====
+      row.getCell("M").value = parseMoneyStr(t.cuocPhi);
+      row.getCell("N").value = parseMoneyStr(t.daThanhToan);
+      row.getCell("O").value = parseMoneyStr(t.bocXep);
+      row.getCell("P").value = parseMoneyStr(t.ve);
+      row.getCell("Q").value = parseMoneyStr(t.hangVe);
+      row.getCell("R").value = parseMoneyStr(t.luuCa);
+      row.getCell("S").value = parseMoneyStr(t.luatChiPhiKhac);
+      row.getCell("T").value = t.ghiChu || "";
+      row.getCell("U").value = parseMoneyStr(t.tongTien);
+      row.getCell("V").value = parseMoneyStr(t.daThanhToan);
+      row.getCell("W").value = parseMoneyStr(t.conLai);
+      row.getCell("X").value = STATUS_VI[t.status] || "";
+
+      // ===== THANH TOÁN (CÙNG DÒNG) =====
+      row.getCell("Y").value = payment?.createdDay
+        ? new Date(payment.createdDay)
+        : "";
+      row.getCell("Z").value = payment?.method
+        ? METHOD_VI[payment.method] || payment.method
+        : "";
+
+      row.getCell("AA").value = payment?.note || "";
+
+      row.getCell("AB").value = t.noteOdd || "";
+
+      row.commit();
+    }
+
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=CONG_NO_KH_LE_${from}_DEN_${to}.xlsx`
+    );
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Lỗi xuất Excel công nợ KH lẻ" });
+  }
 };

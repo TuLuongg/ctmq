@@ -57,4 +57,19 @@ router.post("/sync-to-base-by-date", oddDebtCtrl.syncOddToBaseByDate);
 
 router.put("/highlight", oddDebtCtrl.updateHighlight);
 
+// ===============================
+// 🔒 KHOÁ / MỞ KHOÁ CHUYẾN KH LẺ
+// ===============================
+
+// 🔒 Khoá chuyến theo khoảng ngày giao
+// POST /api/odd-debt/lock-by-date
+router.post("/lock-by-date", oddDebtCtrl.lockOddTripsByDate);
+
+// 🔁 Toggle khoá / mở 1 chuyến
+// POST /api/odd-debt/toggle-lock
+router.post("/toggle-lock", oddDebtCtrl.toggleLockOddTrip);
+
+//xuất file excel
+router.post("/export-excel-by-range", oddDebtCtrl.exportOddDebtByDateRange);
+
 module.exports = router;

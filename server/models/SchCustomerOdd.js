@@ -50,6 +50,11 @@ const SchCustomerOddSchema = new mongoose.Schema(
       type: String,
       default: "", // ví dụ: "yellow", "green", "#FFF3CD"
     },
+
+    isLocked: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );
