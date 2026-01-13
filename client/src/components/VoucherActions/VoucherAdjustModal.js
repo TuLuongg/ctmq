@@ -137,7 +137,7 @@ export default function VoucherAdjustModal({
           receiverCompany: v.receiverCompany || "",
           receiverBankAccount: v.receiverBankAccount || "",
           transferContent: v.transferContent || "",
-          reason: "", // ❗ lý do điều chỉnh để trống
+          reason: v.reason || "",
           expenseType: v.expenseType || "",
           amount: String(v.amount || ""),
           createdBy: v.createdBy || "",

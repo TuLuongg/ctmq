@@ -406,18 +406,28 @@ export default function CustomerDebtPage() {
       return;
     }
 
+    if (selectedCustomers.length === 0) {
+      alert("Vui lòng chọn ít nhất 1 khách hàng");
+      return;
+    }
+
     setIsExporting(true);
     try {
-      const url = `${API}/payment-history/debt-period/export?fromMonth=${exportFromMonth}&toMonth=${exportToMonth}`;
+      const params = new URLSearchParams();
+      params.append("fromMonth", exportFromMonth);
+      params.append("toMonth", exportToMonth);
 
-      // mở download
+      // ✅ CHỖ QUAN TRỌNG DUY NHẤT
+      selectedCustomers.forEach((code) => params.append("customerCodes", code));
+
+      const url = `${API}/payment-history/debt-period/export?${params.toString()}`;
+
       window.open(url, "_blank");
 
       setShowExportModal(false);
     } catch (err) {
       alert("Lỗi xuất Excel");
     } finally {
-      // ⏱️ delay nhẹ để tránh spam click
       setTimeout(() => setIsExporting(false), 2000);
     }
   };

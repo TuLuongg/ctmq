@@ -861,13 +861,14 @@ export default function ManageTCBperson() {
                   <input
                     type="checkbox"
                     checked={v.isLocked === true}
-                    disabled={!canLockTCB}
-                    onChange={() => canLockTCB && handleToggleLock(v)}
+                    // Nếu đang khoá và không có quyền → disable, còn lại ai cũng tick được
+                    disabled={v.isLocked === true && !canLockTCB}
+                    onChange={() => handleToggleLock(v)}
                     title={
-                      !canLockTCB
-                        ? "Bạn không có quyền khoá/mở"
-                        : v.isLocked
-                        ? "Mở khoá giao dịch"
+                      v.isLocked
+                        ? !canLockTCB
+                          ? "Bạn không có quyền mở khoá giao dịch"
+                          : "Mở khoá giao dịch"
                         : "Khoá giao dịch"
                     }
                   />
