@@ -463,36 +463,36 @@ export default function ManageTrip({ user, onLogout }) {
   });
 
   const buildQueryParams = () => {
-  const q = {};
+    const q = {};
 
-  if (giaoFrom) q.giaoFrom = giaoFrom;
-  if (giaoTo) q.giaoTo = giaoTo;
+    if (giaoFrom) q.giaoFrom = giaoFrom;
+    if (giaoTo) q.giaoTo = giaoTo;
 
-  // excelSelected
-  Object.entries(excelSelected).forEach(([key, arr]) => {
-    if (Array.isArray(arr) && arr.length > 0) {
-      q[key] = arr;
-    }
-  });
+    // excelSelected
+    Object.entries(excelSelected).forEach(([key, arr]) => {
+      if (Array.isArray(arr) && arr.length > 0) {
+        q[key] = arr;
+      }
+    });
 
-  if (onlyEmptyMaHoaDon) q.maHoaDonEmpty = "1";
-  if (onlyEmptyDebtCode) q.debtCodeEmpty = "1";
+    if (onlyEmptyMaHoaDon) q.maHoaDonEmpty = "1";
+    if (onlyEmptyDebtCode) q.debtCodeEmpty = "1";
 
-  // filter text
-  Object.entries(filters).forEach(([k, v]) => {
-    if (v !== "" && v !== null && v !== undefined) {
-      q[k] = v;
-    }
-  });
+    // filter text
+    Object.entries(filters).forEach(([k, v]) => {
+      if (v !== "" && v !== null && v !== undefined) {
+        q[k] = v;
+      }
+    });
 
-  // money filter
-  Object.entries(moneyFilter).forEach(([k, v]) => {
-    if (v.empty) q[`${k}Empty`] = "1";
-    if (v.filled) q[`${k}Filled`] = "1";
-  });
+    // money filter
+    Object.entries(moneyFilter).forEach(([k, v]) => {
+      if (v.empty) q[`${k}Empty`] = "1";
+      if (v.filled) q[`${k}Filled`] = "1";
+    });
 
-  return q;
-};
+    return q;
+  };
 
   const [searchKH, setSearchKH] = useState("");
   const [searchDriver, setSearchDriver] = useState("");
@@ -527,31 +527,31 @@ export default function ManageTrip({ user, onLogout }) {
   const [onlyEmptyDebtCode, setOnlyEmptyDebtCode] = useState(false);
 
   useEffect(() => {
-  axios
-    .get(`${API_URL}/accountant/filter-all`, {
-      headers: { Authorization: `Bearer ${token}` },
-      params: buildQueryParams(),
-      paramsSerializer: { indexes: null },
-    })
-    .then((res) => setExcelOptions(res.data))
-    .catch((err) =>
-      console.error("❌ fetch filter-all error:", err.response?.data || err)
-    );
-}, [
-  giaoFrom,
-  giaoTo,
-  excelSelected.khachHang.join("|"),
-  excelSelected.tenLaiXe.join("|"),
-  excelSelected.bienSoXe.join("|"),
-  excelSelected.dienGiai.join("|"),
-  excelSelected.cuocPhi.join("|"),
-  excelSelected.maHoaDon.join("|"),
-  excelSelected.debtCode.join("|"),
-  JSON.stringify(filters),
-  JSON.stringify(moneyFilter),
-  onlyEmptyMaHoaDon,
-  onlyEmptyDebtCode,
-]);
+    axios
+      .get(`${API_URL}/accountant/filter-all`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: buildQueryParams(),
+        paramsSerializer: { indexes: null },
+      })
+      .then((res) => setExcelOptions(res.data))
+      .catch((err) =>
+        console.error("❌ fetch filter-all error:", err.response?.data || err)
+      );
+  }, [
+    giaoFrom,
+    giaoTo,
+    excelSelected.khachHang.join("|"),
+    excelSelected.tenLaiXe.join("|"),
+    excelSelected.bienSoXe.join("|"),
+    excelSelected.dienGiai.join("|"),
+    excelSelected.cuocPhi.join("|"),
+    excelSelected.maHoaDon.join("|"),
+    excelSelected.debtCode.join("|"),
+    JSON.stringify(filters),
+    JSON.stringify(moneyFilter),
+    onlyEmptyMaHoaDon,
+    onlyEmptyDebtCode,
+  ]);
 
   // 🔹 Lấy tất cả chuyến (có filter)
   const fetchAllRides = async () => {
@@ -1680,7 +1680,7 @@ export default function ManageTrip({ user, onLogout }) {
         <button
           onClick={exportToExcel}
           disabled={exporting}
-          className={`px-4 py-2 rounded-lg shadow-sm text-white
+          className={`px-4 py-2 rounded-lg shadow-sm text-white flex items-center gap-2
     ${
       exporting
         ? "bg-gray-400 cursor-not-allowed"
@@ -1688,13 +1688,16 @@ export default function ManageTrip({ user, onLogout }) {
     }
   `}
         >
-          Xuất File gốc
+          {exporting && (
+            <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          )}
+          {exporting ? "Đang xuất file..." : "Xuất File gốc"}
         </button>
 
         <button
           onClick={exportToExcelBS}
           disabled={exporting}
-          className={`px-4 py-2 rounded-lg shadow-sm text-white
+          className={`px-4 py-2 rounded-lg shadow-sm text-white flex items-center gap-2
     ${
       exporting
         ? "bg-gray-400 cursor-not-allowed"
@@ -1702,7 +1705,10 @@ export default function ManageTrip({ user, onLogout }) {
     }
   `}
         >
-          Xuất File BS
+          {exporting && (
+            <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          )}
+          {exporting ? "Đang xuất file..." : "Xuất File BS"}
         </button>
 
         <div className="flex items-center gap-2">

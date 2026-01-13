@@ -1,6 +1,9 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { BsUnlock, BsLock } from "react-icons/bs";
 import axios from "axios";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 import { format } from "date-fns";
 import API from "../../api";
 import TripPaymentModal from "../../components/TripPaymentModal";
@@ -66,6 +69,7 @@ export default function CustomerDebt26Page() {
   // cấu hình cột (key, label, width, visible)
   const defaultColumns = [
     { key: "maChuyen", label: "Mã chuyến", width: 80, visible: true },
+    { key: "isLocked", label: "Khoá", width: 40, visible: true },
     { key: "nameCustomer", label: "Tên khách hàng", width: 120, visible: true },
     { key: "tenLaiXe", label: "Tên lái xe", width: 120, visible: true },
     { key: "dienGiai", label: "Diễn giải", width: 150, visible: true },
@@ -258,6 +262,10 @@ export default function CustomerDebt26Page() {
     setPage(1);
   };
 
+  const [tongTienAll, setTongTienAll] = useState(0);
+const [conLaiAll, setConLaiAll] = useState(0);
+
+
   const loadData = async (p = page) => {
     if (loading) return;
     setLoading(true);
@@ -271,7 +279,6 @@ export default function CustomerDebt26Page() {
       if (startDate) q.append("startDate", startDate);
       if (endDate) q.append("endDate", endDate);
 
-      // 🔥 FILTER EXCEL – Y HỆT ManageAllTrip
       if (excelSelected.nameCustomer.length > 0) {
         excelSelected.nameCustomer.forEach((v) => q.append("nameCustomer", v));
       }
@@ -290,6 +297,20 @@ export default function CustomerDebt26Page() {
       if (excelSelected.daThanhToan.length > 0) {
         excelSelected.daThanhToan.forEach((v) => q.append("daThanhToan", v));
       }
+
+      // ===== FILTER NHẬP TEXT / DATE (GỬI LÊN BE) =====
+      Object.entries(filters || {}).forEach(([key, val]) => {
+        if (val !== undefined && val !== null && val !== "") {
+          q.append(key, val);
+        }
+      });
+
+      // ===== FILTER TIỀN (EMPTY / FILLED) =====
+      Object.entries(moneyFilter || {}).forEach(([key, rule]) => {
+        if (rule?.empty) q.append(`${key}Empty`, "1");
+        if (rule?.filled) q.append(`${key}Filled`, "1");
+      });
+
       // ===== SORT (match BE) =====
       if (sort.length > 0) {
         q.append("sort", JSON.stringify(sort));
@@ -310,6 +331,8 @@ export default function CustomerDebt26Page() {
 
       setTrips(mapped);
       setTotalTrips(res.data?.soChuyen || 0);
+      setTongTienAll(res.data?.tongTienAll || 0);
+setConLaiAll(res.data?.conLaiAll || 0);
       setPage(p);
     } catch (err) {
       console.error("load odd debt error:", err);
@@ -327,13 +350,13 @@ export default function CustomerDebt26Page() {
     startDate,
     endDate,
     hasCongNo26Permission,
-    filters,
     excelSelected.nameCustomer.join("|"),
     excelSelected.tenLaiXe.join("|"),
     excelSelected.bienSoXe.join("|"),
     excelSelected.dienGiai.join("|"),
     excelSelected.cuocPhi.join("|"),
     excelSelected.daThanhToan.join("|"),
+    JSON.stringify(filters),
     JSON.stringify(moneyFilter),
     sort,
   ]);
@@ -374,7 +397,7 @@ export default function CustomerDebt26Page() {
   const handleSyncOddDebt = async () => {
     if (
       !window.confirm(
-        "Cập nhật các chuyến chưa có trong công nợ trong khoảng ngày này?"
+        "Cập nhật thông tin từ chuyến gốc sang công nợ trong khoảng ngày này?"
       )
     )
       return;
@@ -428,6 +451,46 @@ export default function CustomerDebt26Page() {
       alert("❌ Lỗi chèn chi phí về chuyến gốc !!!");
     } finally {
       setSyncingToBase(false);
+    }
+  };
+
+  const [exporting, setExporting] = useState(false);
+  const exportToExcel = async () => {
+    if (exporting) return; // ⛔ chống spam click
+
+    try {
+      if (!startDate || !endDate) {
+        alert("Vui lòng chọn khoảng ngày");
+        return;
+      }
+
+      setExporting(true); // 🔒 khóa nút
+
+      const payload = {
+        from: startDate,
+        to: endDate,
+      };
+
+      const res = await axios.post(
+        `${API}/odd-debt/export-excel-by-range`,
+        payload,
+        {
+          responseType: "blob",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      saveAs(
+        new Blob([res.data]),
+        `CONG_NO_KHACH_LE_${startDate}_den_${endDate}.xlsx`
+      );
+    } catch (err) {
+      console.error(err);
+      alert("Xuất Excel thất bại");
+    } finally {
+      setExporting(false); // 🔓 mở lại nút
     }
   };
 
@@ -558,7 +621,7 @@ export default function CustomerDebt26Page() {
 
   const [showColumnSetting, setShowColumnSetting] = useState(false);
   const clearAllFilters = () => {
-    setFilters("")
+    setFilters("");
     setExcelSelected({
       nameCustomer: [],
       tenLaiXe: [],
@@ -882,6 +945,23 @@ export default function CustomerDebt26Page() {
             </button>
 
             <button
+              onClick={exportToExcel}
+              disabled={exporting}
+              className={`px-4 py-2 rounded-lg shadow-sm text-white flex items-center gap-2
+    ${
+      exporting
+        ? "bg-gray-400 cursor-not-allowed"
+        : "bg-blue-500 hover:bg-blue-600"
+    }
+  `}
+            >
+              {exporting && (
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              )}
+              {exporting ? "Đang xuất file..." : "Xuất Excel"}
+            </button>
+
+            <button
               onClick={handleCreateOddDebt}
               disabled={creatingDebt}
               className={`px-4 py-2 text-white rounded text-xs
@@ -908,6 +988,29 @@ export default function CustomerDebt26Page() {
   `}
             >
               {syncingToBase ? "Đang chèn..." : "Chèn về chuyến gốc"}
+            </button>
+            <button
+              className="px-4 py-2 text-white rounded text-xs bg-red-400 hover:bg-red-700"
+              onClick={async () => {
+                if (
+                  !window.confirm("Khoá tất cả chuyến trong khoảng ngày này?")
+                )
+                  return;
+
+                await axios.post(
+                  `${API}/odd-debt/lock-by-date`,
+                  { startDate, endDate },
+                  {
+                    headers: {
+                      Authorization: `Bearer ${localStorage.getItem("token")}`,
+                    },
+                  }
+                );
+
+                loadData();
+              }}
+            >
+              Khoá tất cả
             </button>
           </div>
           <div className="flex justify-between items-center gap-4 mb-3">
@@ -2045,7 +2148,15 @@ export default function CustomerDebt26Page() {
                                 minWidth: col.width,
                                 maxWidth: col.width,
                               }}
-                              onClick={() => openCostModal(t)}
+                              onClick={() => {
+                                if (t.isLocked) {
+                                  alert(
+                                    "Chuyến đã bị khoá, không được sửa chi phí"
+                                  );
+                                  return;
+                                }
+                                openCostModal(t);
+                              }}
                             >
                               <div className="text-right">{displayValue}</div>
                             </td>
@@ -2162,6 +2273,57 @@ export default function CustomerDebt26Page() {
                           value = methodMap[value] || value;
                         }
 
+                        if (col.key === "isLocked") {
+                          return (
+                            <td
+                              key="isLocked"
+                              className="border"
+                              style={{
+                                width: col.width,
+                                minWidth: col.width,
+                                maxWidth: col.width,
+                              }}
+                            >
+                              <div
+                                className="flex items-center justify-center"
+                                onClick={async () => {
+                                  await axios.post(
+                                    `${API}/odd-debt/toggle-lock`,
+                                    { maChuyen: t.maChuyen },
+                                    {
+                                      headers: {
+                                        Authorization: `Bearer ${localStorage.getItem(
+                                          "token"
+                                        )}`,
+                                      },
+                                    }
+                                  );
+                                  loadData();
+                                }}
+                              >
+                                <div
+                                  className={`
+            w-6 h-6 flex items-center justify-center rounded-full
+            cursor-pointer transition
+            ${
+              t.isLocked
+                ? "bg-red-100 text-red-600 hover:bg-red-200"
+                : "bg-green-100 text-green-600 hover:bg-green-200"
+            }
+          `}
+                                  title={t.isLocked ? "Đã khoá" : "Đang mở"}
+                                >
+                                  {t.isLocked ? (
+                                    <BsLock size={14} />
+                                  ) : (
+                                    <BsUnlock size={14} />
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                          );
+                        }
+
                         return (
                           <td
                             key={col.key}
@@ -2210,47 +2372,64 @@ export default function CustomerDebt26Page() {
             </table>
           </div>
 
-          <div className="flex justify-between items-center mt-3">
-            <div className="font-semibold">
-              Tổng số chuyến: <span className="text-black">{totalTrips}</span>{" "}
-              || hiển thị:{" "}
-              <span className="text-black">{filteredTrips.length}</span>
-            </div>
+<div className="flex justify-between items-center mt-3">
+  {/* ===== BÊN TRÁI: TỔNG SỐ CHUYẾN ===== */}
+  <div className="font-semibold text-sm">
+    Tổng số chuyến:{" "}
+    <span className="text-black">{totalTrips}</span>
+    {"  "}|| hiển thị:{" "}
+    <span className="text-black">{filteredTrips.length}</span>
+  </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                disabled={page <= 1 || loading}
-                onClick={() => loadData(page - 1)}
-                className="px-3 py-1 border rounded disabled:opacity-50"
-              >
-                Trước
-              </button>
+  {/* ===== GIỮA: PHÂN TRANG ===== */}
+  <div className="flex items-center gap-2">
+    <button
+      disabled={page <= 1 || loading}
+      onClick={() => loadData(page - 1)}
+      className="px-3 py-1 border rounded disabled:opacity-50"
+    >
+      Trước
+    </button>
 
-              {/* 🔥 CHỌN TRANG */}
-              <select
-                value={page}
-                disabled={loading}
-                onChange={(e) => loadData(Number(e.target.value))}
-                className="border px-2 py-1 text-xs rounded cursor-pointer"
-              >
-                {Array.from({ length: totalPages }).map((_, i) => (
-                  <option key={i + 1} value={i + 1}>
-                    Trang {i + 1}
-                  </option>
-                ))}
-              </select>
+    <select
+      value={page}
+      disabled={loading}
+      onChange={(e) => loadData(Number(e.target.value))}
+      className="border px-2 py-1 text-xs rounded cursor-pointer"
+    >
+      {Array.from({ length: totalPages }).map((_, i) => (
+        <option key={i + 1} value={i + 1}>
+          Trang {i + 1}
+        </option>
+      ))}
+    </select>
 
-              <span className="text-xs text-gray-600">/ {totalPages}</span>
+    <span className="text-xs text-gray-600">/ {totalPages}</span>
 
-              <button
-                disabled={page >= totalPages || loading}
-                onClick={() => loadData(page + 1)}
-                className="px-3 py-1 border rounded disabled:opacity-50"
-              >
-                Sau
-              </button>
-            </div>
-          </div>
+    <button
+      disabled={page >= totalPages || loading}
+      onClick={() => loadData(page + 1)}
+      className="px-3 py-1 border rounded disabled:opacity-50"
+    >
+      Sau
+    </button>
+  </div>
+
+{/* ===== BÊN PHẢI: TỔNG TIỀN | CÒN LẠI ===== */}
+<div className="font-semibold text-base text-right whitespace-nowrap">
+  Dư:&nbsp;
+  <span className="text-blue-600 text-lg">
+    {tongTienAll.toLocaleString()}
+  </span>
+  {"  "}|
+  {"  "}Nợ:&nbsp;
+  <span className="text-red-600 text-lg">
+    {conLaiAll.toLocaleString()}
+  </span>
+</div>
+
+</div>
+
         </>
       )}
 

@@ -97,7 +97,7 @@ export default function TripPaymentModal({
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
   const today = new Date().toISOString().slice(0, 10);
-  const [createdDay, setCreatedDay] = useState(today);
+  const [createdDay, setCreatedDay] = useState();
 
   const PAYMENT_METHOD_LABEL_MAP = {
     PERSONAL_VCB: "TK cá nhân - VCB",
@@ -113,12 +113,9 @@ export default function TripPaymentModal({
     if (!maChuyenCode) return;
     try {
       setLoading(true);
-      const res = await axios.get(
-        `${API}/odd-debt/payment/${maChuyenCode}`,
-        {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        }
-      );
+      const res = await axios.get(`${API}/odd-debt/payment/${maChuyenCode}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
       setPayments(res.data);
     } catch (err) {
       console.error("Lỗi tải lịch sử thanh toán:", err);
@@ -163,7 +160,13 @@ export default function TripPaymentModal({
       if (onChange) onChange();
     } catch (err) {
       console.error("Lỗi thêm thanh toán:", err);
-      alert("Không thể thêm thanh toán");
+
+      const msg =
+        err?.response?.data?.error ||
+        err?.response?.data?.message ||
+        "Không thể thêm thanh toán";
+
+      alert(msg);
     }
   };
 
@@ -180,7 +183,13 @@ export default function TripPaymentModal({
       if (onChange) onChange(); // <- báo parent reload bảng
     } catch (err) {
       console.error("Lỗi xoá thanh toán:", err);
-      alert("Không thể xoá thanh toán");
+
+      const msg =
+        err?.response?.data?.error ||
+        err?.response?.data?.message ||
+        "Không thể xoá thanh toán";
+
+      alert(msg);
     }
   };
 
@@ -202,6 +211,8 @@ export default function TripPaymentModal({
               className="border p-1"
               value={createdDay}
               onChange={(e) => setCreatedDay(e.target.value)}
+              onClick={(e) => e.target.showPicker()}
+              required
             />
           </div>
 
