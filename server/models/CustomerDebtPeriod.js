@@ -41,4 +41,27 @@ const CustomerDebtPeriodSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// ===============================
+// 🔒 TỰ ĐỘNG CHUẨN HOÁ CÔNG NỢ
+// ===============================
+CustomerDebtPeriodSchema.pre("save", function (next) {
+  this.totalAmount = Number(this.totalAmount || 0);
+  this.paidAmount = Number(this.paidAmount || 0);
+
+  // 🔥 remain LUÔN = total - paid
+  this.remainAmount = Math.round(this.totalAmount - this.paidAmount);
+
+  if (this.remainAmount <= 0) {
+    this.remainAmount = 0;
+    this.status = "HOAN_TAT";
+  } else if (this.paidAmount > 0) {
+    this.status = "TRA_MOT_PHAN";
+  } else {
+    this.status = "CHUA_TRA";
+  }
+
+  next();
+});
+
+
 module.exports = mongoose.model("CustomerDebtPeriod", CustomerDebtPeriodSchema);

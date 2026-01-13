@@ -31,16 +31,20 @@ const pickBsOnly = (obj, field) => {
   return Number(obj[map.bs]) || 0;
 };
 
-const calcTripCostOddCustomer = (trip) => {
-  return (
-    pickBaseOnly(trip, "cuocPhi") +
-    pickBaseOnly(trip, "bocXep") +
-    pickBaseOnly(trip, "ve") +
-    pickBaseOnly(trip, "hangVe") +
-    pickBaseOnly(trip, "luuCa") +
-    pickBaseOnly(trip, "chiPhiKhac") +
-    pickBaseOnly(trip, "themDiem")
-  );
+const normalizePeriod = (p) => {
+  p.totalAmount = Number(p.totalAmount || 0);
+  p.paidAmount = Number(p.paidAmount || 0);
+
+  p.remainAmount = Math.round(p.totalAmount - p.paidAmount);
+
+  if (p.remainAmount <= 0) {
+    p.remainAmount = 0;
+    p.status = "HOAN_TAT";
+  } else if (p.paidAmount > 0) {
+    p.status = "TRA_MOT_PHAN";
+  } else {
+    p.status = "CHUA_TRA";
+  }
 };
 
 const calcTripCostSharedCustomer = (trip) => {
@@ -80,8 +84,8 @@ const buildDebtCode = async (maKH, month, year) => {
 };
 
 const calcStatus = (total, paid, remain) => {
-  if (total === 0 || remain <= 0) return "HOAN_TAT";
-  if (paid > 0 && remain > 0) return "TRA_MOT_PHAN";
+  if (remain === 0) return "HOAN_TAT";
+  if (paid > 0) return "TRA_MOT_PHAN";
   return "CHUA_TRA";
 };
 
@@ -156,7 +160,7 @@ exports.getCustomerDebt = async (req, res) => {
         paidAmount: p.paidAmount,
         remainAmount: p.remainAmount,
         tripCount: p.tripCount || 0,
-        status: p.status,
+        status: calcStatus(p.totalAmount, p.paidAmount, p.remainAmount),
         isLocked: p.isLocked,
         note: p.note,
       }))
@@ -187,14 +191,8 @@ exports.getCustomerDebt = async (req, res) => {
           p.totalAmountCash = money.totalAmountCash;
           p.totalOther = money.totalOther;
           p.totalAmount = money.totalAmount;
-          p.paidAmount = money.paidAmount;
-          p.remainAmount = money.remainAmount;
+          p.remainAmount = p.totalAmount - (p.paidAmount || 0);
           p.tripCount = tripCount;
-          p.status = calcStatus(
-            money.totalAmount,
-            money.paidAmount,
-            money.remainAmount
-          );
 
           await p.save();
         }
@@ -266,8 +264,7 @@ exports.getCustomerDebtPeriodsByYear = async (req, res) => {
           p.totalAmountCash = money.totalAmountCash;
           p.totalOther = money.totalOther;
           p.totalAmount = money.totalAmount;
-          p.paidAmount = money.paidAmount;
-          p.remainAmount = money.remainAmount;
+          p.remainAmount = p.totalAmount - (p.paidAmount || 0);
           p.tripCount = tripCount;
           p.status = calcStatus(
             money.totalAmount,
@@ -707,56 +704,67 @@ exports.toggleTripPaymentType = async (req, res) => {
 // =====================================================
 exports.addPaymentReceipt = async (req, res) => {
   try {
-    const { debtCode, customerCode, amount, method, note, paymentDate, createdBy } =
-      req.body;
+    const {
+      debtCode,
+      customerCode,
+      amount,
+      method,
+      note,
+      paymentDate,
+      createdBy,
+    } = req.body;
 
     if (!customerCode || !amount) {
       return res.status(400).json({ error: "Thiếu customerCode hoặc amount" });
     }
 
     const paidAt = paymentDate
-  ? new Date(paymentDate + "T00:00:00")
-  : new Date();
+      ? new Date(paymentDate + "T00:00:00")
+      : new Date();
 
-
-    let remainMoney = parseFloat(amount);
+    let remainMoney = Number(amount);
     const allocations = [];
 
-    // Lấy các kỳ công nợ chưa hoàn tất, sắp xếp từ cũ → mới
+    // ✅ CHỈ LẤY KỲ CÒN NỢ DƯƠNG
     const periods = await CustomerDebtPeriod.find({
       customerCode,
-      status: { $ne: "HOAN_TAT" },
+      remainAmount: { $gt: 0 },
     }).sort({ fromDate: 1 });
 
-    // Cập nhật công nợ từng kỳ trước khi tạo phiếu
     for (const p of periods) {
       if (remainMoney <= 0) break;
 
-      // Số tiền có thể trừ vào kỳ này
+      p.paidAmount = Number(p.paidAmount || 0);
+      p.remainAmount = Number(p.remainAmount || 0);
+
       const deduct = Math.min(p.remainAmount, remainMoney);
+      if (deduct <= 0) continue;
 
-      p.paidAmount = (parseFloat(p.paidAmount) || 0) + deduct;
-      p.remainAmount = (parseFloat(p.remainAmount) || 0) - deduct;
-      p.status = p.remainAmount <= 0 ? "HOAN_TAT" : "TRA_MOT_PHAN";
+      // ✅ TRỪ TIỀN
+      p.paidAmount += deduct;
+      normalizePeriod(p);
 
-      await p.save(); // ✅ lưu vào DB
+      // ✅ DIỆT FLOAT
+      p.paidAmount = Math.round(p.paidAmount);
+      p.remainAmount = Math.round(p.remainAmount);
+
+      await p.save();
 
       allocations.push({
-        debtPeriodId: p._id, // đúng theo model PaymentReceipt
+        debtPeriodId: p._id,
         amount: deduct,
       });
 
       remainMoney -= deduct;
     }
 
-    // Tạo phiếu thu
     const receipt = new PaymentReceipt({
       debtCode,
       customerCode,
-      amount,
+      amount: Number(amount),
       method,
       note,
-      allocations, // mảng allocations đúng model
+      allocations,
       createdBy,
       paymentDate: paidAt,
     });
@@ -764,8 +772,7 @@ exports.addPaymentReceipt = async (req, res) => {
     await receipt.save();
 
     res.json({
-      message:
-        "Đã ghi nhận phiếu thu (KH chung) và tự động trừ vào kỳ công nợ cũ nhất",
+      message: "Đã ghi nhận phiếu thu và trừ đúng kỳ công nợ",
       receipt,
     });
   } catch (err) {
@@ -790,23 +797,12 @@ exports.rollbackPaymentReceipt = async (req, res) => {
       const period = await CustomerDebtPeriod.findById(alloc.debtPeriodId);
       if (!period) continue;
 
-      // 1️⃣ rollback paidAmount
-      period.paidAmount = Math.max((period.paidAmount || 0) - alloc.amount, 0);
+      period.paidAmount = Number(period.paidAmount || 0) - Number(alloc.amount);
+      period.remainAmount = Number(period.totalAmount) - period.paidAmount;
 
-      // 2️⃣ TÍNH LẠI remainAmount (❗ QUAN TRỌNG)
-      period.remainAmount = Math.max(
-        (period.totalAmount || 0) - period.paidAmount,
-        0
-      );
-
-      // 3️⃣ cập nhật trạng thái
-      if (period.remainAmount <= 0) {
-        period.status = "HOAN_TAT";
-      } else if (period.paidAmount <= 0) {
-        period.status = "CHUA_TRA";
-      } else {
-        period.status = "TRA_MOT_PHAN";
-      }
+      // ✅ DIỆT FLOAT
+      period.paidAmount = Math.round(period.paidAmount);
+      period.remainAmount = Math.round(period.remainAmount);
 
       await period.save();
     }
@@ -860,6 +856,7 @@ exports.getPaymentHistoryByCustomer = async (req, res) => {
           note: r.note,
           createdBy: r.createdBy,
           createdAt: r.createdAt,
+          paymentDate: r.paymentDate,
           allocations: allocationsWithPeriod.filter(Boolean),
         };
       })
@@ -1029,23 +1026,33 @@ const formatDateVN = (date) => {
   return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
 };
 
-const STATUS_LABEL = {
-  CHUA_TRA: "Chưa trả",
-  TRA_MOT_PHAN: "Còn ít",
-  HOAN_TAT: "Hoàn tất",
+const METHOD_VN_MAP = {
+  PERSONAL_VCB: "TK cá nhân - VCB",
+  PERSONAL_TCB: "TK cá nhân - TCB",
+  COMPANY_VCB: "VCB công ty",
+  COMPANY_TCB: "TCB công ty",
+  CASH: "Tiền mặt",
+  OTHER: "Khác",
 };
 
 exports.exportCustomerDebtByMonth = async (req, res) => {
   try {
     const { fromMonth, toMonth } = req.query;
-    // FE gửi: 2025-01 → 2025-03
 
-    if (!fromMonth || !toMonth) {
-      return res.status(400).json({ message: "Thiếu fromMonth / toMonth" });
+    let customerCodes = req.query.customerCodes;
+
+    if (!customerCodes || !fromMonth || !toMonth) {
+      return res.status(400).json({
+        message: "Thiếu customerCodes / fromMonth / toMonth",
+      });
+    }
+
+    if (!Array.isArray(customerCodes)) {
+      customerCodes = [customerCodes];
     }
 
     // ==============================
-    // 🔧 CONVERT YYYY-MM → MM/YYYY
+    // YYYY-MM → MM/YYYY
     // ==============================
     const convertMonth = (m) => {
       const [year, month] = m.split("-");
@@ -1056,32 +1063,71 @@ exports.exportCustomerDebtByMonth = async (req, res) => {
     const to = convertMonth(toMonth);
 
     // ==============================
-    // 1️⃣ LẤY DATA CÔNG NỢ
+    // 1️⃣ LOAD CÔNG NỢ (NHIỀU KH)
     // ==============================
     const debts = await CustomerDebtPeriod.find({
+      customerCode: { $in: customerCodes }, // ✅ mảng cha
       manageMonth: { $gte: from, $lte: to },
-    }).sort({ manageMonth: 1 });
+    })
+      .sort({ customerCode: 1, fromDate: 1 })
+      .lean();
+
+    const debtPeriodById = {};
+    debts.forEach((d) => {
+      debtPeriodById[d._id.toString()] = d.manageMonth;
+    });
 
     if (!debts.length) {
       return res.status(400).json({ message: "Không có dữ liệu công nợ" });
     }
 
     // ==============================
-    // 2️⃣ MAP CUSTOMER CODE → NAME
+    // 2️⃣ LOAD PAYMENT
     // ==============================
-    const customerCodes = [...new Set(debts.map((d) => d.customerCode))];
+    const debtCodes = debts.map((d) => d.debtCode);
 
+    const payments = await PaymentReceipt.find({
+      customerCode: { $in: customerCodes }, // ✅ mảng cha
+      debtCode: { $in: debtCodes },
+    })
+      .sort({ paymentDate: 1 })
+      .lean();
+
+    const paymentMap = {};
+    payments.forEach((p) => {
+      if (!paymentMap[p.debtCode]) paymentMap[p.debtCode] = [];
+      paymentMap[p.debtCode].push(p);
+    });
+
+    // ==============================
+    // 3️⃣ MAP CUSTOMER
+    // ==============================
     const customers = await Customer.find({
       code: { $in: customerCodes },
-    });
+    }).lean();
 
     const customerMap = {};
     customers.forEach((c) => {
       customerMap[c.code] = c.name;
     });
 
+    const getEndOfMonthVN = (manageMonth) => {
+      if (!manageMonth) return "";
+      const [month, year] = manageMonth.split("/");
+      const lastDay = new Date(year, month, 0); // ngày 0 của tháng sau = ngày cuối tháng
+      return `${lastDay.getDate()}/${
+        lastDay.getMonth() + 1
+      }/${lastDay.getFullYear()}`;
+    };
+
+    const calcVatAmount = (invoiceAmount, vatPercent) => {
+      const amount = Number(invoiceAmount) || 0;
+      const percent = Number(vatPercent) || 0;
+      return Math.ceil((amount * percent) / 100);
+    };
+
     // ==============================
-    // 3️⃣ LOAD FILE MẪU
+    // 4️⃣ LOAD TEMPLATE
     // ==============================
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(
@@ -1094,36 +1140,75 @@ exports.exportCustomerDebtByMonth = async (req, res) => {
     }
 
     // ==============================
-    // 4️⃣ GHI DATA (TỪ DÒNG 2)
+    // 5️⃣ GHI DATA
     // ==============================
-    const startRow = 2;
+    let rowIndex = 2;
+    let currentCustomer = null;
+    let runningBalance = 0;
 
-    debts.forEach((d, index) => {
-      const row = sheet.getRow(startRow + index);
+    for (const d of debts) {
+      // đổi KH → reset dư
+      if (currentCustomer !== d.customerCode) {
+        currentCustomer = d.customerCode;
+        runningBalance = 0;
+      }
 
-      const fromDate = formatDateVN(d.fromDate);
-      const toDate = formatDateVN(d.toDate);
+      runningBalance += d.totalAmount || 0;
 
-      row.getCell("A").value = d.customerCode ?? "";
+      // dòng kỳ công nợ
+      const row = sheet.getRow(rowIndex++);
+      row.getCell("A").value = d.customerCode;
       row.getCell("B").value = customerMap[d.customerCode] ?? "";
-      row.getCell("C").value = d.debtCode ?? "";
-      row.getCell("D").value =
-        fromDate && toDate ? `${fromDate}-${toDate}` : "";
-      row.getCell("E").value = d.totalAmountInvoice ?? 0;
-      row.getCell("F").value = d.vatPercent ?? 0;
-      row.getCell("G").value = d.totalAmountCash ?? 0;
-      row.getCell("H").value = d.totalOther ?? 0;
-      row.getCell("I").value = d.totalAmount ?? 0;
-      row.getCell("J").value = d.paidAmount ?? 0;
-      row.getCell("K").value = d.remainAmount ?? 0;
-      row.getCell("L").value = STATUS_LABEL[d.status] ?? "";
-      row.getCell("M").value = d.note ?? "";
+      row.getCell("C").value = d.manageMonth;
+      row.getCell("D").value = d.debtCode;
+      row.getCell("E").value = getEndOfMonthVN(d.manageMonth);
+      row.getCell("F").value = `Cước vận chuyển tháng ${d.manageMonth}`;
+      row.getCell("G").value = d.totalAmountInvoice ?? 0;
+      row.getCell("H").value = Number(
+        calcVatAmount(d.totalAmountInvoice, d.vatPercent)
+      );
 
+      row.getCell("I").value = d.totalAmountCash ?? 0;
+      row.getCell("J").value = d.totalOther ?? 0;
+      row.getCell("L").value = d.totalAmount ?? 0;
+      row.getCell("N").value = runningBalance;
       row.commit();
-    });
+
+      // ==============================
+      // dòng thanh toán
+      // ==============================
+      const payList = paymentMap[d.debtCode] || [];
+      for (const p of payList) {
+        runningBalance -= p.amount;
+
+        const payRow = sheet.getRow(rowIndex++);
+        payRow.getCell("A").value = d.customerCode;
+        payRow.getCell("B").value = customerMap[d.customerCode] ?? "";
+        payRow.getCell("D").value = d.debtCode;
+        payRow.getCell("E").value = formatDateVN(p.paymentDate);
+        const allocMonths = Array.isArray(p.allocations)
+          ? [
+              ...new Set(
+                p.allocations
+                  .map((a) => debtPeriodById[a.debtPeriodId?.toString()])
+                  .filter(Boolean)
+              ),
+            ]
+          : [];
+
+        payRow.getCell("F").value = allocMonths.length
+          ? `Thu tiền cước vận chuyển kỳ ${allocMonths.join(", ")}`
+          : `Thu tiền cước vận chuyển`;
+
+        payRow.getCell("K").value = METHOD_VN_MAP[p.method] || p.method;
+        payRow.getCell("M").value = p.amount;
+        payRow.getCell("N").value = runningBalance;
+        payRow.commit();
+      }
+    }
 
     // ==============================
-    // 5️⃣ TRẢ FILE
+    // 6️⃣ TRẢ FILE
     // ==============================
     res.setHeader(
       "Content-Disposition",
