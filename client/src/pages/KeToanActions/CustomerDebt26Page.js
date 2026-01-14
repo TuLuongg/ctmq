@@ -2416,13 +2416,13 @@ setConLaiAll(res.data?.conLaiAll || 0);
   </div>
 
 {/* ===== BÊN PHẢI: TỔNG TIỀN | CÒN LẠI ===== */}
-<div className="font-semibold text-base text-right whitespace-nowrap">
-  Dư:&nbsp;
+<div className="font-semibold text-sm text-right whitespace-nowrap">
+  Tổng cước:&nbsp;
   <span className="text-blue-600 text-lg">
     {tongTienAll.toLocaleString()}
   </span>
   {"  "}|
-  {"  "}Nợ:&nbsp;
+  {"  "}Còn lại:&nbsp;
   <span className="text-red-600 text-lg">
     {conLaiAll.toLocaleString()}
   </span>
