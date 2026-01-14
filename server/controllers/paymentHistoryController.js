@@ -1093,10 +1093,36 @@ exports.exportCustomerDebtByMonth = async (req, res) => {
       .sort({ paymentDate: 1 })
       .lean();
 
-    const paymentMap = {};
-    payments.forEach((p) => {
-      if (!paymentMap[p.debtCode]) paymentMap[p.debtCode] = [];
-      paymentMap[p.debtCode].push(p);
+    // ==============================
+    // MAP PHIẾU THU THEO KH + KỲ (allocations)
+    // ==============================
+    const paymentsByCustomerMonth = {};
+
+    for (const p of payments) {
+      const customer = p.customerCode;
+      if (!customer || !Array.isArray(p.allocations)) continue;
+
+      if (!paymentsByCustomerMonth[customer]) {
+        paymentsByCustomerMonth[customer] = {};
+      }
+
+      for (const alloc of p.allocations) {
+        const month = debtPeriodById[alloc.debtPeriodId?.toString()];
+        if (!month) continue;
+
+        if (!paymentsByCustomerMonth[customer][month]) {
+          paymentsByCustomerMonth[customer][month] = [];
+        }
+
+        paymentsByCustomerMonth[customer][month].push(p);
+      }
+    }
+
+    // sort theo ngày trong từng KH + kỳ
+    Object.values(paymentsByCustomerMonth).forEach((monthMap) => {
+      Object.values(monthMap).forEach((list) => {
+        list.sort((a, b) => new Date(a.paymentDate) - new Date(b.paymentDate));
+      });
     });
 
     // ==============================
@@ -1146,11 +1172,14 @@ exports.exportCustomerDebtByMonth = async (req, res) => {
     let currentCustomer = null;
     let runningBalance = 0;
 
+    let printedPayments = new Set();
+
     for (const d of debts) {
-      // đổi KH → reset dư
+      // đổi KH → reset dư + reset phiếu đã in
       if (currentCustomer !== d.customerCode) {
         currentCustomer = d.customerCode;
         runningBalance = 0;
+        printedPayments = new Set();
       }
 
       runningBalance += d.totalAmount || 0;
@@ -1177,28 +1206,33 @@ exports.exportCustomerDebtByMonth = async (req, res) => {
       // ==============================
       // dòng thanh toán
       // ==============================
-      const payList = paymentMap[d.debtCode] || [];
+      const payList =
+        paymentsByCustomerMonth[d.customerCode]?.[d.manageMonth] || [];
+
       for (const p of payList) {
+        const pid = p._id.toString();
+        if (printedPayments.has(pid)) continue; // 🔒 chống in trùng
+        printedPayments.add(pid);
+
         runningBalance -= p.amount;
 
         const payRow = sheet.getRow(rowIndex++);
         payRow.getCell("A").value = d.customerCode;
         payRow.getCell("B").value = customerMap[d.customerCode] ?? "";
-        payRow.getCell("D").value = d.debtCode;
         payRow.getCell("E").value = formatDateVN(p.paymentDate);
-        const allocMonths = Array.isArray(p.allocations)
-          ? [
-              ...new Set(
-                p.allocations
-                  .map((a) => debtPeriodById[a.debtPeriodId?.toString()])
-                  .filter(Boolean)
-              ),
-            ]
-          : [];
 
-        payRow.getCell("F").value = allocMonths.length
-          ? `Thu tiền cước vận chuyển kỳ ${allocMonths.join(", ")}`
-          : `Thu tiền cước vận chuyển`;
+        const allocMonths = [
+          ...new Set(
+            p.allocations
+              .map((a) => debtPeriodById[a.debtPeriodId?.toString()])
+              .filter(Boolean)
+          ),
+        ];
+
+        // 👉 đúng nghiệp vụ: phiếu thu trả cho các kỳ cũ nhất còn nợ
+        payRow.getCell(
+          "F"
+        ).value = `Thu tiền cước vận chuyển kỳ ${allocMonths.join(", ")}`;
 
         payRow.getCell("K").value = METHOD_VN_MAP[p.method] || p.method;
         payRow.getCell("M").value = p.amount;

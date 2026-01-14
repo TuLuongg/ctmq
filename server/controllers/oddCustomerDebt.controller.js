@@ -145,52 +145,97 @@ exports.syncOddDebtByDate = async (req, res) => {
     const end = new Date(endDate);
     end.setDate(end.getDate() + 1);
 
-    // 1️⃣ Lấy chuyến gốc
-    const baseTrips = await ScheduleAdmin.find({
-      maKH: "26",
+    // ==============================
+    // 1️⃣ LẤY CHUYẾN KH LẺ THEO NGÀY
+    // ==============================
+    const oddTrips = await SchCustomerOdd.find({
       ngayGiaoHang: { $gte: start, $lt: end },
     }).lean();
 
-    const ops = [];
-
-    for (const t of baseTrips) {
-      const oddTrip = await SchCustomerOdd.findOne({
-        maChuyen: t.maChuyen,
-        isLocked: { $ne: true }, // 🚫 chuyến đã khoá thì bỏ
+    if (!oddTrips.length) {
+      return res.json({
+        message: "Không có chuyến KH lẻ cần sync",
+        soChuyenCapNhat: 0,
       });
+    }
 
-      if (!oddTrip) continue;
+    const maChuyens = oddTrips.map((t) => t.maChuyen);
 
-      // 2️⃣ TÍNH TIỀN TỪ CHUYẾN GỐC
-      const tongTien = calcOddTotalFromBaseTrip(t);
-      const daThanhToan = num(t.daThanhToan);
+    // ==============================
+    // 2️⃣ LẤY CHUYẾN GỐC THEO maChuyen
+    // ==============================
+    const baseTrips = await ScheduleAdmin.find({
+      maChuyen: { $in: maChuyens },
+    }).lean();
+
+    const baseTripMap = {};
+    baseTrips.forEach((t) => {
+      baseTripMap[t.maChuyen] = t;
+    });
+
+    const updateOddOps = [];
+    const deleteOddOps = [];
+    const resetDebtCodeOps = [];
+
+    // ==============================
+    // 3️⃣ SO SÁNH & XỬ LÝ
+    // ==============================
+    for (const odd of oddTrips) {
+      if (odd.isLocked) continue;
+
+      const base = baseTripMap[odd.maChuyen];
+
+      // ❌ không còn chuyến gốc → bỏ
+      if (!base) continue;
+
+      // ❌ KHÔNG CÒN LÀ KH LẺ
+      if (base.maKH !== "26") {
+        deleteOddOps.push({
+          deleteOne: {
+            filter: { _id: odd._id },
+          },
+        });
+
+        resetDebtCodeOps.push({
+          updateOne: {
+            filter: { _id: base._id },
+            update: { $set: { debtCode: "" } },
+          },
+        });
+
+        continue;
+      }
+
+      // ==============================
+      // ✅ CÒN LÀ KH LẺ → SYNC
+      // ==============================
+      const tongTien = calcOddTotalFromBaseTrip(base);
+      const daThanhToan = num(base.daThanhToan);
       const conLai = tongTien - daThanhToan;
 
-      ops.push({
+      updateOddOps.push({
         updateOne: {
-          filter: { maChuyen: t.maChuyen },
+          filter: { _id: odd._id },
           update: {
             $set: {
-              // ===== COPY TỪ CHUYẾN GỐC =====
-              tenLaiXe: t.tenLaiXe,
-              bienSoXe: t.bienSoXe,
-              dienGiai: t.dienGiai,
-              ngayBocHang: t.ngayBocHang,
-              ngayGiaoHang: t.ngayGiaoHang,
-              diemXepHang: t.diemXepHang,
-              diemDoHang: t.diemDoHang,
-              soDiem: t.soDiem,
-              trongLuong: t.trongLuong,
-              ghiChu: t.ghiChu,
+              tenLaiXe: base.tenLaiXe,
+              bienSoXe: base.bienSoXe,
+              dienGiai: base.dienGiai,
+              ngayBocHang: base.ngayBocHang,
+              ngayGiaoHang: base.ngayGiaoHang,
+              diemXepHang: base.diemXepHang,
+              diemDoHang: base.diemDoHang,
+              soDiem: base.soDiem,
+              trongLuong: base.trongLuong,
+              ghiChu: base.ghiChu,
 
-              // ===== TIỀN =====
-              cuocPhi: t.cuocPhi,
-              bocXep: t.bocXep,
-              ve: t.ve,
-              hangVe: t.hangVe,
-              luuCa: t.luuCa,
-              luatChiPhiKhac: t.luatChiPhiKhac,
-              themDiem: t.themDiem,
+              cuocPhi: base.cuocPhi,
+              bocXep: base.bocXep,
+              ve: base.ve,
+              hangVe: base.hangVe,
+              luuCa: base.luuCa,
+              luatChiPhiKhac: base.luatChiPhiKhac,
+              themDiem: base.themDiem,
 
               daThanhToan,
               tongTien,
@@ -208,13 +253,25 @@ exports.syncOddDebtByDate = async (req, res) => {
       });
     }
 
-    if (ops.length) {
-      await SchCustomerOdd.bulkWrite(ops);
+    // ==============================
+    // 4️⃣ BULK WRITE
+    // ==============================
+    if (updateOddOps.length) {
+      await SchCustomerOdd.bulkWrite(updateOddOps);
+    }
+
+    if (deleteOddOps.length) {
+      await SchCustomerOdd.bulkWrite(deleteOddOps);
+    }
+
+    if (resetDebtCodeOps.length) {
+      await ScheduleAdmin.bulkWrite(resetDebtCodeOps);
     }
 
     res.json({
-      message: "Đã sync dữ liệu từ chuyến gốc → KH lẻ",
-      soChuyenCapNhat: ops.length,
+      message: "Đã sync KH lẻ theo chuyến phát sinh",
+      soChuyenCapNhat: updateOddOps.length,
+      soChuyenXoa: deleteOddOps.length,
     });
   } catch (err) {
     console.error(err);
