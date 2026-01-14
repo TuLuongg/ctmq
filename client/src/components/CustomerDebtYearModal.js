@@ -1,6 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, Fragment } from "react";
 import axios from "axios";
 import API from "../api";
+
+const METHOD_VN_MAP = {
+  PERSONAL_VCB: "TK cá nhân - VCB",
+  PERSONAL_TCB: "TK cá nhân - TCB",
+  COMPANY_VCB: "VCB công ty",
+  COMPANY_TCB: "TCB công ty",
+  CASH: "Tiền mặt",
+  OTHER: "Khác",
+};
 
 export default function CustomerDebtYearModal({
   customer,
@@ -90,61 +99,97 @@ export default function CustomerDebtYearModal({
                 let color = "bg-green-500";
                 if (p.remainAmount > 0) {
                   const rate =
-                    p.totalAmount === 0
-                      ? 0
-                      : p.remainAmount / p.totalAmount;
+                    p.totalAmount === 0 ? 0 : p.remainAmount / p.totalAmount;
                   color = rate <= 0.2 ? "bg-yellow-400" : "bg-red-500";
                 }
 
                 return (
-                  <tr key={p.debtCode}>
-                    <td className="border p-2 font-mono">{p.debtCode}</td>
-                    <td className="border p-2">{p.manageMonth}</td>
-                    <td className="border p-2">
-                      {new Date(p.fromDate).toLocaleDateString()}
-                    </td>
-                    <td className="border p-2">
-                      {new Date(p.toDate).toLocaleDateString()}
-                    </td>
-                    <td className="border p-2 text-right">
-                      {Number(p.totalAmountInvoice || 0).toLocaleString()}
-                    </td>
-                    <td className="border p-2 text-right">
-                      {Number(p.totalAmountCash || 0).toLocaleString()}
-                    </td>
-                    <td className="border p-2 text-right">
-                      {Number(p.totalOther || 0).toLocaleString()}
-                    </td>
-                    <td className="border p-2 text-center">
-                      {p.vatPercent || 0}%
-                    </td>
-                    <td className="border p-2 text-right font-bold">
-                      {Number(p.totalAmount || 0).toLocaleString()}
-                    </td>
-                    <td className="border p-2 text-right">
-                      {Number(p.paidAmount || 0).toLocaleString()}
-                    </td>
-                    <td className="border p-2 text-right text-red-600 font-bold">
-                      {Number(p.remainAmount || 0).toLocaleString()}
-                    </td>
-                    <td className="border p-2">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`w-3 h-3 rounded-full ${color}`}
-                        ></span>
-                        <span>
-                          {p.status === "HOAN_TAT"
-                            ? "Hoàn tất"
-                            : p.status === "TRA_MOT_PHAN"
-                            ? "Trả một phần"
-                            : "Chưa trả"}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="border p-2 text-center">
-                      {p.isLocked ? "Đóng" : "Mở"}
-                    </td>
-                  </tr>
+                  <Fragment key={p.debtCode}>
+                    {/* ================== */}
+                    {/* 🔵 DÒNG KỲ CÔNG NỢ */}
+                    {/* ================== */}
+                    <tr className="bg-gray-100 font-semibold">
+                      <td className="border p-2 font-mono">{p.debtCode}</td>
+                      <td className="border p-2">{p.manageMonth}</td>
+                      <td className="border p-2">
+                        {new Date(p.fromDate).toLocaleDateString()}
+                      </td>
+                      <td className="border p-2">
+                        {new Date(p.toDate).toLocaleDateString()}
+                      </td>
+                      <td className="border p-2 text-right">
+                        {Number(p.totalAmountInvoice || 0).toLocaleString()}
+                      </td>
+                      <td className="border p-2 text-right">
+                        {Number(p.totalAmountCash || 0).toLocaleString()}
+                      </td>
+                      <td className="border p-2 text-right">
+                        {Number(p.totalOther || 0).toLocaleString()}
+                      </td>
+                      <td className="border p-2 text-center">
+                        {p.vatPercent || 0}%
+                      </td>
+                      <td className="border p-2 text-right font-bold">
+                        {Number(p.totalAmount || 0).toLocaleString()}
+                      </td>
+                      <td className="border p-2 text-right">
+                        {Number(p.paidAmount || 0).toLocaleString()}
+                      </td>
+                      <td className="border p-2 text-right text-red-600 font-bold">
+                        {Number(p.remainAmount || 0).toLocaleString()}
+                      </td>
+                      <td className="border p-2">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`w-3 h-3 rounded-full ${color}`}
+                          ></span>
+                          <span>
+                            {p.status === "HOAN_TAT"
+                              ? "Hoàn tất"
+                              : p.status === "TRA_MOT_PHAN"
+                              ? "Trả một phần"
+                              : "Chưa trả"}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="border p-2 text-center">
+                        {p.isLocked ? "Đóng" : "Mở"}
+                      </td>
+                    </tr>
+
+                    {/* ================== */}
+                    {/* 🟡 CÁC PHIẾU THU */}
+                    {/* ================== */}
+                    {p.items.map((pay) => (
+                      <tr key={pay._id} className="bg-white">
+                        <td className="border p-2"></td>
+                        <td className="border p-2 text-blue-600">
+                          ↳ Phiếu thu
+                        </td>
+                        <td className="border p-2" colSpan={2}>
+                          {new Date(pay.paymentDate).toLocaleDateString()}
+                        </td>
+                        <td className="border p-2" colSpan={4}>
+                          {METHOD_VN_MAP[pay.method] || pay.method || ""}
+                        </td>
+
+                        <td className="border p-2 text-right font-semibold text-green-700">
+                          {Number(pay.amount || 0).toLocaleString()}
+                        </td>
+                        <td className="border p-2" colSpan={4}>{pay.note}</td>
+                      </tr>
+                    ))}
+
+                    {/* Không có phiếu thu */}
+                    {p.items.length === 0 && (
+                      <tr className="bg-white text-gray-400 italic">
+                        <td className="border p-2"></td>
+                        <td className="border p-2" colSpan={12}>
+                          Không có phiếu thu
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })}
             </tbody>
