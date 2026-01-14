@@ -1546,6 +1546,30 @@ const parseVNDate = (dateStr, isEnd = false) => {
   return new Date(y, m - 1, d, 0, 0, 0, 0);
 };
 
+const clearNumber = (val) => {
+  if (val === null || val === undefined) return "";
+  return Number(String(val).replace(/[^\d.-]/g, ""));
+};
+
+const exportCostValue = (val) => {
+  if (val === null || val === undefined || val === "") return "";
+
+  const str = String(val).trim();
+
+  // ❌ có chữ → xuất string
+  if (/[a-zA-ZÀ-ỹ]/.test(str)) {
+    return str;
+  }
+
+  // ❌ có cả chữ + số (vd: 100k, 2tr)
+  if (/[^0-9.,\-]/.test(str)) {
+    return str;
+  }
+
+  // ✅ toàn số → clean & trả number
+  return clearNumber(str);
+};
+
 const exportTripsByDateRange = async (req, res) => {
   try {
     const { from, to, maKHs } = req.body;
@@ -1623,13 +1647,13 @@ const exportTripsByDateRange = async (req, res) => {
       row.getCell("M").value = trip.trongLuong || "";
       row.getCell("N").value = trip.bienSoXe || "";
 
-      const cuocPhi = cleanNumber(trip.cuocPhi);
-      const bocXep = cleanNumber(trip.bocXep);
-      const ve = cleanNumber(trip.ve);
-      const hangVe = cleanNumber(trip.hangVe);
-      const luuCa = cleanNumber(trip.luuCa);
-      const cpKhac = cleanNumber(trip.luatChiPhiKhac);
-      const daThanhToan = cleanNumber(trip.daThanhToan);
+      const cuocPhi = exportCostValue(trip.cuocPhi);
+      const bocXep = exportCostValue(trip.bocXep);
+      const ve = exportCostValue(trip.ve);
+      const hangVe = exportCostValue(trip.hangVe);
+      const luuCa = exportCostValue(trip.luuCa);
+      const cpKhac = exportCostValue(trip.luatChiPhiKhac);
+      const daThanhToan = exportCostValue(trip.daThanhToan);
 
       row.getCell("O").value = cuocPhi;
       row.getCell("P").value = daThanhToan;

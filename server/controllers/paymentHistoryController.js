@@ -220,92 +220,103 @@ exports.getCustomerDebtPeriodsByYear = async (req, res) => {
       return res.status(400).json({ error: "Thiếu hoặc sai year" });
     }
 
-    // KH 26 dùng API riêng
     if (customerCode === "26") {
       return res.status(400).json({ error: "KH 26 không dùng API này" });
     }
 
     const y = Number(year);
 
-    // from 01/01/yyyy → 31/12/yyyy
     const fromDate = new Date(y, 0, 1);
     const toDate = new Date(y, 11, 31, 23, 59, 59, 999);
 
+    // 1️⃣ LOAD KỲ CÔNG NỢ
     const periods = await CustomerDebtPeriod.find({
       customerCode,
       fromDate: { $lte: toDate },
       toDate: { $gte: fromDate },
-    }).sort({ fromDate: 1 });
+    })
+      .sort({ fromDate: 1 })
+      .lean();
 
-    // Recalc NGẦM giống getCustomerDebt
-    setImmediate(async () => {
-      for (const p of periods) {
-        if (p.isLocked) continue;
+    if (!periods.length) {
+      return res.json([]);
+    }
 
-        const trips = await ScheduleAdmin.find({
-          debtCode: p.debtCode,
-        });
+    const periodIdMap = {};
+    const debtCodes = [];
 
-        const tripCount = trips.length;
-
-        const money = calcPeriodMoneyFromTrips(trips, p.vatPercent || 0);
-
-        const changed =
-          p.totalAmountInvoice !== money.totalAmountInvoice ||
-          p.totalAmountCash !== money.totalAmountCash ||
-          p.totalOther !== money.totalOther ||
-          p.totalAmount !== money.totalAmount ||
-          p.paidAmount !== money.paidAmount ||
-          p.remainAmount !== money.remainAmount ||
-          p.tripCount !== tripCount;
-
-        if (changed) {
-          p.totalAmountInvoice = money.totalAmountInvoice;
-          p.totalAmountCash = money.totalAmountCash;
-          p.totalOther = money.totalOther;
-          p.totalAmount = money.totalAmount;
-          p.remainAmount = p.totalAmount - (p.paidAmount || 0);
-          p.tripCount = tripCount;
-          p.status = calcStatus(
-            money.totalAmount,
-            money.paidAmount,
-            money.remainAmount
-          );
-
-          await p.save();
-        }
-      }
+    periods.forEach((p) => {
+      periodIdMap[p._id.toString()] = p;
+      debtCodes.push(p.debtCode);
     });
 
-    // Trả data cho FE
-    res.json(
-      periods.map((p) => ({
-        debtCode: p.debtCode,
-        customerCode: p.customerCode,
-        manageMonth: p.manageMonth,
-        fromDate: p.fromDate,
-        toDate: p.toDate,
+    // 2️⃣ LOAD PHIẾU THU
+    const payments = await PaymentReceipt.find({
+      customerCode,
+      debtCode: { $in: debtCodes },
+    })
+      .sort({ paymentDate: 1 })
+      .lean();
 
-        vatPercent: p.vatPercent || 0,
-        totalAmountInvoice: p.totalAmountInvoice || 0,
-        totalAmountCash: p.totalAmountCash || 0,
-        totalOther: p.totalOther || 0,
+    // 3️⃣ MAP PHIẾU THU → KỲ
+    const paymentsByPeriodId = {};
 
-        totalAmount: p.totalAmount,
-        paidAmount: p.paidAmount,
-        remainAmount: p.remainAmount,
-        tripCount: p.tripCount || 0,
+    for (const p of payments) {
+      if (!Array.isArray(p.allocations)) continue;
 
-        status: p.status,
-        isLocked: p.isLocked,
-        note: p.note || "",
-      }))
-    );
+      for (const alloc of p.allocations) {
+        const pid = alloc.debtPeriodId?.toString();
+        if (!pid || !periodIdMap[pid]) continue;
+
+        if (!paymentsByPeriodId[pid]) {
+          paymentsByPeriodId[pid] = [];
+        }
+
+        paymentsByPeriodId[pid].push({
+          type: "PAYMENT",
+          _id: p._id,
+          paymentDate: p.paymentDate,
+          amount: p.amount,
+          method: p.method,
+          note: p.note || "",
+        });
+      }
+    }
+
+    // 4️⃣ BUILD DATA CHO FE (KỲ → PHIẾU THU)
+    const result = periods.map((p) => ({
+      type: "PERIOD",
+      debtPeriodId: p._id,
+      debtCode: p.debtCode,
+      customerCode: p.customerCode,
+      manageMonth: p.manageMonth,
+      fromDate: p.fromDate,
+      toDate: p.toDate,
+
+      vatPercent: p.vatPercent || 0,
+      totalAmountInvoice: p.totalAmountInvoice || 0,
+      totalAmountCash: p.totalAmountCash || 0,
+      totalOther: p.totalOther || 0,
+
+      totalAmount: p.totalAmount,
+      paidAmount: p.paidAmount,
+      remainAmount: p.remainAmount,
+      tripCount: p.tripCount || 0,
+
+      status: p.status,
+      isLocked: p.isLocked,
+      note: p.note || "",
+
+      items: paymentsByPeriodId[p._id.toString()] || [],
+    }));
+
+    res.json(result);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Lỗi lấy kỳ công nợ theo năm" });
   }
 };
+
 
 // =====================================================
 // 📌 TẠO KỲ CÔNG NỢ (KH CHUNG)
@@ -1035,6 +1046,27 @@ const METHOD_VN_MAP = {
   OTHER: "Khác",
 };
 
+const buildMonthRange = (months) => {
+  if (!months.length) return "";
+
+  // months dạng MM/YYYY
+  const sorted = months.sort((a, b) => {
+    const [ma, ya] = a.split("/");
+    const [mb, yb] = b.split("/");
+    return ya !== yb ? ya - yb : ma - mb;
+  });
+
+  const start = sorted[0];
+  const end = sorted[sorted.length - 1];
+
+  const format = (m) => {
+    const [mm, yyyy] = m.split("/");
+    return `${mm}/${yyyy.slice(2)}`;
+  };
+
+  return start === end ? format(start) : `${format(start)}-${format(end)}`;
+};
+
 exports.exportCustomerDebtByMonth = async (req, res) => {
   try {
     const { fromMonth, toMonth } = req.query;
@@ -1066,7 +1098,7 @@ exports.exportCustomerDebtByMonth = async (req, res) => {
     // 1️⃣ LOAD CÔNG NỢ (NHIỀU KH)
     // ==============================
     const debts = await CustomerDebtPeriod.find({
-      customerCode: { $in: customerCodes }, // ✅ mảng cha
+      customerCode: { $in: customerCodes }, // mảng cha
       manageMonth: { $gte: from, $lte: to },
     })
       .sort({ customerCode: 1, fromDate: 1 })
@@ -1075,6 +1107,20 @@ exports.exportCustomerDebtByMonth = async (req, res) => {
     const debtPeriodById = {};
     debts.forEach((d) => {
       debtPeriodById[d._id.toString()] = d.manageMonth;
+    });
+
+    const monthsByCustomer = {};
+
+    debts.forEach((d) => {
+      if (!monthsByCustomer[d.customerCode]) {
+        monthsByCustomer[d.customerCode] = new Set();
+      }
+      monthsByCustomer[d.customerCode].add(d.manageMonth);
+    });
+
+    const monthRangeByCustomer = {};
+    Object.entries(monthsByCustomer).forEach(([code, set]) => {
+      monthRangeByCustomer[code] = buildMonthRange([...set]);
     });
 
     if (!debts.length) {
@@ -1175,11 +1221,21 @@ exports.exportCustomerDebtByMonth = async (req, res) => {
     let printedPayments = new Set();
 
     for (const d of debts) {
-      // đổi KH → reset dư + reset phiếu đã in
+      // ==============================
+      // 👉 ĐỔI KHÁCH HÀNG → IN HEADER
+      // ==============================
       if (currentCustomer !== d.customerCode) {
         currentCustomer = d.customerCode;
         runningBalance = 0;
         printedPayments = new Set();
+
+        const headerRow = sheet.getRow(rowIndex++);
+        headerRow.getCell("A").value = d.customerCode;
+        headerRow.getCell("B").value = customerMap[d.customerCode] ?? "";
+        headerRow.getCell("C").value =
+          monthRangeByCustomer[d.customerCode] ?? "";
+
+        headerRow.commit();
       }
 
       runningBalance += d.totalAmount || 0;
