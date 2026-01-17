@@ -4,7 +4,6 @@ import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import DriverModal from "../../components/DriverModal";
 import { format as formatDateFns } from "date-fns";
-import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import API from "../../api";
 

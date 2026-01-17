@@ -96,7 +96,6 @@ export default function TripPaymentModal({
   const [method, setMethod] = useState("CASH");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
-  const today = new Date().toISOString().slice(0, 10);
   const [createdDay, setCreatedDay] = useState();
 
   const PAYMENT_METHOD_LABEL_MAP = {

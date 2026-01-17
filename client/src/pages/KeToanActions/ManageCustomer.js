@@ -5,7 +5,6 @@ import { TbRosetteDiscountFilled } from "react-icons/tb";
 import axios from "axios";
 import CustomerModal from "../../components/CustomerModal";
 import CustomerCommissionModal from "../../components/CustomerCommissionModal";
-import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import API from "../../api";
 

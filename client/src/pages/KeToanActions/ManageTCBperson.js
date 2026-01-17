@@ -36,14 +36,12 @@ export const allColumns = [
 const prefKey = (userId) => `tcb_table_prefs_${userId || "guest"}`;
 
 export default function ManageTCBperson() {
-  const filterPopupRef = useRef(null);
 
   const navigate = useNavigate();
   const location = useLocation();
   const fileInputRef = useRef(null);
 
   const [data, setData] = useState([]);
-  const [qKH, setQKH] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [showModal, setShowModal] = useState(false);
@@ -69,16 +67,7 @@ export default function ManageTCBperson() {
 
   const dragColRef = useRef(null);
   const resizingRef = useRef({ columnKey: null, startX: 0, startWidth: 0 });
-  const firstColRef = useRef(null);
-  const [firstColWidth, setFirstColWidth] = useState(120);
   const isResizingRef = useRef(false);
-
-  const [selectedRows, setSelectedRows] = useState([]);
-  const toggleRowHighlight = (id) => {
-    setSelectedRows((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
 
   const isActive = (path) => location.pathname === path;
   // 👉 Hàm chuyển sang trang quản lý lái xe
