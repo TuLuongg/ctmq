@@ -68,9 +68,9 @@ export default function CustomerDebt26Page() {
 
   // cấu hình cột (key, label, width, visible)
   const defaultColumns = [
-    { key: "maChuyen", label: "Mã chuyến", width: 80, visible: true },
-    { key: "isLocked", label: "Khoá", width: 40, visible: true },
     { key: "nameCustomer", label: "Tên khách hàng", width: 120, visible: true },
+    { key: "isLocked", label: "Khoá", width: 40, visible: true },
+    { key: "maChuyen", label: "Mã chuyến", width: 80, visible: true },
     { key: "tenLaiXe", label: "Tên lái xe", width: 120, visible: true },
     { key: "dienGiai", label: "Diễn giải", width: 150, visible: true },
     { key: "ngayBocHang", label: "Ngày đóng", width: 100, visible: true },
@@ -263,8 +263,7 @@ export default function CustomerDebt26Page() {
   };
 
   const [tongTienAll, setTongTienAll] = useState(0);
-const [conLaiAll, setConLaiAll] = useState(0);
-
+  const [conLaiAll, setConLaiAll] = useState(0);
 
   const loadData = async (p = page) => {
     if (loading) return;
@@ -332,7 +331,7 @@ const [conLaiAll, setConLaiAll] = useState(0);
       setTrips(mapped);
       setTotalTrips(res.data?.soChuyen || 0);
       setTongTienAll(res.data?.tongTienAll || 0);
-setConLaiAll(res.data?.conLaiAll || 0);
+      setConLaiAll(res.data?.conLaiAll || 0);
       setPage(p);
     } catch (err) {
       console.error("load odd debt error:", err);
@@ -1143,7 +1142,7 @@ setConLaiAll(res.data?.conLaiAll || 0);
 
           {/* Bảng */}
           <div className="overflow-auto max-h-[600px] border">
-            <table className="table-fixed border-collapse border">
+            <table className="table-fixed border-separate border-spacing-0">
               <thead className="bg-gray-100">
                 <tr>
                   <th
@@ -1169,7 +1168,7 @@ setConLaiAll(res.data?.conLaiAll || 0);
                   {columns
                     .filter((c) => c.visible)
                     .map((col) => {
-                      const isMaChuyen = col.key === "maChuyen";
+                      const isMaChuyen = col.key === "nameCustomer";
 
                       return (
                         <th
@@ -2140,7 +2139,7 @@ setConLaiAll(res.data?.conLaiAll || 0);
                             <td
                               key={col.key}
                               className={`border table-cell cursor-pointer hover:bg-yellow-50
-        ${col.key === "maChuyen" ? "sticky left-[30px] bg-white z-20" : ""}
+        ${col.key === "nameCustomer" ? "sticky left-[30px] bg-white z-20" : ""}
         ${MONEY_RIGHT_FIELDS.includes(col.key) ? "text-right" : ""}
       `}
                               style={{
@@ -2163,7 +2162,7 @@ setConLaiAll(res.data?.conLaiAll || 0);
                           );
                         }
 
-                        if (col.key === "maChuyen") {
+                        if (col.key === "nameCustomer") {
                           return (
                             <td
                               key={col.key}
@@ -2182,8 +2181,8 @@ setConLaiAll(res.data?.conLaiAll || 0);
                                 setHighlightSelectTrip(t.maChuyen);
                               }}
                             >
-                              <div className="truncate font-medium">
-                                {t.maChuyen}
+                              <div className="truncate font-medium ml-1">
+                                {t.nameCustomer}
                               </div>
 
                               {/* BẢNG CHỌN MÀU – BẬT NGAY */}
@@ -2328,7 +2327,7 @@ setConLaiAll(res.data?.conLaiAll || 0);
                           <td
                             key={col.key}
                             className={`border table-cell
-    ${col.key === "maChuyen" ? "sticky left-[30px] bg-white z-20" : ""}
+    ${col.key === "nameCustomer" ? "sticky left-[30px] bg-white z-20" : ""}
   `}
                             style={{
                               width: col.width,
@@ -2372,64 +2371,60 @@ setConLaiAll(res.data?.conLaiAll || 0);
             </table>
           </div>
 
-<div className="flex justify-between items-center mt-3">
-  {/* ===== BÊN TRÁI: TỔNG SỐ CHUYẾN ===== */}
-  <div className="font-semibold text-sm">
-    Tổng số chuyến:{" "}
-    <span className="text-black">{totalTrips}</span>
-    {"  "}|| hiển thị:{" "}
-    <span className="text-black">{filteredTrips.length}</span>
-  </div>
+          <div className="flex justify-between items-center mt-3">
+            {/* ===== BÊN TRÁI: TỔNG SỐ CHUYẾN ===== */}
+            <div className="font-semibold text-sm">
+              Tổng số chuyến: <span className="text-black">{totalTrips}</span>
+              {"  "}|| hiển thị:{" "}
+              <span className="text-black">{filteredTrips.length}</span>
+            </div>
 
-  {/* ===== GIỮA: PHÂN TRANG ===== */}
-  <div className="flex items-center gap-2">
-    <button
-      disabled={page <= 1 || loading}
-      onClick={() => loadData(page - 1)}
-      className="px-3 py-1 border rounded disabled:opacity-50"
-    >
-      Trước
-    </button>
+            {/* ===== GIỮA: PHÂN TRANG ===== */}
+            <div className="flex items-center gap-2">
+              <button
+                disabled={page <= 1 || loading}
+                onClick={() => loadData(page - 1)}
+                className="px-3 py-1 border rounded disabled:opacity-50"
+              >
+                Trước
+              </button>
 
-    <select
-      value={page}
-      disabled={loading}
-      onChange={(e) => loadData(Number(e.target.value))}
-      className="border px-2 py-1 text-xs rounded cursor-pointer"
-    >
-      {Array.from({ length: totalPages }).map((_, i) => (
-        <option key={i + 1} value={i + 1}>
-          Trang {i + 1}
-        </option>
-      ))}
-    </select>
+              <select
+                value={page}
+                disabled={loading}
+                onChange={(e) => loadData(Number(e.target.value))}
+                className="border px-2 py-1 text-xs rounded cursor-pointer"
+              >
+                {Array.from({ length: totalPages }).map((_, i) => (
+                  <option key={i + 1} value={i + 1}>
+                    Trang {i + 1}
+                  </option>
+                ))}
+              </select>
 
-    <span className="text-xs text-gray-600">/ {totalPages}</span>
+              <span className="text-xs text-gray-600">/ {totalPages}</span>
 
-    <button
-      disabled={page >= totalPages || loading}
-      onClick={() => loadData(page + 1)}
-      className="px-3 py-1 border rounded disabled:opacity-50"
-    >
-      Sau
-    </button>
-  </div>
+              <button
+                disabled={page >= totalPages || loading}
+                onClick={() => loadData(page + 1)}
+                className="px-3 py-1 border rounded disabled:opacity-50"
+              >
+                Sau
+              </button>
+            </div>
 
-{/* ===== BÊN PHẢI: TỔNG TIỀN | CÒN LẠI ===== */}
-<div className="font-semibold text-sm text-right whitespace-nowrap">
-  Tổng cước:&nbsp;
-  <span className="text-blue-600 text-lg">
-    {tongTienAll.toLocaleString()}
-  </span>
-  {"  "}|
-  {"  "}Còn lại:&nbsp;
-  <span className="text-red-600 text-lg">
-    {conLaiAll.toLocaleString()}
-  </span>
-</div>
-
-</div>
-
+            {/* ===== BÊN PHẢI: TỔNG TIỀN | CÒN LẠI ===== */}
+            <div className="font-semibold text-sm text-right whitespace-nowrap">
+              Tổng cước:&nbsp;
+              <span className="text-blue-600 text-lg">
+                {tongTienAll.toLocaleString()}
+              </span>
+              {"  "}|{"  "}Còn lại:&nbsp;
+              <span className="text-red-600 text-lg">
+                {conLaiAll.toLocaleString()}
+              </span>
+            </div>
+          </div>
         </>
       )}
 
