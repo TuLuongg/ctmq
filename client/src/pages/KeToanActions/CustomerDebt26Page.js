@@ -68,9 +68,9 @@ export default function CustomerDebt26Page() {
 
   // cấu hình cột (key, label, width, visible)
   const defaultColumns = [
-    { key: "maChuyen", label: "Mã chuyến", width: 80, visible: true },
-    { key: "isLocked", label: "Khoá", width: 40, visible: true },
     { key: "nameCustomer", label: "Tên khách hàng", width: 120, visible: true },
+    { key: "isLocked", label: "Khoá", width: 40, visible: true },
+    { key: "maChuyen", label: "Mã chuyến", width: 80, visible: true },
     { key: "tenLaiXe", label: "Tên lái xe", width: 120, visible: true },
     { key: "dienGiai", label: "Diễn giải", width: 150, visible: true },
     { key: "ngayBocHang", label: "Ngày đóng", width: 100, visible: true },
@@ -1169,7 +1169,7 @@ setConLaiAll(res.data?.conLaiAll || 0);
                   {columns
                     .filter((c) => c.visible)
                     .map((col) => {
-                      const isMaChuyen = col.key === "maChuyen";
+                      const isMaChuyen = col.key === "nameCustomer";
 
                       return (
                         <th
@@ -2140,7 +2140,7 @@ setConLaiAll(res.data?.conLaiAll || 0);
                             <td
                               key={col.key}
                               className={`border table-cell cursor-pointer hover:bg-yellow-50
-        ${col.key === "maChuyen" ? "sticky left-[30px] bg-white z-20" : ""}
+        ${col.key === "nameCustomer" ? "sticky left-[30px] bg-white z-20" : ""}
         ${MONEY_RIGHT_FIELDS.includes(col.key) ? "text-right" : ""}
       `}
                               style={{
@@ -2163,7 +2163,7 @@ setConLaiAll(res.data?.conLaiAll || 0);
                           );
                         }
 
-                        if (col.key === "maChuyen") {
+                        if (col.key === "nameCustomer") {
                           return (
                             <td
                               key={col.key}
@@ -2183,7 +2183,7 @@ setConLaiAll(res.data?.conLaiAll || 0);
                               }}
                             >
                               <div className="truncate font-medium">
-                                {t.maChuyen}
+                                {t.nameCustomer}
                               </div>
 
                               {/* BẢNG CHỌN MÀU – BẬT NGAY */}
@@ -2328,7 +2328,7 @@ setConLaiAll(res.data?.conLaiAll || 0);
                           <td
                             key={col.key}
                             className={`border table-cell
-    ${col.key === "maChuyen" ? "sticky left-[30px] bg-white z-20" : ""}
+    ${col.key === "nameCustomer" ? "sticky left-[30px] bg-white z-20" : ""}
   `}
                             style={{
                               width: col.width,
