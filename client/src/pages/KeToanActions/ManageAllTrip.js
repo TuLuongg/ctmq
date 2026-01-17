@@ -208,9 +208,9 @@ export default function ManageTrip({ user, onLogout }) {
     { key: "ltState", label: "LT" },
     { key: "onlState", label: "ONL" },
     { key: "offState", label: "OFF" },
-    { key: "khachHang", label: "KHÁCH HÀNG" },
-    { key: "maKH", label: "MÃ KH" },
     { key: "tenLaiXe", label: "TÊN LÁI XE" },
+    { key: "maKH", label: "MÃ KH" },
+    { key: "khachHang", label: "KHÁCH HÀNG" },
     { key: "dienGiai", label: "DIỄN GIẢI" },
     { key: "ngayBocHang", label: "NGÀY ĐÓNG HÀNG" },
     { key: "ngayGiaoHang", label: "NGÀY GIAO HÀNG" },
@@ -2015,7 +2015,7 @@ export default function ManageTrip({ user, onLogout }) {
                 if (index === 0) leftOffset = 40;
                 if (index === 1) leftOffset = 40 + width;
 
-                const stickyColumns = ["khachHang", "maKH"];
+                const stickyColumns = ["tenLaiXe", "maKH"];
                 const stickyIndex = stickyColumns.indexOf(col.key);
                 if (stickyIndex >= 0) {
                   leftOffset = 40;
@@ -3150,7 +3150,7 @@ export default function ManageTrip({ user, onLogout }) {
                   if (colIndex === 0) leftOffset = 40;
                   if (colIndex === 1) leftOffset = 40 + width;
 
-                  const stickyColumns = ["khachHang", "maKH"];
+                  const stickyColumns = ["tenLaiXe", "maKH"];
                   const stickyIndex = stickyColumns.indexOf(col.key);
 
                   if (stickyIndex >= 0) {
