@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { format, set } from "date-fns";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
@@ -347,21 +347,6 @@ export default function ManageTrip({ user, onLogout }) {
   // ---------------- helpers & fetch ----------------
   const formatDate = (val) => (val ? format(new Date(val), "dd/MM/yyyy") : "");
 
-  // 🔹 Lấy danh sách điều vận
-  const fetchManagers = async () => {
-    try {
-      const res = await axios.get(USER_API, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setManagers(res.data || []);
-    } catch (err) {
-      console.error(
-        "Lỗi lấy danh sách điều vận:",
-        err.response?.data || err.message
-      );
-    }
-  };
-
   //Lấy thông số xe
   const [vehicleList, setVehicleList] = useState([]);
   const [hoverVehicle, setHoverVehicle] = useState(null);
@@ -526,6 +511,16 @@ export default function ManageTrip({ user, onLogout }) {
   const [onlyEmptyMaHoaDon, setOnlyEmptyMaHoaDon] = useState(false);
   const [onlyEmptyDebtCode, setOnlyEmptyDebtCode] = useState(false);
 
+  const khachHangKey = excelSelected.khachHang.join("|");
+  const tenLaiXeKey = excelSelected.tenLaiXe.join("|");
+  const bienSoXeKey = excelSelected.bienSoXe.join("|");
+  const dienGiaiKey = excelSelected.dienGiai.join("|");
+  const cuocPhiKey = excelSelected.cuocPhi.join("|");
+  const maHoaDonKey = excelSelected.maHoaDon.join("|");
+  const debtCodeKey = excelSelected.debtCode.join("|");
+  const filtersKey = JSON.stringify(filters);
+  const moneyFilterKey = JSON.stringify(moneyFilter);
+
   useEffect(() => {
     axios
       .get(`${API_URL}/accountant/filter-all`, {
@@ -540,21 +535,21 @@ export default function ManageTrip({ user, onLogout }) {
   }, [
     giaoFrom,
     giaoTo,
-    excelSelected.khachHang.join("|"),
-    excelSelected.tenLaiXe.join("|"),
-    excelSelected.bienSoXe.join("|"),
-    excelSelected.dienGiai.join("|"),
-    excelSelected.cuocPhi.join("|"),
-    excelSelected.maHoaDon.join("|"),
-    excelSelected.debtCode.join("|"),
-    JSON.stringify(filters),
-    JSON.stringify(moneyFilter),
+    khachHangKey,
+    tenLaiXeKey,
+    bienSoXeKey,
+    dienGiaiKey,
+    cuocPhiKey,
+    maHoaDonKey,
+    debtCodeKey,
+    filtersKey,
+    moneyFilterKey,
     onlyEmptyMaHoaDon,
     onlyEmptyDebtCode,
   ]);
 
   // 🔹 Lấy tất cả chuyến (có filter)
-  const fetchAllRides = async () => {
+  const fetchAllRides = useCallback(async () => {
     try {
       setLoading(true); // 🐱 bắt đầu load
 
@@ -644,34 +639,30 @@ export default function ManageTrip({ user, onLogout }) {
     } finally {
       setLoading(false); // 🐱 load xong (dù thành công hay lỗi)
     }
-  };
-
-  useEffect(() => {
-    fetchManagers();
-  }, []);
-
-  useEffect(() => {
-    fetchAllRides();
   }, [
-    filters,
-    excelSelected.khachHang.join("|"),
-    excelSelected.tenLaiXe.join("|"),
-    excelSelected.bienSoXe.join("|"),
-    excelSelected.dienGiai.join("|"),
-    excelSelected.cuocPhi.join("|"),
-    excelSelected.maHoaDon.join("|"),
-    excelSelected.debtCode.join("|"),
-    JSON.stringify(moneyFilter),
-    date,
+    token,
     page,
     limit,
     giaoFrom,
     giaoTo,
     sortBy,
     sortOrder,
+    filtersKey,
+    moneyFilterKey,
+    khachHangKey,
+    tenLaiXeKey,
+    bienSoXeKey,
+    dienGiaiKey,
+    cuocPhiKey,
+    maHoaDonKey,
+    debtCodeKey,
     onlyEmptyMaHoaDon,
     onlyEmptyDebtCode,
   ]);
+
+  useEffect(() => {
+    fetchAllRides();
+  }, [fetchAllRides]);
 
   const [showModal, setShowModal] = useState(false);
   const handleAdd = () => {
@@ -906,7 +897,6 @@ export default function ManageTrip({ user, onLogout }) {
 
   // ---- Excel bổ sung
   const [excelData, setExcelData] = useState([]);
-  const [loadingFile, setLoadingFile] = useState(false);
   const [loadingImport, setLoadingImport] = useState(false);
   const [showFileStatus, setShowFileStatus] = useState(false);
   const [loadedCount, setLoadedCount] = useState(0);
@@ -916,8 +906,6 @@ export default function ManageTrip({ user, onLogout }) {
   const handleSelectExcel = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
-    setLoadingFile(true);
     setShowFileStatus(false);
     setLoadedCount(0);
     setRemainingCount(0);
@@ -958,8 +946,6 @@ export default function ManageTrip({ user, onLogout }) {
       setLoadedCount(updates.length);
       setRemainingCount(raw.length - updates.length);
     }
-
-    setLoadingFile(false);
     setShowFileStatus(true); // vẫn hiển thị text sau khi load file xong
   };
 
@@ -1186,7 +1172,7 @@ export default function ManageTrip({ user, onLogout }) {
   const [showAllRequestModal, setShowAllRequestModal] = useState(false);
   const [allRequests, setAllRequests] = useState([]);
 
-  const fetchAllRequests = async () => {
+  const fetchAllRequests = useCallback(async () => {
     try {
       const res = await axios.get(`${API_URL}/all-requests`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -1198,11 +1184,11 @@ export default function ManageTrip({ user, onLogout }) {
         err.response?.data || err.message
       );
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchAllRequests();
-  }, []);
+  }, [fetchAllRequests]);
 
   const openAllRequests = () => {
     fetchAllRequests();
