@@ -2,7 +2,6 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { BsUnlock, BsLock } from "react-icons/bs";
 import axios from "axios";
-import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { format } from "date-fns";
 import API from "../../api";
