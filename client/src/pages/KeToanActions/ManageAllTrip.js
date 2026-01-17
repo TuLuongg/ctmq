@@ -1929,8 +1929,13 @@ export default function ManageTrip({ user, onLogout }) {
                 maHoaDon: [],
                 debtCode: [],
               });
-              setGiaoFrom("");
-              setGiaoTo("");
+              setSearchKH("");
+              setSearchCuocPhiBD("");
+              setSearchDGiai("");
+              setSearchDebtCode("");
+              setSearchDriver("");
+              setSearchPlate("");
+              setSearchMaHoaDon("");
               setMoneyFilter("");
               setPage(1);
             }}
