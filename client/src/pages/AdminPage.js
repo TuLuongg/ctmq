@@ -10,6 +10,9 @@ export default function AdminPage({ onLogout }) {
   const [fullname, setFullname] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("dieuVan");
+  const [resetUserId, setResetUserId] = useState(null);
+  const [newPassword, setNewPassword] = useState("");
+
   const [loading, setLoading] = useState(false);
 
   const fetchUsers = async () => {
@@ -27,7 +30,7 @@ export default function AdminPage({ onLogout }) {
   const handleCreate = async () => {
     if (!username || !password || !fullname)
       return alert(
-        "Vui lòng nhập đầy đủ: tên đăng nhập, mật khẩu và tên người dùng"
+        "Vui lòng nhập đầy đủ: tên đăng nhập, mật khẩu và tên người dùng",
       );
 
     setLoading(true);
@@ -39,7 +42,7 @@ export default function AdminPage({ onLogout }) {
         { username, password, role, fullname },
         {
           headers: { Authorization: `Bearer ${token}` },
-        }
+        },
       );
 
       alert("Tạo tài khoản thành công!");
@@ -69,6 +72,30 @@ export default function AdminPage({ onLogout }) {
     }
   };
 
+  const handleResetPassword = async () => {
+    if (!newPassword || newPassword.length < 6) {
+      return alert("Mật khẩu mới phải >= 6 ký tự");
+    }
+
+    try {
+      const token = localStorage.getItem("token");
+
+      await axios.put(
+        `${API}/auth/users/${resetUserId}/reset-password`,
+        { newPassword },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+
+      alert("Đã reset mật khẩu thành công");
+      setResetUserId(null);
+      setNewPassword("");
+    } catch (err) {
+      alert(err.response?.data?.message || "Lỗi reset mật khẩu");
+    }
+  };
+
   const togglePermission = async (userId, permission, checked) => {
     try {
       const user = users.find((u) => u._id === userId);
@@ -85,13 +112,13 @@ export default function AdminPage({ onLogout }) {
         { permissions: updatedPermissions },
         {
           headers: { Authorization: `Bearer ${token}` },
-        }
+        },
       );
 
       setUsers((prev) =>
         prev.map((u) =>
-          u._id === userId ? { ...u, permissions: updatedPermissions } : u
-        )
+          u._id === userId ? { ...u, permissions: updatedPermissions } : u,
+        ),
       );
     } catch {
       alert("Không cập nhật được quyền");
@@ -248,12 +275,8 @@ export default function AdminPage({ onLogout }) {
                 <th className="px-4 py-2 border-b text-center">
                   Quản lý hợp đồng
                 </th>
-                <th className="px-4 py-2 border-b text-center">
-                  Khóa KCN
-                </th>
-                <th className="px-4 py-2 border-b text-center">
-                  Khóa TCB
-                </th>
+                <th className="px-4 py-2 border-b text-center">Khóa KCN</th>
+                <th className="px-4 py-2 border-b text-center">Khóa TCB</th>
                 <th className="px-4 py-2 border-b text-center">Thao tác</th>
               </tr>
             </thead>
@@ -297,14 +320,26 @@ export default function AdminPage({ onLogout }) {
                     </td>
                   ))}
 
-                  <td className="px-4 py-2 border-b text-center">
+                  <td className="px-2 py-1 border-b">
                     {u.role !== "admin" && (
-                      <button
-                        onClick={() => handleDelete(u._id)}
-                        className="px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 transition"
-                      >
-                        Xóa
-                      </button>
+                      <div className="flex justify-center gap-2 whitespace-nowrap">
+                        <button
+                          onClick={() => {
+                            setResetUserId(u._id);
+                            setNewPassword("");
+                          }}
+                          className="px-1 py-1 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition"
+                        >
+                          Reset
+                        </button>
+
+                        <button
+                          onClick={() => handleDelete(u._id)}
+                          className="px-2 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 transition"
+                        >
+                          Xóa
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -313,6 +348,38 @@ export default function AdminPage({ onLogout }) {
           </table>
         </div>
       </div>
+      {resetUserId && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-80 shadow-lg">
+            <h3 className="text-lg font-semibold mb-4 text-center">
+              Reset mật khẩu
+            </h3>
+
+            <input
+              type="password"
+              className="w-full border rounded-lg px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              placeholder="Nhập mật khẩu mới"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
+
+            <div className="flex justify-center gap-2">
+              <button
+                onClick={() => setResetUserId(null)}
+                className="px-3 py-1 rounded-lg bg-gray-300 hover:bg-gray-400"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleResetPassword}
+                className="px-3 py-1 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+              >
+                Lưu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,11 +2,13 @@ import { useState, useEffect } from "react";
 import API from "../api";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
 
 export default function Login({ setUser }) {
   const [step, setStep] = useState("question");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   const [rememberMe, setRememberMe] = useState(false);
@@ -48,7 +50,7 @@ export default function Login({ setUser }) {
           phone: res.data.phone,
           avatar: res.data.avatar,
           permissions: res.data.permissions || [],
-        })
+        }),
       );
 
       if (setUser) setUser(res.data);
@@ -137,13 +139,25 @@ export default function Login({ setUser }) {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
           />
-          <input
-            type="password"
-            className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:outline-none"
-            placeholder="Mật khẩu"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
+
+          <div className="relative">
+            <input
+              type={showPassword ? "text" : "password"}
+              className="border border-gray-300 rounded-lg px-4 py-2 pr-11 w-full focus:ring-2 focus:ring-blue-400 focus:outline-none"
+              placeholder="Mật khẩu"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+
+            <button
+              type="button"
+              onClick={() => setShowPassword((prev) => !prev)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+            >
+              {showPassword ? <FaEyeSlash size={20} /> : <FaEye size={20} />}
+            </button>
+          </div>
 
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <input
