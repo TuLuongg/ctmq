@@ -212,9 +212,13 @@ export default function Login({ setUser }) {
 
             <button
               onClick={async () => {
-                await axios.post(`${API}/auth/forgot-password`, { email });
-                alert("Đã gửi OTP qua email");
-                setForgotStep("reset");
+                try {
+                  await axios.post(`${API}/auth/forgot-password`, { email });
+                  alert("Đã gửi OTP qua email");
+                  setForgotStep("reset");
+                } catch (err) {
+                  alert(err.response?.data?.message || "Gửi OTP thất bại");
+                }
               }}
               className="bg-blue-600 text-white py-2 rounded-lg"
             >
