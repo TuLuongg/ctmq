@@ -5,7 +5,7 @@ const User = require('../models/User');
 // 🟢 Đăng ký (chỉ admin)
 exports.register = async (req, res) => {
   try {
-    const { username, password, role, fullname, phone, avatar, permissions } = req.body;
+    const { username, password, role, fullname, phone, avatar, permissions, email } = req.body;
 
     const existingAdmin = await User.findOne({ role: 'admin' });
     if (!existingAdmin && role !== 'admin') {
@@ -13,7 +13,7 @@ exports.register = async (req, res) => {
     }
 
     const hashed = await bcrypt.hash(password, 10);
-    const user = new User({ username, password: hashed, role, fullname, phone, avatar, permissions });
+    const user = new User({ username, password: hashed, role, fullname, phone, avatar, permissions, email });
     await user.save();
 
     res.json({ message: 'Tạo tài khoản thành công!' });
@@ -33,7 +33,7 @@ exports.login = async (req, res) => {
 
   // 👉 Tạo accessToken (hết hạn nhanh) và refreshToken (hết hạn lâu)
   const accessToken = jwt.sign(
-    { id: user._id, role: user.role, username: user.username, fullname: user.fullname },
+    { id: user._id, role: user.role, username: user.username, fullname: user.fullname, email: user.email },
     process.env.JWT_SECRET,
     { expiresIn: '6h' } // 1 tiếng
   );
@@ -51,6 +51,7 @@ exports.login = async (req, res) => {
     role: user.role,
     username: user.username,
     fullname: user.fullname,
+    email: user.email,
     phone: user.phone,
     avatar: user.avatar,
     permissions: user.permissions || []
@@ -66,12 +67,12 @@ exports.getAllUsers = async (req, res) => {
 // ➕ Admin tạo user mới
 exports.adminCreate = async (req, res) => {
   try {
-    const { username, password, role, fullname, phone, avatar } = req.body;
+    const { username, password, role, fullname, phone, avatar, email } = req.body;
     const existing = await User.findOne({ username });
     if (existing) return res.status(400).json({ message: 'Tài khoản đã tồn tại' });
 
     const hashed = await bcrypt.hash(password, 10);
-    const user = new User({ username, password: hashed, role, fullname, phone, avatar, permissions });
+    const user = new User({ username, password: hashed, role, fullname, phone, avatar, permissions, email });
     await user.save();
 
     res.json({ message: 'Tạo tài khoản thành công!' });
@@ -133,13 +134,14 @@ exports.updateUserPermissions = async (req, res) => {
 exports.updateProfile = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { fullname, phone, avatar, passwordOld, passwordNew } = req.body;
+    const { fullname, phone, avatar, email, passwordOld, passwordNew } = req.body;
 
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: "Người dùng không tồn tại" });
 
     if (fullname !== undefined) user.fullname = fullname;
     if (phone !== undefined) user.phone = phone;
+    if (email !== undefined) user.email = email;
     if (avatar !== undefined) user.avatar = avatar;
 
     if (passwordNew) {
@@ -159,6 +161,7 @@ exports.updateProfile = async (req, res) => {
         fullname: user.fullname,
         phone: user.phone,
         avatar: user.avatar,
+        email: user.email
       },
     });
   } catch (err) {
@@ -191,6 +194,85 @@ exports.adminResetPassword = async (req, res) => {
       message: 'Lỗi reset mật khẩu',
       error: err.message
     });
+  }
+};
+
+
+const { sendOTPEmail } = require("../services/mailService");
+
+// 🔐 Quên mật khẩu
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: "Thiếu email" });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: "Email không tồn tại" });
+    }
+
+    // ⛔ OTP chưa hết hạn → không cho gửi lại
+    if (user.resetOTPExpire && user.resetOTPExpire > new Date()) {
+      return res.status(429).json({
+        message: "OTP vẫn còn hiệu lực, vui lòng đợi",
+      });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    user.resetOTP = otp;
+    user.resetOTPExpire = new Date(Date.now() + 5 * 60 * 1000);
+    await user.save();
+
+    await sendOTPEmail(user.email, otp, user.fullname);
+
+    res.json({ message: "Đã gửi OTP qua email" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Lỗi gửi OTP" });
+  }
+};
+
+
+// 🔐 Reset mật khẩu bằng OTP
+exports.resetPassword = async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ message: "Thiếu dữ liệu" });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: "Mật khẩu phải >= 6 ký tự" });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user || !user.resetOTP) {
+      return res.status(400).json({ message: "OTP không hợp lệ" });
+    }
+
+    if (user.resetOTP !== otp) {
+      return res.status(400).json({ message: "OTP sai" });
+    }
+
+    if (user.resetOTPExpire < new Date()) {
+      return res.status(400).json({ message: "OTP đã hết hạn" });
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    user.resetOTP = null;
+    user.resetOTPExpire = null;
+
+    await user.save();
+
+    res.json({ message: "Đổi mật khẩu thành công" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Lỗi reset mật khẩu" });
   }
 };
 

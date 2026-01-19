@@ -11,7 +11,9 @@ const {
   refreshToken,
   updateUserPermissions,
   updateProfile,
-  adminResetPassword
+  adminResetPassword,
+  forgotPassword,
+  resetPassword
 } = require('../controllers/authController');
 
 const multer = require("multer");
@@ -72,5 +74,9 @@ router.put(
   },
   updateProfile
 );
+
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password", resetPassword);
+
 
 module.exports = router;
