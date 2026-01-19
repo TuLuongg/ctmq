@@ -416,14 +416,31 @@ exports.getOddCustomerDebt = async (req, res) => {
       ]),
     ]);
 
+    const list = await Promise.all(
+      trips.map(async (t) => {
+        const latestPayment = await TripPayment.findOne({
+          maChuyenCode: t.maChuyen,
+        })
+          .sort({ createdAt: -1 })
+          .lean();
+
+        return {
+          ...t,
+          ngayCK: latestPayment?.createdAt || null,
+          taiKhoanCK: latestPayment?.method || "",
+          noiDungCK: latestPayment?.note || "",
+        };
+      })
+    );
+
     res.json({
       maKH: "26",
       soChuyen: total,
       page,
       limit,
+      chiTietChuyen: list,
       tongTienAll: sumResult[0]?.tongTien || 0,
       conLaiAll: sumResult[0]?.conLai || 0,
-      chiTietChuyen: trips,
     });
   } catch (err) {
     console.error(err);
@@ -457,7 +474,7 @@ exports.getAllOddDebtFilterOptions = async (req, res) => {
           const values = await SchCustomerOdd.distinct(field, filter);
 
           const dates = values.filter(Boolean).map((d) => {
-             const date = new Date(d);
+            const date = new Date(d);
             const y = date.getFullYear();
             const m = String(date.getMonth() + 1).padStart(2, "0");
             const day = String(date.getDate()).padStart(2, "0");
@@ -536,8 +553,14 @@ exports.addTripPayment = async (req, res) => {
     const { maChuyenCode, createdDay, amount, method, note, createdBy } =
       req.body;
 
-    if (!maChuyenCode || !amount) {
-      return res.status(400).json({ error: "Thiếu maChuyenCode hoặc amount" });
+    if (!maChuyenCode) {
+      return res.status(400).json({ error: "Thiếu maChuyenCode" });
+    }
+
+    const numericAmount = Number(amount);
+
+    if (Number.isNaN(numericAmount)) {
+      return res.status(400).json({ error: "Amount không hợp lệ" });
     }
 
     // 2️⃣ Cập nhật SCH CUSTOMER ODD
