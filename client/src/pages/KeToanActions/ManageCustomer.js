@@ -90,7 +90,7 @@ export default function ManageCustomer() {
 
   // visibleColumns khởi tạo mặc định từ allColumns
   const [visibleColumns, setVisibleColumns] = useState(
-    allColumns.map((c) => c.key)
+    allColumns.map((c) => c.key),
   );
   const [columnWidths, setColumnWidths] = useState({});
 
@@ -118,7 +118,7 @@ export default function ManageCustomer() {
   const [selectedRows, setSelectedRows] = useState([]);
   const toggleRowHighlight = (id) => {
     setSelectedRows((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
   };
 
@@ -179,7 +179,7 @@ export default function ManageCustomer() {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed.order)) {
         const valid = parsed.order.filter((k) =>
-          allColumns.some((ac) => ac.key === k)
+          allColumns.some((ac) => ac.key === k),
         );
         const missing = allColumns
           .map((c) => c.key)
@@ -303,19 +303,16 @@ export default function ManageCustomer() {
 
   // ---------- action handlers (add/edit/delete/import/export) ----------
   const handleAdd = () => {
-    if (!canEditCustomer) return alert("Bạn chưa có quyền thêm khách hàng!");
     setEditCustomer(null);
     setShowModal(true);
   };
 
   const handleEdit = (c) => {
-    if (!canEditCustomer) return alert("Bạn chưa có quyền sửa khách hàng!");
     setEditCustomer(c);
     setShowModal(true);
   };
 
   const handleDelete = async (id) => {
-    if (!canEditCustomer) return alert("Bạn chưa có quyền xóa khách hàng!");
     if (!window.confirm("Xác nhận xóa khách hàng này?")) return;
     try {
       await axios.delete(`${apiCustomers}/${id}`, {
@@ -328,10 +325,9 @@ export default function ManageCustomer() {
   };
 
   const handleDeleteAll = async () => {
-    if (!canEditCustomer) return alert("Bạn chưa có quyền xóa khách hàng!");
     if (
       !window.confirm(
-        "⚠ Xác nhận xóa tất cả khách hàng? Hành động này không thể phục hồi!"
+        "⚠ Xác nhận xóa tất cả khách hàng? Hành động này không thể phục hồi!",
       )
     )
       return;
@@ -346,7 +342,7 @@ export default function ManageCustomer() {
       console.error("Xóa tất cả KH thất bại:", err);
       alert(
         "Không thể xóa tất cả khách hàng: " +
-          (err.response?.data?.error || err.message)
+          (err.response?.data?.error || err.message),
       );
     }
   };
@@ -381,7 +377,7 @@ export default function ManageCustomer() {
             "Content-Type": "multipart/form-data",
             Authorization: token ? `Bearer ${token}` : undefined,
           },
-        }
+        },
       );
       const added = res.data.imported || 0;
       const updated = res.data.updated || 0;
@@ -416,7 +412,7 @@ export default function ManageCustomer() {
         new Blob([res.data], {
           type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         }),
-        "DSKH.xlsx"
+        "DSKH.xlsx",
       );
     } catch (err) {
       console.error("Export customers lỗi:", err);
@@ -430,7 +426,7 @@ export default function ManageCustomer() {
       const res = await axios.put(
         `${apiCustomers}/warning/${customerId}`,
         {},
-        { headers: { Authorization: token ? `Bearer ${token}` : undefined } }
+        { headers: { Authorization: token ? `Bearer ${token}` : undefined } },
       );
       const newWarningState = res.data.warning;
       setWarnings((prev) => ({ ...prev, [customerId]: newWarningState }));
@@ -688,7 +684,7 @@ export default function ManageCustomer() {
                     setVisibleColumns((prev) =>
                       prev.includes(c.key)
                         ? prev.filter((k) => k !== c.key)
-                        : [...prev, c.key]
+                        : [...prev, c.key],
                     )
                   }
                 />
@@ -748,8 +744,8 @@ export default function ManageCustomer() {
                 const leftOffset = isFirst
                   ? 30
                   : isSecond
-                  ? 30 + firstColWidth
-                  : undefined;
+                    ? 30 + firstColWidth
+                    : undefined;
 
                 return (
                   <th
@@ -869,8 +865,8 @@ export default function ManageCustomer() {
                     isWarning
                       ? "bg-red-300"
                       : idx % 2 === 0
-                      ? "bg-white"
-                      : "bg-gray-50"
+                        ? "bg-white"
+                        : "bg-gray-50"
                   } ${selectedRows.includes(c._id) ? "bg-yellow-200" : ""}`}
                 >
                   {/* Cột cảnh báo */}
@@ -901,8 +897,8 @@ export default function ManageCustomer() {
                     const stickyLeft = isFirst
                       ? 30
                       : isSecond
-                      ? 30 + firstColWidth
-                      : undefined;
+                        ? 30 + firstColWidth
+                        : undefined;
                     const cellWidthStyle = columnWidths[cKey]
                       ? {
                           width: columnWidths[cKey],
@@ -929,10 +925,10 @@ export default function ManageCustomer() {
                           background: warnings[c._id]
                             ? "#fca5a5"
                             : selectedRows.includes(c._id)
-                            ? "#fde68a"
-                            : idx % 2 === 0
-                            ? "#fff"
-                            : "#f9fafb",
+                              ? "#fde68a"
+                              : idx % 2 === 0
+                                ? "#fff"
+                                : "#f9fafb",
                           ...cellWidthStyle,
                         }}
                       >
@@ -946,54 +942,44 @@ export default function ManageCustomer() {
                     style={{ minWidth: 120, background: "#fff" }}
                     onClick={(e) => e.stopPropagation()}
                   >
-                    {/* ===== SỬA / XÓA ===== */}
-                    {canEditCustomer ? (
-                      <>
-                        {/* SỬA */}
-                        <button
-                          onClick={() => handleEdit(c)}
-                          title="Sửa khách hàng"
-                          className="text-blue-500 hover:text-blue-800 text-lg"
-                        >
-                          <FaEdit />
-                        </button>
-
-                        {/* XÓA */}
-                        <button
-                          onClick={() => handleDelete(c._id)}
-                          title="Xóa khách hàng"
-                          className="text-red-500 hover:text-red-800 text-lg"
-                        >
-                          <FaTrashAlt />
-                        </button>
-                      </>
+                    {/* ===== SỬA (AI CỦA NGƯỜI ĐÓ) ===== */}
+                    {canViewPercentHH(c) ? (
+                      <button
+                        onClick={() => handleEdit(c)}
+                        title="Sửa khách hàng"
+                        className="text-blue-500 hover:text-blue-800 text-lg"
+                      >
+                        <FaEdit />
+                      </button>
                     ) : (
-                      <>
-                        <FaEdit className="text-gray-400 text-lg cursor-not-allowed" />
-                        <FaTrashAlt className="text-gray-400 text-lg cursor-not-allowed" />
-                      </>
+                      <FaEdit className="text-gray-400 text-lg cursor-not-allowed" />
                     )}
 
-                    {/* ===== HOA HỒNG ===== */}
-                    <button
-                      onClick={() => {
-                        if (!canViewPercentHH(c)) {
-                          alert(
-                            "Bạn chỉ được sửa hoa hồng khách hàng của mình!"
-                          );
-                          return;
-                        }
-                        openCommissionModal(c);
-                      }}
-                      title="Thiết lập hoa hồng"
-                      className={`text-lg ${
-                        canViewPercentHH(c)
-                          ? "text-purple-500 hover:text-purple-800"
-                          : "text-gray-400 cursor-not-allowed"
-                      }`}
-                    >
-                      <TbRosetteDiscountFilled />
-                    </button>
+                    {/* ===== XOÁ (GIỮ NGUYÊN) ===== */}
+                    {canEditCustomer ? (
+                      <button
+                        onClick={() => handleDelete(c._id)}
+                        title="Xóa khách hàng"
+                        className="text-red-500 hover:text-red-800 text-lg"
+                      >
+                        <FaTrashAlt />
+                      </button>
+                    ) : (
+                      <FaTrashAlt className="text-gray-400 text-lg cursor-not-allowed" />
+                    )}
+
+                    {/* ===== HOA HỒNG (DÙNG canEditCustomer) ===== */}
+                    {canEditCustomer ? (
+                      <button
+                        onClick={() => openCommissionModal(c)}
+                        title="Thiết lập hoa hồng"
+                        className="text-purple-500 hover:text-purple-800 text-lg"
+                      >
+                        <TbRosetteDiscountFilled />
+                      </button>
+                    ) : (
+                      <TbRosetteDiscountFilled className="text-gray-400 text-lg cursor-not-allowed" />
+                    )}
                   </td>
 
                   <td
@@ -1005,7 +991,7 @@ export default function ManageCustomer() {
                       onClick={() => {
                         if (c.accUsername !== user?.username) {
                           alert(
-                            "Bạn không có quyền in bảng kê của khách hàng này!"
+                            "Bạn không có quyền in bảng kê của khách hàng này!",
                           );
                           return;
                         }

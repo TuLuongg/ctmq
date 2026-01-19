@@ -36,7 +36,6 @@ export const allColumns = [
 const prefKey = (userId) => `tcb_table_prefs_${userId || "guest"}`;
 
 export default function ManageTCBperson() {
-
   const navigate = useNavigate();
   const location = useLocation();
   const fileInputRef = useRef(null);
@@ -57,10 +56,8 @@ export default function ManageTCBperson() {
   const canEditTCB = permissions.includes("edit_tcb");
   const canLockTCB = permissions.includes("lock_tcb");
 
-  console.log("User permissions:", permissions, "canEditTCB:", canEditTCB);
-
   const [visibleColumns, setVisibleColumns] = useState(
-    allColumns.map((c) => c.key)
+    allColumns.map((c) => c.key),
   );
   const [columnWidths, setColumnWidths] = useState({});
   const [prefsLoaded, setPrefsLoaded] = useState(false);
@@ -130,6 +127,15 @@ export default function ManageTCBperson() {
 
     axios.get(`${apiTCB}/ma-chuyen`).then((res) => {
       setMaChuyenList(res.data.data || []);
+    });
+  }, []);
+
+  const [customerNames, setCustomerNames] = useState([]);
+  const [keToanNames, setKeToanNames] = useState([]);
+  useEffect(() => {
+    axios.get(`${apiTCB}/select-lists`).then((res) => {
+      setCustomerNames(res.data.data.customerNames || []);
+      setKeToanNames(res.data.data.keToanNames || []);
     });
   }, []);
 
@@ -218,7 +224,7 @@ export default function ManageTCBperson() {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed.order)) {
         const valid = parsed.order.filter((k) =>
-          allColumns.some((ac) => ac.key === k)
+          allColumns.some((ac) => ac.key === k),
         );
         const missing = allColumns
           .map((c) => c.key)
@@ -390,7 +396,7 @@ export default function ManageTCBperson() {
     } catch (err) {
       console.error("Export error:", err);
       alert(
-        err.response?.data?.message || "Không thể xuất file Excel sao kê TCB"
+        err.response?.data?.message || "Không thể xuất file Excel sao kê TCB",
       );
     } finally {
       setExporting(false); // 🔓 mở lại nút
@@ -422,7 +428,7 @@ export default function ManageTCBperson() {
       await axios.patch(
         `${apiTCB}/${row._id}/toggle-lock`,
         {},
-        { headers: { Authorization: token ? `Bearer ${token}` : undefined } }
+        { headers: { Authorization: token ? `Bearer ${token}` : undefined } },
       );
       fetchData(page);
     } catch (err) {
@@ -441,7 +447,7 @@ export default function ManageTCBperson() {
       const res = await axios.post(
         `${apiTCB}/lock-by-date`,
         { fromDate: from, toDate: to },
-        { headers: { Authorization: token ? `Bearer ${token}` : undefined } }
+        { headers: { Authorization: token ? `Bearer ${token}` : undefined } },
       );
 
       alert(res.data.message || "Đã khoá giao dịch");
@@ -797,8 +803,8 @@ export default function ManageTCBperson() {
                     {["timePay"].includes(cKey)
                       ? formatDate(v[cKey])
                       : ["soTien", "soDu"].includes(cKey)
-                      ? formatPrice(v[cKey])
-                      : v[cKey]}
+                        ? formatPrice(v[cKey])
+                        : v[cKey]}
                   </td>
                 ))}
 
@@ -838,8 +844,8 @@ export default function ManageTCBperson() {
                       !canLockTCB
                         ? "Bạn không có quyền xoá"
                         : v.isLocked
-                        ? "Giao dịch đã bị khoá"
-                        : "Xoá giao dịch"
+                          ? "Giao dịch đã bị khoá"
+                          : "Xoá giao dịch"
                     }
                   >
                     Xóa
@@ -873,6 +879,8 @@ export default function ManageTCBperson() {
           initialData={editItem}
           insertAnchor={insertAnchor}
           canEditTCB={canEditTCB}
+          customerList={customerNames}
+          keToanList={keToanNames}
           onClose={() => {
             setShowModal(false);
             setEditItem(null);
@@ -957,23 +965,23 @@ export default function ManageTCBperson() {
                 className="mb-1 w-full bg-gray-200 hover:bg-gray-300 rounded py-0.5"
                 onClick={() => {
                   const filtered = customerList.filter((c) =>
-                    c.toLowerCase().includes(searchKH.toLowerCase())
+                    c.toLowerCase().includes(searchKH.toLowerCase()),
                   );
                   const allChecked = filtered.every((c) =>
-                    selectedCustomers.includes(c)
+                    selectedCustomers.includes(c),
                   );
 
                   setSelectedCustomers(
                     (prev) =>
                       allChecked
                         ? prev.filter((x) => !filtered.includes(x)) // bỏ chọn
-                        : Array.from(new Set([...prev, ...filtered])) // chọn
+                        : Array.from(new Set([...prev, ...filtered])), // chọn
                   );
                 }}
               >
                 {customerList
                   .filter((c) =>
-                    c.toLowerCase().includes(searchKH.toLowerCase())
+                    c.toLowerCase().includes(searchKH.toLowerCase()),
                   )
                   .every((c) => selectedCustomers.includes(c))
                   ? "Bỏ chọn tất cả"
@@ -983,7 +991,7 @@ export default function ManageTCBperson() {
               <div className="max-h-40 overflow-auto">
                 {customerList
                   .filter((c) =>
-                    c.toLowerCase().includes(searchKH.toLowerCase())
+                    c.toLowerCase().includes(searchKH.toLowerCase()),
                   )
                   .map((c) => (
                     <label key={c} className="flex items-center gap-1 mb-1">
@@ -994,7 +1002,7 @@ export default function ManageTCBperson() {
                           setSelectedCustomers((p) =>
                             e.target.checked
                               ? [...p, c]
-                              : p.filter((x) => x !== c)
+                              : p.filter((x) => x !== c),
                           )
                         }
                       />
@@ -1021,22 +1029,22 @@ export default function ManageTCBperson() {
                 className="mb-1 w-full bg-gray-200 hover:bg-gray-300 rounded py-0.5"
                 onClick={() => {
                   const filtered = accountantList.filter((a) =>
-                    a.toLowerCase().includes(searchKT.toLowerCase())
+                    a.toLowerCase().includes(searchKT.toLowerCase()),
                   );
                   const allChecked = filtered.every((a) =>
-                    selectedAccountants.includes(a)
+                    selectedAccountants.includes(a),
                   );
 
                   setSelectedAccountants((prev) =>
                     allChecked
                       ? prev.filter((x) => !filtered.includes(x))
-                      : Array.from(new Set([...prev, ...filtered]))
+                      : Array.from(new Set([...prev, ...filtered])),
                   );
                 }}
               >
                 {accountantList
                   .filter((a) =>
-                    a.toLowerCase().includes(searchKT.toLowerCase())
+                    a.toLowerCase().includes(searchKT.toLowerCase()),
                   )
                   .every((a) => selectedAccountants.includes(a))
                   ? "Bỏ chọn tất cả"
@@ -1046,7 +1054,7 @@ export default function ManageTCBperson() {
               <div className="max-h-40 overflow-auto">
                 {accountantList
                   .filter((a) =>
-                    a.toLowerCase().includes(searchKT.toLowerCase())
+                    a.toLowerCase().includes(searchKT.toLowerCase()),
                   )
                   .map((a) => (
                     <label key={a} className="flex items-center gap-1 mb-1">
@@ -1057,7 +1065,7 @@ export default function ManageTCBperson() {
                           setSelectedAccountants((p) =>
                             e.target.checked
                               ? [...p, a]
-                              : p.filter((x) => x !== a)
+                              : p.filter((x) => x !== a),
                           )
                         }
                       />
@@ -1084,22 +1092,22 @@ export default function ManageTCBperson() {
                 className="mb-1 w-full bg-gray-200 hover:bg-gray-300 rounded py-0.5"
                 onClick={() => {
                   const filtered = maChuyenList.filter((a) =>
-                    a.toLowerCase().includes(searchMC.toLowerCase())
+                    a.toLowerCase().includes(searchMC.toLowerCase()),
                   );
                   const allChecked = filtered.every((a) =>
-                    selectedMaChuyen.includes(a)
+                    selectedMaChuyen.includes(a),
                   );
 
                   setSelectedMaChuyen((prev) =>
                     allChecked
                       ? prev.filter((x) => !filtered.includes(x))
-                      : Array.from(new Set([...prev, ...filtered]))
+                      : Array.from(new Set([...prev, ...filtered])),
                   );
                 }}
               >
                 {maChuyenList
                   .filter((a) =>
-                    a.toLowerCase().includes(searchMC.toLowerCase())
+                    a.toLowerCase().includes(searchMC.toLowerCase()),
                   )
                   .every((a) => selectedMaChuyen.includes(a))
                   ? "Bỏ chọn tất cả"
@@ -1109,7 +1117,7 @@ export default function ManageTCBperson() {
               <div className="max-h-40 overflow-auto">
                 {maChuyenList
                   .filter((a) =>
-                    a.toLowerCase().includes(searchMC.toLowerCase())
+                    a.toLowerCase().includes(searchMC.toLowerCase()),
                   )
                   .map((a) => (
                     <label key={a} className="flex items-center gap-1 mb-1">
@@ -1120,7 +1128,7 @@ export default function ManageTCBperson() {
                           setSelectedMaChuyen((p) =>
                             e.target.checked
                               ? [...p, a]
-                              : p.filter((x) => x !== a)
+                              : p.filter((x) => x !== a),
                           )
                         }
                       />

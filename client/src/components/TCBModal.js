@@ -19,7 +19,11 @@ const formatMoney = (value) => {
   return isNegative ? "-" + number : number;
 };
 
-
+const removeDiacritics = (str = "") =>
+  str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 
 const parseMoney = (value) => {
   if (typeof value === "number") return value;
@@ -29,12 +33,12 @@ const parseMoney = (value) => {
   return Number(cleaned) || 0;
 };
 
-
-
 export default function TCBModal({
   initialData,
   insertAnchor,
   canEditTCB,
+  customerList,
+  keToanList,
   onClose,
   onSave,
   apiBase,
@@ -51,6 +55,8 @@ export default function TCBModal({
   });
 
   const [loading, setLoading] = useState(false);
+  const [customerSuggestions, setCustomerSuggestions] = useState([]);
+  const [activeIndex, setActiveIndex] = useState(-1);
 
   useEffect(() => {
     if (initialData) {
@@ -131,7 +137,7 @@ export default function TCBModal({
           payload,
           {
             headers: { Authorization: token ? `Bearer ${token}` : undefined },
-          }
+          },
         );
       } else {
         /** =========================
@@ -160,8 +166,8 @@ export default function TCBModal({
           {initialData
             ? "Sửa chuyển khoản"
             : insertAnchor
-            ? `Chèn sau mã ${insertAnchor.maGD}`
-            : "Thêm chuyển khoản"}
+              ? `Chèn sau mã ${insertAnchor.maGD}`
+              : "Thêm chuyển khoản"}
         </h2>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-2">
@@ -172,7 +178,7 @@ export default function TCBModal({
               name="timePay"
               value={formData.timePay}
               onChange={handleChange}
-              className="border p-1 w-1/3 rounded ml-1"
+              className="border p-1 w-1/3 rounded ml-1 mt-1"
               required
             />
           </label>
@@ -184,7 +190,7 @@ export default function TCBModal({
               name="noiDungCK"
               value={formData.noiDungCK}
               onChange={handleChange}
-              className="border p-1 w-full rounded"
+              className="border p-1 w-full rounded mt-1"
               required
             />
           </label>
@@ -197,33 +203,112 @@ export default function TCBModal({
               value={formData.soTien}
               onChange={canEditTCB ? handleChange : undefined}
               disabled={!canEditTCB}
-              className={`border p-1 w-full rounded
+              className={`border p-1 w-full rounded mt-1
       ${!canEditTCB ? "bg-gray-100 cursor-not-allowed" : ""}
     `}
               required
             />
           </label>
 
-          <label>
+          <label className="relative">
             Khách hàng
             <input
               type="text"
               name="khachHang"
               value={formData.khachHang}
-              onChange={handleChange}
-              className="border p-1 w-full rounded"
+              onChange={(e) => {
+                const value = e.target.value;
+                setFormData((prev) => ({ ...prev, khachHang: value }));
+                setActiveIndex(-1);
+
+                if (!value.trim()) {
+                  setCustomerSuggestions([]);
+                  return;
+                }
+
+                const keyword = removeDiacritics(value);
+                const filtered = customerList.filter((c) =>
+                  removeDiacritics(c).includes(keyword),
+                );
+
+                setCustomerSuggestions(filtered.slice(0, 10));
+              }}
+              onKeyDown={(e) => {
+                if (!customerSuggestions.length) return;
+
+                // ⬇️
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setActiveIndex((prev) =>
+                    prev < customerSuggestions.length - 1 ? prev + 1 : 0,
+                  );
+                }
+
+                // ⬆️
+                if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setActiveIndex((prev) =>
+                    prev > 0 ? prev - 1 : customerSuggestions.length - 1,
+                  );
+                }
+
+                // ⏎ Enter
+                if (e.key === "Enter" && activeIndex >= 0) {
+                  e.preventDefault(); // ❌ không submit form
+                  const selected = customerSuggestions[activeIndex];
+                  setFormData((prev) => ({ ...prev, khachHang: selected }));
+                  setCustomerSuggestions([]);
+                  setActiveIndex(-1);
+                }
+
+                // ❌ Esc
+                if (e.key === "Escape") {
+                  setCustomerSuggestions([]);
+                  setActiveIndex(-1);
+                }
+              }}
+              className="border p-1 w-full rounded mt-1"
+              autoComplete="off"
             />
+            {customerSuggestions.length > 0 && (
+              <div className="absolute z-10 bg-white border w-full max-h-40 overflow-auto shadow">
+                {customerSuggestions.map((c, idx) => (
+                  <div
+                    key={idx}
+                    className={`px-2 py-1 cursor-pointer ${
+                      idx === activeIndex ? "bg-blue-200" : "hover:bg-blue-100"
+                    }`}
+                    onMouseEnter={() => setActiveIndex(idx)}
+                    onMouseDown={(e) => {
+                      // onClick sẽ bị blur trước → dùng mouseDown
+                      e.preventDefault();
+                      setFormData((prev) => ({ ...prev, khachHang: c }));
+                      setCustomerSuggestions([]);
+                      setActiveIndex(-1);
+                    }}
+                  >
+                    {c}
+                  </div>
+                ))}
+              </div>
+            )}
           </label>
 
           <label>
             Kế toán
-            <input
-              type="text"
+            <select
               name="keToan"
               value={formData.keToan}
               onChange={handleChange}
-              className="border p-1 w-full rounded"
-            />
+              className="border p-1 w-full rounded mt-1"
+            >
+              <option value="">-- Chọn kế toán --</option>
+              {keToanList.map((kt, idx) => (
+                <option key={idx} value={kt}>
+                  {kt}
+                </option>
+              ))}
+            </select>
           </label>
 
           <label>
@@ -233,7 +318,7 @@ export default function TCBModal({
               name="ghiChu"
               value={formData.ghiChu}
               onChange={handleChange}
-              className="border p-1 w-full rounded"
+              className="border p-1 w-full rounded mt-1"
             />
           </label>
 
@@ -244,7 +329,7 @@ export default function TCBModal({
               name="maChuyen"
               value={formData.maChuyen}
               onChange={handleChange}
-              className="border p-1 w-full rounded"
+              className="border p-1 w-full rounded mt-1"
             />
           </label>
 
