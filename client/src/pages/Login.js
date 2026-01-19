@@ -13,6 +13,13 @@ export default function Login({ setUser }) {
 
   const [rememberMe, setRememberMe] = useState(false);
 
+  const [forgotStep, setForgotStep] = useState("login");
+  // login | forgot | reset
+
+  const [email, setEmail] = useState("");
+  const [otp, setOtp] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+
   useEffect(() => {
     const remembered = localStorage.getItem("rememberMe");
 
@@ -46,6 +53,7 @@ export default function Login({ setUser }) {
           _id: res.data._id,
           username: res.data.username,
           fullname: res.data.fullname,
+          email: res.data.email,
           role: res.data.role,
           phone: res.data.phone,
           avatar: res.data.avatar,
@@ -126,59 +134,139 @@ export default function Login({ setUser }) {
           🔐 Đăng nhập hệ thống
         </h2>
 
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleLogin();
-          }}
-          className="flex flex-col gap-4"
-        >
-          <input
-            className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:outline-none"
-            placeholder="Tài khoản"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-          />
-
-          <div className="relative">
+        {forgotStep === "login" && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleLogin();
+            }}
+            className="flex flex-col gap-4"
+          >
             <input
-              type={showPassword ? "text" : "password"}
-              className="border border-gray-300 rounded-lg px-4 py-2 pr-11 w-full focus:ring-2 focus:ring-blue-400 focus:outline-none"
-              placeholder="Mật khẩu"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:outline-none"
+              placeholder="Tài khoản"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+            />
+
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                className="border border-gray-300 rounded-lg px-4 py-2 pr-11 w-full focus:ring-2 focus:ring-blue-400 focus:outline-none"
+                placeholder="Mật khẩu"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+              >
+                {showPassword ? <FaEyeSlash size={20} /> : <FaEye size={20} />}
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <input
+                type="checkbox"
+                id="rememberMe"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4"
+              />
+              <label htmlFor="rememberMe" className="cursor-pointer">
+                Ghi nhớ đăng nhập
+              </label>
+
+              <p
+                onClick={() => setForgotStep("forgot")}
+                className="text-sm text-blue-600 text-center ml-auto cursor-pointer hover:underline"
+              >
+                Quên mật khẩu?
+              </p>
+            </div>
+
+            <button
+              type="submit"
+              className="mt-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg transition"
+            >
+              Đăng nhập
+            </button>
+          </form>
+        )}
+
+        {forgotStep === "forgot" && (
+          <div className="flex flex-col gap-4">
+            <h3 className="text-lg font-semibold text-center">
+              🔑 Quên mật khẩu
+            </h3>
+
+            <input
+              className="border rounded-lg px-4 py-2"
+              placeholder="Email nhận OTP"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
             />
 
             <button
-              type="button"
-              onClick={() => setShowPassword((prev) => !prev)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-              aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+              onClick={async () => {
+                await axios.post(`${API}/auth/forgot-password`, { email });
+                alert("Đã gửi OTP qua email");
+                setForgotStep("reset");
+              }}
+              className="bg-blue-600 text-white py-2 rounded-lg"
             >
-              {showPassword ? <FaEyeSlash size={20} /> : <FaEye size={20} />}
+              Gửi OTP
+            </button>
+
+            <p
+              onClick={() => setForgotStep("login")}
+              className="text-sm text-center text-gray-500 cursor-pointer"
+            >
+              ← Quay lại đăng nhập
+            </p>
+          </div>
+        )}
+
+        {forgotStep === "reset" && (
+          <div className="flex flex-col gap-4">
+            <h3 className="text-lg font-semibold text-center">
+              🔐 Đặt lại mật khẩu
+            </h3>
+
+            <input
+              className="border rounded-lg px-4 py-2"
+              placeholder="OTP"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+            />
+
+            <input
+              type="password"
+              className="border rounded-lg px-4 py-2"
+              placeholder="Mật khẩu mới"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
+
+            <button
+              onClick={async () => {
+                await axios.post(`${API}/auth/reset-password`, {
+                  email,
+                  otp,
+                  newPassword,
+                });
+                alert("Đổi mật khẩu thành công");
+                setForgotStep("login");
+              }}
+              className="bg-green-600 text-white py-2 rounded-lg"
+            >
+              Xác nhận
             </button>
           </div>
-
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <input
-              type="checkbox"
-              id="rememberMe"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-              className="w-4 h-4"
-            />
-            <label htmlFor="rememberMe" className="cursor-pointer">
-              Ghi nhớ đăng nhập
-            </label>
-          </div>
-
-          <button
-            type="submit"
-            className="mt-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg transition"
-          >
-            Đăng nhập
-          </button>
-        </form>
+        )}
 
         <p className="text-center text-sm text-gray-500 mt-6">
           © 2025 Công ty Minh Quân. All rights reserved.

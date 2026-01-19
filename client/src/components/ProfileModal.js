@@ -6,9 +6,10 @@ export default function ProfileModal({ onClose, onUpdate }) {
   const [form, setForm] = useState({
     fullname: "",
     phone: "",
-    avatar: null,      // file thực tế hoặc "" nếu xoá avatar
+    avatar: null, // file thực tế hoặc "" nếu xoá avatar
     passwordOld: "",
     passwordNew: "",
+    email: "",
   });
   const [preview, setPreview] = useState("");
 
@@ -17,10 +18,12 @@ export default function ProfileModal({ onClose, onUpdate }) {
   // Lấy thông tin user hiện tại từ localStorage
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
+    console.log(user)
     setForm((f) => ({
       ...f,
       fullname: user.fullname || "",
       phone: user.phone || "",
+      email: user.email || ""
     }));
     setPreview(user.avatar || "");
   }, []);
@@ -39,7 +42,7 @@ export default function ProfileModal({ onClose, onUpdate }) {
   };
 
   const handleRemoveAvatar = () => {
-    setPreview("");                // Xoá preview
+    setPreview(""); // Xoá preview
     setForm((p) => ({ ...p, avatar: "" })); // Gửi rỗng để xoá avatar thật
   };
 
@@ -49,20 +52,17 @@ export default function ProfileModal({ onClose, onUpdate }) {
       const fd = new FormData();
       if (form.fullname) fd.append("fullname", form.fullname);
       if (form.phone) fd.append("phone", form.phone);
+      if (form.email) fd.append("email", form.email);
       if (form.avatar !== null) fd.append("avatar", form.avatar); // file hoặc "" để xoá
       if (form.passwordOld) fd.append("passwordOld", form.passwordOld);
       if (form.passwordNew) fd.append("passwordNew", form.passwordNew);
 
-      const res = await axios.put(
-        `${API}/auth/profile`,
-        fd,
-        {
-          headers: {
-            Authorization: token ? `Bearer ${token}` : undefined,
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
+      const res = await axios.put(`${API}/auth/profile`, fd, {
+        headers: {
+          Authorization: token ? `Bearer ${token}` : undefined,
+          "Content-Type": "multipart/form-data",
+        },
+      });
 
       // 🔄 Live update avatar + tên, thêm timestamp tránh cache
       const updatedUser = res.data.user;
@@ -88,7 +88,9 @@ export default function ProfileModal({ onClose, onUpdate }) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
       <div className="bg-white p-6 rounded-lg w-full max-w-md shadow-lg">
-        <h2 className="text-xl font-bold mb-4 text-center">Cập nhật thông tin cá nhân</h2>
+        <h2 className="text-xl font-bold mb-4 text-center">
+          Cập nhật thông tin cá nhân
+        </h2>
         {/* Avatar đầu modal, căn giữa */}
         <div className="flex flex-col items-center mb-4">
           {preview ? (
@@ -111,7 +113,12 @@ export default function ProfileModal({ onClose, onUpdate }) {
               Chưa có
             </div>
           )}
-          <input type="file" accept="image/*" onChange={handleFile} className="mt-2" />
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleFile}
+            className="mt-2"
+          />
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
@@ -129,6 +136,15 @@ export default function ProfileModal({ onClose, onUpdate }) {
             <input
               name="phone"
               value={form.phone}
+              onChange={handleChange}
+              className="border p-2 w-full rounded"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium">Email</label>
+            <input
+              name="email"
+              value={form.email}
               onChange={handleChange}
               className="border p-2 w-full rounded"
             />
