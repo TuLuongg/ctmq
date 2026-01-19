@@ -19,6 +19,8 @@ export default function Login({ setUser }) {
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
     const remembered = localStorage.getItem("rememberMe");
@@ -36,6 +38,9 @@ export default function Login({ setUser }) {
   }, []);
 
   const handleLogin = async () => {
+    if (loading) return;
+
+    setLoading(true);
     try {
       const res = await axios.post(`${API}/auth/login`, {
         username,
@@ -89,6 +94,52 @@ export default function Login({ setUser }) {
     } catch (err) {
       console.error("❌ Login error:", err.response?.data || err.message);
       alert(err.response?.data?.message || "Đăng nhập thất bại");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSendOTP = async () => {
+    if (loading) return;
+
+    setLoading(true);
+    setErrorMsg("");
+
+    try {
+      const res = await axios.post(`${API}/auth/forgot-password`, { email });
+
+      alert("Đã gửi OTP qua email");
+      setForgotStep("reset");
+    } catch (err) {
+      console.error("❌ SEND OTP ERROR:", err.response?.data);
+
+      setErrorMsg(err.response?.data?.message || "Gửi OTP thất bại");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (loading) return;
+
+    setLoading(true);
+    setErrorMsg("");
+
+    try {
+      await axios.post(`${API}/auth/reset-password`, {
+        email,
+        otp,
+        newPassword,
+      });
+
+      alert("Đổi mật khẩu thành công");
+      setForgotStep("login");
+    } catch (err) {
+      console.error("❌ RESET PASSWORD ERROR:", err.response?.data);
+
+      setErrorMsg(err.response?.data?.message || "Reset mật khẩu thất bại");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -190,9 +241,12 @@ export default function Login({ setUser }) {
 
             <button
               type="submit"
-              className="mt-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg transition"
+              disabled={loading}
+              className={`mt-2 text-white font-medium py-2 rounded-lg transition
+    ${loading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}
+  `}
             >
-              Đăng nhập
+              {loading ? "Đang đăng nhập..." : "Đăng nhập"}
             </button>
           </form>
         )}
@@ -211,18 +265,13 @@ export default function Login({ setUser }) {
             />
 
             <button
-              onClick={async () => {
-                try {
-                  await axios.post(`${API}/auth/forgot-password`, { email });
-                  alert("Đã gửi OTP qua email");
-                  setForgotStep("reset");
-                } catch (err) {
-                  alert(err.response?.data?.message || "Gửi OTP thất bại");
-                }
-              }}
-              className="bg-blue-600 text-white py-2 rounded-lg"
+              disabled={loading}
+              onClick={handleSendOTP}
+              className={`py-2 rounded-lg text-white
+    ${loading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}
+  `}
             >
-              Gửi OTP
+              {loading ? "Đang gửi..." : "Gửi OTP"}
             </button>
 
             <p
@@ -256,19 +305,20 @@ export default function Login({ setUser }) {
             />
 
             <button
-              onClick={async () => {
-                await axios.post(`${API}/auth/reset-password`, {
-                  email,
-                  otp,
-                  newPassword,
-                });
-                alert("Đổi mật khẩu thành công");
-                setForgotStep("login");
-              }}
-              className="bg-green-600 text-white py-2 rounded-lg"
+              disabled={loading}
+              onClick={handleResetPassword}
+              className={`py-2 rounded-lg text-white
+    ${loading ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"}
+  `}
             >
-              Xác nhận
+              {loading ? "Đang xử lý..." : "Xác nhận"}
             </button>
+          </div>
+        )}
+
+        {errorMsg && (
+          <div className="bg-red-100 text-red-700 text-sm px-4 py-2 rounded-lg">
+            ❌ {errorMsg}
           </div>
         )}
 
