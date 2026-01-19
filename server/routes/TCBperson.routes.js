@@ -56,6 +56,13 @@ router.get("/accountants", TCBController.getAccountants);
 router.get("/ma-chuyen", TCBController.getMaChuyen);
 
 // ============================
+// Lấy danh sách select chung (Customer + Kế toán)
+// GET /tcbperson/select-lists
+// ============================
+router.get("/select-lists", TCBController.getSelectLists);
+
+
+// ============================
 // Lấy tất cả dữ liệu với filter
 // POST /tcbperson/all
 // body: { khachHang: [], keToan: [], from, to }

@@ -1,4 +1,6 @@
 const TCBperson = require("../models/TCBperson");
+const Customer = require("../models/Customer");
+const User = require("../models/User");
 const path = require("path");
 const ExcelJS = require("exceljs");
 
@@ -733,3 +735,28 @@ exports.lockByDateRange = async (req, res) => {
   }
 };
 
+// ===================
+// Lấy danh sách select dùng chung
+// ===================
+exports.getSelectLists = async (req, res) => {
+  try {
+    const [customerNames, keToanNames] = await Promise.all([
+      Customer.distinct("name", { name: { $ne: "" } }),
+      User.distinct("fullname", {
+        role: "keToan",
+        fullname: { $ne: "" },
+      }),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        customerNames: customerNames.sort(),
+        keToanNames: keToanNames.sort(),
+      },
+    });
+  } catch (err) {
+    console.error("❌ getSelectLists error:", err);
+    res.status(500).json({ message: err.message });
+  }
+};
