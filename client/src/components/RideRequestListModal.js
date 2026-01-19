@@ -62,23 +62,51 @@ export default function RideRequestListModal({
   open,
   onClose,
   title = "Danh sách yêu cầu chỉnh sửa",
-  requests = [],
+  onLoaded,
 }) {
-  const [localRequests, setLocalRequests] = useState(requests);
-  useEffect(() => {
-    setLocalRequests(requests);
-    setPage(1); // optional: reset về trang 1
-  }, [requests]);
+  const [requests, setRequests] = useState([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(false);
 
   const PER_PAGE = 20;
-  const [page, setPage] = useState(1);
+  const token = localStorage.getItem("token");
 
-  const totalPages = Math.ceil(localRequests.length / PER_PAGE);
+  const fetchMyRequests = async (p = page) => {
+    try {
+      setLoading(true);
 
-  const paginated = useMemo(() => {
-    const start = (page - 1) * PER_PAGE;
-    return localRequests.slice(start, start + PER_PAGE);
-  }, [page, localRequests]);
+      const res = await axios.get(`${API_URL}/my-requests`, {
+        params: {
+          page: p,
+          limit: PER_PAGE,
+        },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      setRequests(res.data.data || []);
+      setTotalPages(res.data.totalPages || 1);
+      setPage(res.data.page || p);
+
+      onLoaded && onLoaded(); // ✅ THÀNH CÔNG
+    } catch (err) {
+      console.error(
+        "Lỗi lấy yêu cầu của tôi:",
+        err.response?.data || err.message,
+      );
+      onLoaded && onLoaded(); // ✅ FAIL VẪN BÁO
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (open) {
+      fetchMyRequests(1);
+    }
+  }, [open]);
 
   if (!open) return null;
 
@@ -111,11 +139,11 @@ export default function RideRequestListModal({
       });
 
       // ✅ XOÁ DÒNG KHỎI MODAL
-      setLocalRequests((prev) => prev.filter((r) => r._id !== req._id));
+      setRequests((prev) => prev.filter((r) => r._id !== req._id));
 
       // nếu trang hiện tại bị rỗng thì lùi lại 1 trang
       setPage((p) => {
-        const maxPage = Math.ceil((localRequests.length - 1) / PER_PAGE);
+        const maxPage = Math.ceil((requests.length - 1) / PER_PAGE);
         return p > maxPage ? Math.max(maxPage, 1) : p;
       });
     } catch (err) {
@@ -123,6 +151,8 @@ export default function RideRequestListModal({
       alert(err?.response?.data?.error || "Huỷ yêu cầu chỉnh sửa thất bại");
     }
   };
+
+  const pageOptions = Array.from({ length: totalPages }, (_, i) => i + 1);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 z-50 flex items-center justify-center">
@@ -172,7 +202,7 @@ export default function RideRequestListModal({
             </thead>
 
             <tbody>
-              {paginated.map((req) => {
+              {requests.map((req) => {
                 const oldData = req.rideID || {};
                 const newData = req.changes || {};
 
@@ -203,22 +233,22 @@ export default function RideRequestListModal({
                               {f.isDate
                                 ? formatDate(oldVal)
                                 : f.isMoney
-                                ? formatMoney(oldVal)
-                                : oldVal ?? "—"}
+                                  ? formatMoney(oldVal)
+                                  : (oldVal ?? "—")}
                               {" → "}
                               {f.isDate
                                 ? formatDate(newVal)
                                 : f.isMoney
-                                ? formatMoney(newVal)
-                                : newVal ?? "—"}
+                                  ? formatMoney(newVal)
+                                  : (newVal ?? "—")}
                             </span>
                           ) : (
                             <span>
                               {f.isDate
                                 ? formatDate(oldVal)
                                 : f.isMoney
-                                ? formatMoney(oldVal)
-                                : oldVal ?? "—"}
+                                  ? formatMoney(oldVal)
+                                  : (oldVal ?? "—")}
                             </span>
                           )}
                         </td>
@@ -250,23 +280,38 @@ export default function RideRequestListModal({
         </div>
 
         {totalPages > 1 && (
-          <div className="flex justify-between items-center mt-3">
+          <div className="flex justify-between items-center mt-3 text-sm gap-2">
+            {/* PREV */}
             <button
               disabled={page === 1}
-              onClick={() => setPage((p) => p - 1)}
-              className="px-3 py-1 bg-gray-300 rounded disabled:opacity-40"
+              onClick={() => fetchMyRequests(page - 1)}
+              className="px-3 py-1 bg-gray-200 rounded disabled:opacity-40"
             >
               ← Trước
             </button>
 
-            <span>
-              Trang {page} / {totalPages}
-            </span>
+            {/* SELECT PAGE */}
+            <div className="flex items-center gap-2">
+              <span>Trang</span>
+              <select
+                value={page}
+                onChange={(e) => fetchMyRequests(Number(e.target.value))}
+                className="border rounded px-2 py-1"
+              >
+                {pageOptions.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+              <span>/ {totalPages}</span>
+            </div>
 
+            {/* NEXT */}
             <button
               disabled={page === totalPages}
-              onClick={() => setPage((p) => p + 1)}
-              className="px-3 py-1 bg-gray-300 rounded disabled:opacity-40"
+              onClick={() => fetchMyRequests(page + 1)}
+              className="px-3 py-1 bg-gray-200 rounded disabled:opacity-40"
             >
               Sau →
             </button>

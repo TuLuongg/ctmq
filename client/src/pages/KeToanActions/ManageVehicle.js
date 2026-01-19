@@ -319,6 +319,8 @@ export default function ManageVehicle() {
       "insDay",
       "insExpDay",
       "dayTravel",
+      "bhTNDS",
+      "bhVC"
     ];
 
     if (dateFields.includes(cKey)) {

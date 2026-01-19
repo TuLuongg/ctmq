@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { format } from "date-fns";
 import axios from "axios";
 import API from "../api";
@@ -85,27 +85,49 @@ const formatMoney = (value) => {
   return num.toLocaleString("vi-VN");
 };
 
-export default function RideAllRequestModal({
-  open,
-  onClose,
-  requests = [],
-  reload,
-}) {
-  const token = localStorage.getItem("token");
+export default function RideAllRequestModal({ open, onClose, onLoaded }) {
   const [noteMap, setNoteMap] = useState({}); // note theo requestID
-  const PER_PAGE = 20;
+  const [requests, setRequests] = useState([]);
   const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(false);
 
-  const totalPages = Math.ceil(requests.length / PER_PAGE);
+  const PER_PAGE = 20;
+  const token = localStorage.getItem("token");
 
-  const paginatedRequests = useMemo(() => {
-    const start = (page - 1) * PER_PAGE;
-    return requests.slice(start, start + PER_PAGE);
-  }, [page, requests]);
+  const fetchRequests = async (p = page) => {
+    try {
+      setLoading(true);
+      const res = await axios.get(`${API_URL}/all-requests`, {
+        params: {
+          page: p,
+          limit: PER_PAGE,
+        },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      setRequests(res.data.data || []);
+      setTotalPages(res.data.totalPages || 1);
+      setPage(res.data.page || p);
+
+      onLoaded && onLoaded();
+    } catch (err) {
+      console.error("Lỗi lấy danh sách yêu cầu:", err);
+      onLoaded && onLoaded();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (open) {
+      fetchRequests(1);
+    }
+  }, [open]);
 
   if (!open) return null;
-
-  console.log("requests", requests);
 
   const handleProcess = async (req, action) => {
     try {
@@ -116,7 +138,7 @@ export default function RideAllRequestModal({
           action,
           note: noteMap[req._id] || "",
         },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       reload && reload();
@@ -124,6 +146,8 @@ export default function RideAllRequestModal({
       alert("Lỗi xử lý");
     }
   };
+
+  const pageOptions = Array.from({ length: totalPages }, (_, i) => i + 1);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 z-50 flex justify-center items-center text-xs">
@@ -164,7 +188,7 @@ export default function RideAllRequestModal({
             </thead>
 
             <tbody>
-              {paginatedRequests.map((req) => {
+              {requests.map((req) => {
                 const oldData = req.rideID || {};
                 const newData = req.changes || {};
 
@@ -208,22 +232,22 @@ export default function RideAllRequestModal({
                               {f.isDate
                                 ? formatDate(oldVal)
                                 : f.isMoney
-                                ? formatMoney(oldVal)
-                                : oldVal ?? "—"}
+                                  ? formatMoney(oldVal)
+                                  : (oldVal ?? "—")}
                               {" → "}
                               {f.isDate
                                 ? formatDate(newVal)
                                 : f.isMoney
-                                ? formatMoney(newVal)
-                                : newVal ?? "—"}
+                                  ? formatMoney(newVal)
+                                  : (newVal ?? "—")}
                             </span>
                           ) : (
                             <span>
                               {f.isDate
                                 ? formatDate(oldVal)
                                 : f.isMoney
-                                ? formatMoney(oldVal)
-                                : oldVal ?? "—"}
+                                  ? formatMoney(oldVal)
+                                  : (oldVal ?? "—")}
                             </span>
                           )}
                         </td>
@@ -266,31 +290,46 @@ export default function RideAllRequestModal({
               })}
             </tbody>
           </table>
-
-          {totalPages > 1 && (
-            <div className="flex justify-between items-center mt-3 text-sm">
-              <button
-                disabled={page === 1}
-                onClick={() => setPage((p) => p - 1)}
-                className="px-3 py-1 bg-gray-200 rounded disabled:opacity-40"
-              >
-                ← Trước
-              </button>
-
-              <span>
-                Trang <b>{page}</b> / {totalPages}
-              </span>
-
-              <button
-                disabled={page === totalPages}
-                onClick={() => setPage((p) => p + 1)}
-                className="px-3 py-1 bg-gray-200 rounded disabled:opacity-40"
-              >
-                Sau →
-              </button>
-            </div>
-          )}
         </div>
+
+        {totalPages > 1 && (
+          <div className="flex justify-between items-center mt-3 text-sm gap-2">
+            {/* PREV */}
+            <button
+              disabled={page === 1}
+              onClick={() => fetchRequests(page - 1)}
+              className="px-3 py-1 bg-gray-200 rounded disabled:opacity-40"
+            >
+              ← Trước
+            </button>
+
+            {/* SELECT PAGE */}
+            <div className="flex items-center gap-2">
+              <span>Trang</span>
+              <select
+                value={page}
+                onChange={(e) => fetchRequests(Number(e.target.value))}
+                className="border rounded px-2 py-1"
+              >
+                {pageOptions.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+              <span>/ {totalPages}</span>
+            </div>
+
+            {/* NEXT */}
+            <button
+              disabled={page === totalPages}
+              onClick={() => fetchRequests(page + 1)}
+              className="px-3 py-1 bg-gray-200 rounded disabled:opacity-40"
+            >
+              Sau →
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

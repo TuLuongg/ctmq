@@ -33,7 +33,7 @@ export default function VehicleModal({
     dayTravel: "",
     note: "",
     bhTNDS: "",
-    bhVC: ""
+    bhVC: "",
   });
 
   const [registrationImages, setRegistrationImages] = useState([]); // mảng
@@ -57,8 +57,8 @@ export default function VehicleModal({
         insExpDay: formatDateForInput(initialData.insExpDay),
         dayTravel: formatDateForInput(initialData.dayTravel),
         note: initialData.note || "",
-        bhTNDS: initialData.bhTNDS || "",
-        bhVC: initialData.bhVC || "",
+        bhTNDS: formatDateForInput(initialData.bhTNDS),
+        bhVC: formatDateForInput(initialData.bhVC),
       });
 
       setPreviewReg(initialData.registrationImage || []);
@@ -79,7 +79,7 @@ export default function VehicleModal({
         dayTravel: "",
         note: "",
         bhTNDS: "",
-        bhVC: ""
+        bhVC: "",
       });
       setPreviewReg([]);
       setPreviewInsp([]);
@@ -115,10 +115,10 @@ export default function VehicleModal({
     Object.keys(form).forEach((key) => formData.append(key, form[key] || ""));
 
     registrationImages.forEach((file) =>
-      formData.append("registrationImage", file)
+      formData.append("registrationImage", file),
     );
     inspectionImages.forEach((file) =>
-      formData.append("inspectionImage", file)
+      formData.append("inspectionImage", file),
     );
 
     try {
@@ -270,11 +270,11 @@ export default function VehicleModal({
                     type="button"
                     onClick={() => {
                       const newFiles = registrationImages.filter(
-                        (_, i) => i !== idx
+                        (_, i) => i !== idx,
                       );
                       setRegistrationImages(newFiles);
                       setPreviewReg(
-                        newFiles.map((f) => URL.createObjectURL(f))
+                        newFiles.map((f) => URL.createObjectURL(f)),
                       );
                     }}
                     className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
@@ -351,11 +351,11 @@ export default function VehicleModal({
                     type="button"
                     onClick={() => {
                       const newFiles = inspectionImages.filter(
-                        (_, i) => i !== idx
+                        (_, i) => i !== idx,
                       );
                       setInspectionImages(newFiles);
                       setPreviewInsp(
-                        newFiles.map((f) => URL.createObjectURL(f))
+                        newFiles.map((f) => URL.createObjectURL(f)),
                       );
                     }}
                     className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
@@ -416,18 +416,20 @@ export default function VehicleModal({
               className="border p-2 w-full rounded"
             />
           </div>
-                    <div>
+          <div>
             <label className="block text-xs font-medium">Bảo hiểm TNDS</label>
             <input
+              type="date"
               name="bhTNDS"
               value={form.bhTNDS}
               onChange={handleChange}
               className="border p-2 w-full rounded"
             />
           </div>
-                    <div>
+          <div>
             <label className="block text-xs font-medium">Bảo hiểm VC</label>
             <input
+              type="date"
               name="bhVC"
               value={form.bhVC}
               onChange={handleChange}
@@ -435,7 +437,7 @@ export default function VehicleModal({
             />
           </div>
 
-          <div className="col-span-2 flex justify-end gap-3 mt-4" >
+          <div className="col-span-2 flex justify-end gap-3 mt-4">
             <button
               type="button"
               onClick={onClose}

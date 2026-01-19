@@ -102,7 +102,6 @@ const parseExcelNumber = (val) => {
   return Math.round(num).toString();
 };
 
-
 export default function ManageTrip({ user, onLogout }) {
   const [rides, setRides] = useState([]);
   const [rideDraft, setRideDraft] = useState(null);
@@ -243,7 +242,7 @@ export default function ManageTrip({ user, onLogout }) {
   // ---------------- prefs (order + widths) ----------------
   // visibleColumns khởi tạo mặc định từ allColumns
   const [visibleColumns, setVisibleColumns] = useState(
-    allColumns.map((c) => c.key)
+    allColumns.map((c) => c.key),
   );
   const [hiddenColumns, setHiddenColumns] = useState([]);
 
@@ -253,8 +252,8 @@ export default function ManageTrip({ user, onLogout }) {
       allColumns.map((c) => [
         c.key,
         ["ltState", "offState", "onlState"].includes(c.key) ? 50 : 80,
-      ])
-    )
+      ]),
+    ),
   );
 
   // flag: prefs đã load xong chưa
@@ -273,7 +272,7 @@ export default function ManageTrip({ user, onLogout }) {
       if (Array.isArray(parsed.order)) {
         // keep only valid keys and append missing columns
         const valid = parsed.order.filter((k) =>
-          allColumns.some((ac) => ac.key === k)
+          allColumns.some((ac) => ac.key === k),
         );
         const missing = allColumns
           .map((c) => c.key)
@@ -336,7 +335,7 @@ export default function ManageTrip({ user, onLogout }) {
     } catch (err) {
       console.error(
         "Lỗi lấy danh sách điều vận:",
-        err.response?.data || err.message
+        err.response?.data || err.message,
       );
     }
   };
@@ -362,7 +361,8 @@ export default function ManageTrip({ user, onLogout }) {
 
   const getVehicleInfo = (plate) => {
     return vehicleList.find(
-      (v) => v.plateNumber?.trim().toLowerCase() === plate?.trim().toLowerCase()
+      (v) =>
+        v.plateNumber?.trim().toLowerCase() === plate?.trim().toLowerCase(),
     );
   };
 
@@ -370,10 +370,10 @@ export default function ManageTrip({ user, onLogout }) {
   const [limit, setLimit] = useState(30);
   const [totalPages, setTotalPages] = useState(1);
   const [giaoFrom, setGiaoFrom] = useState(
-    () => localStorage.getItem("filter_giaoFrom") || ""
+    () => localStorage.getItem("filter_giaoFrom") || "",
   );
   const [giaoTo, setGiaoTo] = useState(
-    () => localStorage.getItem("filter_giaoTo") || ""
+    () => localStorage.getItem("filter_giaoTo") || "",
   );
 
   useEffect(() => {
@@ -415,7 +415,7 @@ export default function ManageTrip({ user, onLogout }) {
     });
 
   const [filters, setFilters] = useState(
-    Object.fromEntries(filterFields.map((f) => [f.key, ""]))
+    Object.fromEntries(filterFields.map((f) => [f.key, ""])),
   );
 
   // 🔒 DANH SÁCH GỐC – LƯU CỨNG
@@ -427,6 +427,7 @@ export default function ManageTrip({ user, onLogout }) {
     cuocPhi: [],
     maHoaDon: [],
     debtCode: [],
+    ngayGiaoHang: [],
   });
 
   // ✅ DANH SÁCH ĐƯỢC CHỌN
@@ -438,20 +439,40 @@ export default function ManageTrip({ user, onLogout }) {
     cuocPhi: [],
     maHoaDon: [],
     debtCode: [],
+    ngayGiaoHang: [],
   });
 
-  useEffect(() => {
-    axios
-      .get(`${API_URL}/accountant/filter-options`, {
-        params: {
-          fromDate: giaoFrom || undefined,
-          toDate: giaoTo || undefined,
-        },
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      .then((res) => setExcelOptions(res.data))
-      .catch(console.error);
-  }, [giaoFrom, giaoTo]);
+  const buildQueryParams = () => {
+    const q = {};
+
+    if (giaoFrom) q.giaoFrom = giaoFrom;
+    if (giaoTo) q.giaoTo = giaoTo;
+
+    // excelSelected
+    Object.entries(excelSelected).forEach(([key, arr]) => {
+      if (Array.isArray(arr) && arr.length > 0) {
+        q[key] = arr;
+      }
+    });
+
+    if (onlyEmptyMaHoaDon) q.maHoaDonEmpty = "1";
+    if (onlyEmptyDebtCode) q.debtCodeEmpty = "1";
+
+    // filter text
+    Object.entries(filters).forEach(([k, v]) => {
+      if (v !== "" && v !== null && v !== undefined) {
+        q[k] = v;
+      }
+    });
+
+    // money filter
+    Object.entries(moneyFilter).forEach(([k, v]) => {
+      if (v.empty) q[`${k}Empty`] = "1";
+      if (v.filled) q[`${k}Filled`] = "1";
+    });
+
+    return q;
+  };
 
   const [searchKH, setSearchKH] = useState("");
   const [searchDriver, setSearchDriver] = useState("");
@@ -460,11 +481,62 @@ export default function ManageTrip({ user, onLogout }) {
   const [searchCuocPhiBD, setSearchCuocPhiBD] = useState("");
   const [searchMaHoaDon, setSearchMaHoaDon] = useState("");
   const [searchDebtCode, setSearchDebtCode] = useState("");
+  const [searchNgayGiao, setSearchNgayGiao] = useState("");
 
   const [loading, setLoading] = useState(false);
+  const [sortBy, setSortBy] = useState(null); // 'ngayBocHang' | 'ngayGiaoHang' | 'maChuyen' | null
+  const [sortOrder, setSortOrder] = useState(null); // 'asc' | 'desc' | null
+
+  const toggleSort = (field) => {
+    if (sortBy !== field) {
+      // click cột mới
+      setSortBy(field);
+      setSortOrder("asc");
+    } else {
+      // click cùng cột
+      if (sortOrder === "asc") setSortOrder("desc");
+      else if (sortOrder === "desc") {
+        setSortBy(null);
+        setSortOrder(null);
+      } else {
+        setSortOrder("asc");
+      }
+    }
+  };
 
   const [onlyEmptyMaHoaDon, setOnlyEmptyMaHoaDon] = useState(false);
   const [onlyEmptyDebtCode, setOnlyEmptyDebtCode] = useState(false);
+
+  useEffect(() => {
+    axios
+      .get(`${API_URL}/accountant/filter-options`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: buildQueryParams(),
+        paramsSerializer: { indexes: null },
+      })
+      .then((res) => setExcelOptions(res.data))
+      .catch((err) =>
+        console.error(
+          "❌ fetch filter-options error:",
+          err.response?.data || err,
+        ),
+      );
+  }, [
+    giaoFrom,
+    giaoTo,
+    excelSelected.khachHang.join("|"),
+    excelSelected.tenLaiXe.join("|"),
+    excelSelected.bienSoXe.join("|"),
+    excelSelected.dienGiai.join("|"),
+    excelSelected.cuocPhi.join("|"),
+    excelSelected.maHoaDon.join("|"),
+    excelSelected.debtCode.join("|"),
+    excelSelected.ngayGiaoHang.join("|"),
+    JSON.stringify(filters),
+    JSON.stringify(moneyFilter),
+    onlyEmptyMaHoaDon,
+    onlyEmptyDebtCode,
+  ]);
 
   // 🔹 Lấy tất cả chuyến (có filter)
   const fetchAllRides = async () => {
@@ -510,6 +582,11 @@ export default function ManageTrip({ user, onLogout }) {
         q.append("debtCodeEmpty", "1");
       }
 
+      // 🔥 FILTER NGÀY GIAO HÀNG (DẠNG TÍCH CHỌN)
+      if (excelSelected.ngayGiaoHang?.length > 0) {
+        excelSelected.ngayGiaoHang.forEach((v) => q.append("ngayGiaoHang", v));
+      }
+
       // 🔹 FILTER TEXT
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== "" && value !== null && value !== undefined) {
@@ -525,6 +602,11 @@ export default function ManageTrip({ user, onLogout }) {
       // 🔹 FILTER NGÀY RIÊNG
       if (date) {
         q.append("date", format(new Date(date), "yyyy-MM-dd"));
+      }
+
+      if (sortBy && sortOrder) {
+        q.append("sortBy", sortBy);
+        q.append("sortOrder", sortOrder);
       }
 
       const res = await axios.get(`${API_URL}/accountant?${q.toString()}`, {
@@ -545,7 +627,7 @@ export default function ManageTrip({ user, onLogout }) {
     } catch (err) {
       console.error(
         "Lỗi khi lấy tất cả chuyến:",
-        err.response?.data || err.message
+        err.response?.data || err.message,
       );
       setRides([]);
       setWarnings({});
@@ -569,12 +651,15 @@ export default function ManageTrip({ user, onLogout }) {
     excelSelected.cuocPhi.join("|"),
     excelSelected.maHoaDon.join("|"),
     excelSelected.debtCode.join("|"),
+    excelSelected.ngayGiaoHang.join("|"),
     JSON.stringify(moneyFilter),
     date,
     page,
     limit,
     giaoFrom,
     giaoTo,
+    sortBy,
+    sortOrder,
     onlyEmptyMaHoaDon,
     onlyEmptyDebtCode,
   ]);
@@ -590,7 +675,7 @@ export default function ManageTrip({ user, onLogout }) {
   // 🔹 Checkbox chọn chuyến
   const toggleSelectTrip = (id) => {
     setSelectedTrips((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
   };
 
@@ -608,7 +693,7 @@ export default function ManageTrip({ user, onLogout }) {
             .map((id) => rides.find((r) => r._id === id)?.maChuyen)
             .filter(Boolean),
         },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       alert(res.data.message);
@@ -653,12 +738,12 @@ export default function ManageTrip({ user, onLogout }) {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
 
       saveAs(
         new Blob([res.data]),
-        `DANH_SACH_CHUYEN_${giaoFrom}_den_${giaoTo}.xlsx`
+        `DANH_SACH_CHUYEN_${giaoFrom}_den_${giaoTo}.xlsx`,
       );
     } catch (err) {
       console.error(err);
@@ -697,12 +782,12 @@ export default function ManageTrip({ user, onLogout }) {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
 
       saveAs(
         new Blob([res.data]),
-        `DANH_SACH_CHUYEN_BS_${giaoFrom}_den_${giaoTo}.xlsx`
+        `DANH_SACH_CHUYEN_BS_${giaoFrom}_den_${giaoTo}.xlsx`,
       );
     } catch (err) {
       console.error(err);
@@ -741,7 +826,7 @@ export default function ManageTrip({ user, onLogout }) {
       // Kiểm tra row có dữ liệu thật sự không
       const hasData = Object.values(row).some(
         (val) =>
-          val !== null && val !== undefined && val.toString().trim() !== ""
+          val !== null && val !== undefined && val.toString().trim() !== "",
       );
       if (!hasData) continue; // bỏ qua dòng trống
 
@@ -792,7 +877,7 @@ export default function ManageTrip({ user, onLogout }) {
         await axios.post(
           `${API_URL}/add-bo-sung`,
           { updates: [item] }, // gửi từng chuyến
-          { headers: { Authorization: `Bearer ${token}` } }
+          { headers: { Authorization: `Bearer ${token}` } },
         );
       } catch (err) {
         failed.push(item.maChuyen);
@@ -865,7 +950,7 @@ export default function ManageTrip({ user, onLogout }) {
       await axios.post(
         `${API_URL}/import-hoa-don`,
         { records },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       alert(`Import thành công ${records.length} chuyến`);
@@ -925,7 +1010,7 @@ export default function ManageTrip({ user, onLogout }) {
       await axios.post(
         `${API_URL}/import-ctxn`,
         { records },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       alert(`Import thành công ${records.length} chuyến`);
@@ -954,7 +1039,7 @@ export default function ManageTrip({ user, onLogout }) {
             .map((id) => rides.find((r) => r._id === id)?.maChuyen)
             .filter(Boolean),
         },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       alert(res.data.message);
@@ -996,7 +1081,7 @@ export default function ManageTrip({ user, onLogout }) {
           reason: formData.reason,
           newData: { ...formData },
         },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       alert("Đã gửi yêu cầu chỉnh sửa!");
@@ -1013,28 +1098,12 @@ export default function ManageTrip({ user, onLogout }) {
 
   //Danh sách yêu cầu của tôi
   const [showMyRequestModal, setShowMyRequestModal] = useState(false);
-  const [myRequests, setMyRequests] = useState([]);
-
-  const fetchMyRequests = async () => {
-    try {
-      const res = await axios.get(`${API_URL}/my-requests`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setMyRequests(res.data.data || []);
-    } catch (err) {
-      console.error(
-        "Lỗi lấy yêu cầu của tôi:",
-        err.response?.data || err.message
-      );
-    }
-  };
-
-  useEffect(() => {
-    fetchMyRequests();
-  }, []);
+  const [openingRequests, setOpeningRequests] = useState(false);
 
   const openMyRequests = () => {
-    fetchMyRequests();
+    if (openingRequests) return; // chặn double click
+
+    setOpeningRequests(true);
     setShowMyRequestModal(true);
   };
 
@@ -1147,13 +1216,13 @@ export default function ManageTrip({ user, onLogout }) {
             headers: { Authorization: `Bearer ${token}` },
           });
           counts[r._id] = res.data.editCount;
-        })
+        }),
       );
       setEditCounts(counts);
     } catch (err) {
       console.error(
         "Lỗi lấy số lần chỉnh sửa:",
-        err.response?.data || err.message
+        err.response?.data || err.message,
       );
     }
   };
@@ -1173,7 +1242,7 @@ export default function ManageTrip({ user, onLogout }) {
       setShowHistoryModal(true);
     } catch (err) {
       alert(
-        "Không lấy được lịch sử: " + (err.response?.data?.error || err.message)
+        "Không lấy được lịch sử: " + (err.response?.data?.error || err.message),
       );
     }
   };
@@ -1188,7 +1257,7 @@ export default function ManageTrip({ user, onLogout }) {
         {}, // body rỗng
         {
           headers: { Authorization: `Bearer ${token}` },
-        }
+        },
       );
 
       const newWarningState = res.data.warning;
@@ -1249,7 +1318,7 @@ export default function ManageTrip({ user, onLogout }) {
       (prev) =>
         prev.includes(id)
           ? prev.filter((x) => x !== id) // bỏ ra
-          : [...prev, id] // thêm vào
+          : [...prev, id], // thêm vào
     );
   };
 
@@ -1360,46 +1429,186 @@ export default function ManageTrip({ user, onLogout }) {
     }
   };
 
-  const filteredKhachHang = excelOptions.khachHang.filter((c) => {
-    if (!searchKH) return true;
-    return normalize(c).includes(normalize(searchKH));
-  });
+  const SORTABLE_COLUMNS = {
+    maChuyen: true,
+    ngayBocHang: true,
+    ngayGiaoHang: true,
+  };
 
-  const filteredTenLaiXe = excelOptions.tenLaiXe.filter((d) => {
-    if (!searchDriver) return true;
-    return normalize(d).includes(normalize(searchDriver));
-  });
+  const renderSortIcon = (field) => {
+    if (!SORTABLE_COLUMNS[field]) return null;
 
-  const filteredBienSoXe = excelOptions.bienSoXe.filter((p) => {
-    if (!searchPlate) return true;
-    return normalize(p).includes(normalize(searchPlate));
-  });
+    const active = sortBy === field;
 
-  const filteredDienGiai = excelOptions.dienGiai.filter((dg) => {
-    if (!searchDGiai) return true;
-    return normalize(dg).includes(normalize(searchDGiai));
-  });
+    return (
+      <span
+        className="flex flex-col ml-1 select-none"
+        onClick={(e) => {
+          e.stopPropagation(); // ❗ không mở filter
+          toggleSort(field);
+        }}
+        style={{ cursor: "pointer", lineHeight: "10px" }}
+      >
+        <span
+          style={{
+            fontSize: 9,
+            opacity: active && sortOrder === "asc" ? 1 : 0.3,
+          }}
+        >
+          ▲
+        </span>
+        <span
+          style={{
+            fontSize: 9,
+            marginTop: -2,
+            opacity: active && sortOrder === "desc" ? 1 : 0.3,
+          }}
+        >
+          ▼
+        </span>
+      </span>
+    );
+  };
 
-  const filteredCuocPhi = excelOptions.cuocPhi.filter((cp) => {
-    if (!searchCuocPhiBD) return true;
-    return normalize(cp).includes(normalize(searchCuocPhiBD));
-  });
+  const moveEmptyToTop = (arr) => {
+    if (!arr.includes("__EMPTY__")) return arr;
+    return ["__EMPTY__", ...arr.filter((x) => x !== "__EMPTY__")];
+  };
 
-  const filteredMaHoaDon = excelOptions.maHoaDon.filter((m) => {
-    if (onlyEmptyMaHoaDon && m) return false;
+  const filteredKhachHang = (() => {
+    const list = excelOptions.khachHang.filter((c) => {
+      if (!searchKH) return true;
+      return normalize(c).includes(normalize(searchKH));
+    });
 
-    if (!searchMaHoaDon) return true;
+    if (
+      excelSelected.khachHang.includes("__EMPTY__") &&
+      !list.includes("__EMPTY__")
+    ) {
+      list.push("__EMPTY__");
+    }
 
-    return normalize(m || "").includes(normalize(searchMaHoaDon));
-  });
+    return moveEmptyToTop(list);
+  })();
 
-  const filteredDebtCode = excelOptions.debtCode.filter((d) => {
-    if (onlyEmptyDebtCode && d) return false;
+  const filteredTenLaiXe = (() => {
+    const list = excelOptions.tenLaiXe.filter((d) => {
+      if (!searchDriver) return true;
+      return normalize(d).includes(normalize(searchDriver));
+    });
 
-    if (!searchDebtCode) return true;
+    if (
+      excelSelected.tenLaiXe.includes("__EMPTY__") &&
+      !list.includes("__EMPTY__")
+    ) {
+      list.push("__EMPTY__");
+    }
 
-    return normalize(d || "").includes(normalize(searchDebtCode));
-  });
+    return moveEmptyToTop(list);
+  })();
+
+  const filteredBienSoXe = (() => {
+    const list = excelOptions.bienSoXe.filter((p) => {
+      if (!searchPlate) return true;
+      return normalize(p).includes(normalize(searchPlate));
+    });
+
+    if (
+      excelSelected.bienSoXe.includes("__EMPTY__") &&
+      !list.includes("__EMPTY__")
+    ) {
+      list.push("__EMPTY__");
+    }
+
+    return moveEmptyToTop(list);
+  })();
+
+  const filteredDienGiai = (() => {
+    const list = excelOptions.dienGiai.filter((dg) => {
+      if (!searchDGiai) return true;
+      return normalize(dg).includes(normalize(searchDGiai));
+    });
+
+    if (
+      excelSelected.dienGiai.includes("__EMPTY__") &&
+      !list.includes("__EMPTY__")
+    ) {
+      list.push("__EMPTY__");
+    }
+
+    return moveEmptyToTop(list);
+  })();
+
+  const filteredCuocPhi = (() => {
+    const list = excelOptions.cuocPhi.filter((cp) => {
+      if (!searchCuocPhiBD) return true;
+      return normalize(cp).includes(normalize(searchCuocPhiBD));
+    });
+
+    if (
+      excelSelected.cuocPhi.includes("__EMPTY__") &&
+      !list.includes("__EMPTY__")
+    ) {
+      list.push("__EMPTY__");
+    }
+
+    return moveEmptyToTop(list);
+  })();
+
+  const filteredMaHoaDon = (() => {
+    const list = excelOptions.maHoaDon.filter((m) => {
+      // chỉ lọc empty
+      if (onlyEmptyMaHoaDon && m) return false;
+
+      if (!searchMaHoaDon) return true;
+      return normalize(m || "").includes(normalize(searchMaHoaDon));
+    });
+
+    if (
+      excelSelected.maHoaDon.includes("__EMPTY__") &&
+      !list.includes("__EMPTY__")
+    ) {
+      list.push("__EMPTY__");
+    }
+
+    return moveEmptyToTop(list);
+  })();
+
+  const filteredDebtCode = (() => {
+    const list = excelOptions.debtCode.filter((d) => {
+      // chỉ lọc empty
+      if (onlyEmptyDebtCode && d) return false;
+
+      if (!searchDebtCode) return true;
+      return normalize(d || "").includes(normalize(searchDebtCode));
+    });
+
+    if (
+      excelSelected.debtCode.includes("__EMPTY__") &&
+      !list.includes("__EMPTY__")
+    ) {
+      list.push("__EMPTY__");
+    }
+
+    return moveEmptyToTop(list);
+  })();
+
+  const filteredNgayGiaoHang = (() => {
+    const list = excelOptions.ngayGiaoHang.filter((d) => {
+      if (!searchNgayGiao) return true;
+      if (d === "__EMPTY__") return true;
+      return d.includes(searchNgayGiao);
+    });
+
+    if (
+      excelSelected.ngayGiaoHang.includes("__EMPTY__") &&
+      !list.includes("__EMPTY__")
+    ) {
+      list.push("__EMPTY__");
+    }
+
+    return moveEmptyToTop(list);
+  })();
 
   // ---------- Render ----------
   return (
@@ -1564,9 +1773,16 @@ export default function ManageTrip({ user, onLogout }) {
       <div className="flex flex-wrap gap-2 mb-3 items-center">
         <button
           onClick={openMyRequests}
-          className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg"
+          disabled={openingRequests}
+          className={`px-4 py-2 rounded-lg text-white transition
+    ${
+      openingRequests
+        ? "bg-gray-400 cursor-not-allowed"
+        : "bg-purple-600 hover:bg-purple-700"
+    }
+  `}
         >
-          Yêu cầu của tôi
+          {openingRequests ? "Đang tải..." : "Yêu cầu của tôi"}
         </button>
 
         <button
@@ -1748,7 +1964,7 @@ export default function ManageTrip({ user, onLogout }) {
                       onChange={() => {
                         setHiddenColumns((prev) => {
                           const dangHien = g.keys.every(
-                            (k) => !prev.includes(k)
+                            (k) => !prev.includes(k),
                           );
                           return dangHien
                             ? [...new Set([...prev, ...g.keys])]
@@ -1773,7 +1989,7 @@ export default function ManageTrip({ user, onLogout }) {
                           setHiddenColumns((prev) =>
                             prev.includes(col.key)
                               ? prev.filter((k) => k !== col.key)
-                              : [...prev, col.key]
+                              : [...prev, col.key],
                           );
                         }}
                       />
@@ -1797,7 +2013,7 @@ export default function ManageTrip({ user, onLogout }) {
           <button
             onClick={() => {
               setFilters(
-                Object.fromEntries(filterFields.map((f) => [f.key, ""]))
+                Object.fromEntries(filterFields.map((f) => [f.key, ""])),
               );
               setExcelSelected({
                 khachHang: [],
@@ -1807,6 +2023,7 @@ export default function ManageTrip({ user, onLogout }) {
                 cuocPhi: [],
                 maHoaDon: [],
                 debtCode: [],
+                ngayGiaoHang: []
               });
               setSearchKH("");
               setSearchCuocPhiBD("");
@@ -1816,6 +2033,7 @@ export default function ManageTrip({ user, onLogout }) {
               setSearchPlate("");
               setSearchMaHoaDon("");
               setMoneyFilter("");
+              setSearchNgayGiao("");
               setPage(1);
             }}
             className="px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded shadow"
@@ -1876,7 +2094,7 @@ export default function ManageTrip({ user, onLogout }) {
                   }
                   onChange={(e) =>
                     setSelectedTrips(
-                      e.target.checked ? rides.map((r) => r._id) : []
+                      e.target.checked ? rides.map((r) => r._id) : [],
                     )
                   }
                 />
@@ -1890,9 +2108,6 @@ export default function ManageTrip({ user, onLogout }) {
                   label: colKey,
                 };
                 const width = columnWidths[col.key] || 1 + "px";
-                const fieldType =
-                  filterFields.find((f) => f.key === col.key)?.type || "text";
-                const dateFields = ["ngayBoc", "ngayBocHang", "ngayGiaoHang"];
 
                 // LEFT OFFSET CHO 2 CỘT CỐ ĐỊNH TIẾP THEO
                 let leftOffset = null;
@@ -1926,7 +2141,7 @@ export default function ManageTrip({ user, onLogout }) {
                       background: "#2563eb",
                       width,
                       minWidth: ["ltState", "offState", "onlState"].includes(
-                        col.key
+                        col.key,
                       )
                         ? 5
                         : width,
@@ -1955,17 +2170,17 @@ export default function ManageTrip({ user, onLogout }) {
                       style={{ cursor: "pointer" }}
                     >
                       <span
-                        className="text-center"
+                        className="flex items-center justify-center"
                         style={{
                           whiteSpace: "normal",
                           wordBreak: "break-word",
                           lineHeight: "14px",
-                          display: "block",
-                          maxHeight: "28px", // = 2 dòng
+                          maxHeight: "30px",
                           overflow: "hidden",
                         }}
                       >
                         {col.label}
+                        {renderSortIcon(col.key)}
                       </span>
                     </div>
 
@@ -2014,14 +2229,14 @@ export default function ManageTrip({ user, onLogout }) {
                                 checked={
                                   filteredKhachHang.length > 0 &&
                                   filteredKhachHang.every((c) =>
-                                    excelSelected.khachHang.includes(c)
+                                    excelSelected.khachHang.includes(c),
                                   )
                                 }
                                 onChange={() => {
                                   setExcelSelected((prev) => {
                                     const isAllSelected =
                                       filteredKhachHang.every((c) =>
-                                        prev.khachHang.includes(c)
+                                        prev.khachHang.includes(c),
                                       );
 
                                     return {
@@ -2029,12 +2244,13 @@ export default function ManageTrip({ user, onLogout }) {
                                       khachHang: isAllSelected
                                         ? prev.khachHang.filter(
                                             (x) =>
-                                              !filteredKhachHang.includes(x)
+                                              !filteredKhachHang.includes(x),
                                           )
                                         : [
                                             ...prev.khachHang,
                                             ...filteredKhachHang.filter(
-                                              (x) => !prev.khachHang.includes(x)
+                                              (x) =>
+                                                !prev.khachHang.includes(x),
                                             ),
                                           ],
                                     };
@@ -2054,7 +2270,7 @@ export default function ManageTrip({ user, onLogout }) {
                                   <input
                                     type="checkbox"
                                     checked={excelSelected.khachHang.includes(
-                                      c
+                                      c,
                                     )}
                                     onChange={() =>
                                       setExcelSelected((p) => ({
@@ -2065,7 +2281,11 @@ export default function ManageTrip({ user, onLogout }) {
                                       }))
                                     }
                                   />
-                                  <span className="truncate">{c}</span>
+                                  <span className="truncate">
+                                    {c === "__EMPTY__"
+                                      ? "(Trống / chưa có)"
+                                      : c}
+                                  </span>
                                 </label>
                               ))}
                             </div>
@@ -2115,25 +2335,26 @@ export default function ManageTrip({ user, onLogout }) {
                                 checked={
                                   filteredTenLaiXe.length > 0 &&
                                   filteredTenLaiXe.every((d) =>
-                                    excelSelected.tenLaiXe.includes(d)
+                                    excelSelected.tenLaiXe.includes(d),
                                   )
                                 }
                                 onChange={() => {
                                   setExcelSelected((prev) => {
                                     const isAllSelected =
                                       filteredTenLaiXe.every((d) =>
-                                        prev.tenLaiXe.includes(d)
+                                        prev.tenLaiXe.includes(d),
                                       );
                                     return {
                                       ...prev,
                                       tenLaiXe: isAllSelected
                                         ? prev.tenLaiXe.filter(
-                                            (x) => !filteredTenLaiXe.includes(x)
+                                            (x) =>
+                                              !filteredTenLaiXe.includes(x),
                                           )
                                         : [
                                             ...prev.tenLaiXe,
                                             ...filteredTenLaiXe.filter(
-                                              (x) => !prev.tenLaiXe.includes(x)
+                                              (x) => !prev.tenLaiXe.includes(x),
                                             ),
                                           ],
                                     };
@@ -2162,7 +2383,11 @@ export default function ManageTrip({ user, onLogout }) {
                                       }))
                                     }
                                   />
-                                  <span className="truncate">{d}</span>
+                                  <span className="truncate">
+                                    {d === "__EMPTY__"
+                                      ? "(Trống / chưa có)"
+                                      : d}
+                                  </span>
                                 </label>
                               ))}
                             </div>
@@ -2212,25 +2437,26 @@ export default function ManageTrip({ user, onLogout }) {
                                 checked={
                                   filteredBienSoXe.length > 0 &&
                                   filteredBienSoXe.every((p) =>
-                                    excelSelected.bienSoXe.includes(p)
+                                    excelSelected.bienSoXe.includes(p),
                                   )
                                 }
                                 onChange={() => {
                                   setExcelSelected((prev) => {
                                     const isAllSelected =
                                       filteredBienSoXe.every((p) =>
-                                        prev.bienSoXe.includes(p)
+                                        prev.bienSoXe.includes(p),
                                       );
                                     return {
                                       ...prev,
                                       bienSoXe: isAllSelected
                                         ? prev.bienSoXe.filter(
-                                            (x) => !filteredBienSoXe.includes(x)
+                                            (x) =>
+                                              !filteredBienSoXe.includes(x),
                                           )
                                         : [
                                             ...prev.bienSoXe,
                                             ...filteredBienSoXe.filter(
-                                              (x) => !prev.bienSoXe.includes(x)
+                                              (x) => !prev.bienSoXe.includes(x),
                                             ),
                                           ],
                                     };
@@ -2259,7 +2485,11 @@ export default function ManageTrip({ user, onLogout }) {
                                       }))
                                     }
                                   />
-                                  <span className="truncate">{p}</span>
+                                  <span className="truncate">
+                                    {p === "__EMPTY__"
+                                      ? "(Trống / chưa có)"
+                                      : p}
+                                  </span>
                                 </label>
                               ))}
                             </div>
@@ -2309,25 +2539,26 @@ export default function ManageTrip({ user, onLogout }) {
                                 checked={
                                   filteredDienGiai.length > 0 &&
                                   filteredDienGiai.every((dg) =>
-                                    excelSelected.dienGiai.includes(dg)
+                                    excelSelected.dienGiai.includes(dg),
                                   )
                                 }
                                 onChange={() => {
                                   setExcelSelected((prev) => {
                                     const isAllSelected =
                                       filteredDienGiai.every((dg) =>
-                                        prev.dienGiai.includes(dg)
+                                        prev.dienGiai.includes(dg),
                                       );
                                     return {
                                       ...prev,
                                       dienGiai: isAllSelected
                                         ? prev.dienGiai.filter(
-                                            (x) => !filteredDienGiai.includes(x)
+                                            (x) =>
+                                              !filteredDienGiai.includes(x),
                                           )
                                         : [
                                             ...prev.dienGiai,
                                             ...filteredDienGiai.filter(
-                                              (x) => !prev.dienGiai.includes(x)
+                                              (x) => !prev.dienGiai.includes(x),
                                             ),
                                           ],
                                     };
@@ -2347,20 +2578,24 @@ export default function ManageTrip({ user, onLogout }) {
                                   <input
                                     type="checkbox"
                                     checked={excelSelected.dienGiai.includes(
-                                      dg
+                                      dg,
                                     )}
                                     onChange={() =>
                                       setExcelSelected((prev) => ({
                                         ...prev,
                                         dienGiai: prev.dienGiai.includes(dg)
                                           ? prev.dienGiai.filter(
-                                              (x) => x !== dg
+                                              (x) => x !== dg,
                                             )
                                           : [...prev.dienGiai, dg],
                                       }))
                                     }
                                   />
-                                  <span className="truncate">{dg}</span>
+                                  <span className="truncate">
+                                    {dg === "__EMPTY__"
+                                      ? "(Trống / chưa có)"
+                                      : dg}
+                                  </span>
                                 </label>
                               ))}
                             </div>
@@ -2412,24 +2647,24 @@ export default function ManageTrip({ user, onLogout }) {
                                 checked={
                                   filteredCuocPhi.length > 0 &&
                                   filteredCuocPhi.every((cp) =>
-                                    excelSelected.cuocPhi.includes(cp)
+                                    excelSelected.cuocPhi.includes(cp),
                                   )
                                 }
                                 onChange={() => {
                                   setExcelSelected((prev) => {
                                     const isAllSelected = filteredCuocPhi.every(
-                                      (cp) => prev.cuocPhi.includes(cp)
+                                      (cp) => prev.cuocPhi.includes(cp),
                                     );
                                     return {
                                       ...prev,
                                       cuocPhi: isAllSelected
                                         ? prev.cuocPhi.filter(
-                                            (x) => !filteredCuocPhi.includes(x)
+                                            (x) => !filteredCuocPhi.includes(x),
                                           )
                                         : [
                                             ...prev.cuocPhi,
                                             ...filteredCuocPhi.filter(
-                                              (x) => !prev.cuocPhi.includes(x)
+                                              (x) => !prev.cuocPhi.includes(x),
                                             ),
                                           ],
                                     };
@@ -2459,7 +2694,9 @@ export default function ManageTrip({ user, onLogout }) {
                                     }
                                   />
                                   <span className="truncate">
-                                    {formatNumber(cp)}
+                                    {cp === "__EMPTY__"
+                                      ? "(Trống / chưa có)"
+                                      : formatNumber(cp)}
                                   </span>
                                 </label>
                               ))}
@@ -2505,47 +2742,32 @@ export default function ManageTrip({ user, onLogout }) {
                               }
                             />
 
-                            <label className="flex gap-1 items-center mb-1 text-red-600 font-semibold">
-                              <input
-                                type="checkbox"
-                                checked={onlyEmptyMaHoaDon}
-                                onChange={() => {
-                                  setOnlyEmptyMaHoaDon((p) => !p);
-                                  setExcelSelected((prev) => ({
-                                    ...prev,
-                                    maHoaDon: [],
-                                  }));
-                                  setPage(1);
-                                }}
-                              />
-                              Chưa nhập
-                            </label>
-
                             <label className="flex gap-1 items-center mb-1 font-semibold">
                               <input
                                 type="checkbox"
                                 checked={
                                   filteredMaHoaDon.length > 0 &&
                                   filteredMaHoaDon.every((m) =>
-                                    excelSelected.maHoaDon.includes(m)
+                                    excelSelected.maHoaDon.includes(m),
                                   )
                                 }
                                 onChange={() => {
                                   setExcelSelected((prev) => {
                                     const isAllSelected =
                                       filteredMaHoaDon.every((m) =>
-                                        prev.maHoaDon.includes(m)
+                                        prev.maHoaDon.includes(m),
                                       );
                                     return {
                                       ...prev,
                                       maHoaDon: isAllSelected
                                         ? prev.maHoaDon.filter(
-                                            (x) => !filteredMaHoaDon.includes(x)
+                                            (x) =>
+                                              !filteredMaHoaDon.includes(x),
                                           )
                                         : [
                                             ...prev.maHoaDon,
                                             ...filteredMaHoaDon.filter(
-                                              (x) => !prev.maHoaDon.includes(x)
+                                              (x) => !prev.maHoaDon.includes(x),
                                             ),
                                           ],
                                     };
@@ -2565,21 +2787,23 @@ export default function ManageTrip({ user, onLogout }) {
                                   <input
                                     type="checkbox"
                                     checked={excelSelected.maHoaDon.includes(
-                                      cp
+                                      cp,
                                     )}
                                     onChange={() =>
                                       setExcelSelected((prev) => ({
                                         ...prev,
                                         maHoaDon: prev.maHoaDon.includes(cp)
                                           ? prev.maHoaDon.filter(
-                                              (x) => x !== cp
+                                              (x) => x !== cp,
                                             )
                                           : [...prev.maHoaDon, cp],
                                       }))
                                     }
                                   />
                                   <span className="truncate">
-                                    {formatNumber(cp)}
+                                    {cp === "__EMPTY__"
+                                      ? "(Trống / chưa có)"
+                                      : formatNumber(cp)}
                                   </span>
                                 </label>
                               ))}
@@ -2625,21 +2849,6 @@ export default function ManageTrip({ user, onLogout }) {
                                 setSearchDebtCode(e.target.value)
                               }
                             />
-                            <label className="flex gap-1 items-center mb-1 text-red-600 font-semibold">
-                              <input
-                                type="checkbox"
-                                checked={onlyEmptyDebtCode}
-                                onChange={() => {
-                                  setOnlyEmptyDebtCode((p) => !p);
-                                  setExcelSelected((prev) => ({
-                                    ...prev,
-                                    debtCode: [],
-                                  }));
-                                  setPage(1);
-                                }}
-                              />
-                              Chưa có KCN
-                            </label>
 
                             <label className="flex gap-1 items-center mb-1 font-semibold">
                               <input
@@ -2647,25 +2856,26 @@ export default function ManageTrip({ user, onLogout }) {
                                 checked={
                                   filteredDebtCode.length > 0 &&
                                   filteredDebtCode.every((d) =>
-                                    excelSelected.debtCode.includes(d)
+                                    excelSelected.debtCode.includes(d),
                                   )
                                 }
                                 onChange={() => {
                                   setExcelSelected((prev) => {
                                     const isAllSelected =
                                       filteredDebtCode.every((d) =>
-                                        prev.debtCode.includes(d)
+                                        prev.debtCode.includes(d),
                                       );
                                     return {
                                       ...prev,
                                       debtCode: isAllSelected
                                         ? prev.debtCode.filter(
-                                            (x) => !filteredDebtCode.includes(x)
+                                            (x) =>
+                                              !filteredDebtCode.includes(x),
                                           )
                                         : [
                                             ...prev.debtCode,
                                             ...filteredDebtCode.filter(
-                                              (x) => !prev.debtCode.includes(x)
+                                              (x) => !prev.debtCode.includes(x),
                                             ),
                                           ],
                                     };
@@ -2685,21 +2895,23 @@ export default function ManageTrip({ user, onLogout }) {
                                   <input
                                     type="checkbox"
                                     checked={excelSelected.debtCode.includes(
-                                      cp
+                                      cp,
                                     )}
                                     onChange={() =>
                                       setExcelSelected((prev) => ({
                                         ...prev,
                                         debtCode: prev.debtCode.includes(cp)
                                           ? prev.debtCode.filter(
-                                              (x) => x !== cp
+                                              (x) => x !== cp,
                                             )
                                           : [...prev.debtCode, cp],
                                       }))
                                     }
                                   />
                                   <span className="truncate">
-                                    {formatNumber(cp)}
+                                    {cp === "__EMPTY__"
+                                      ? "(Trống / chưa có)"
+                                      : formatNumber(cp)}
                                   </span>
                                 </label>
                               ))}
@@ -2733,6 +2945,115 @@ export default function ManageTrip({ user, onLogout }) {
                             </div>
                           </>
                         )}
+                        {/* ===== FILTER NGÀY GIAO HÀNG ===== */}
+                        {openFilter === "ngayGiaoHang" && (
+                          <>
+                            <input
+                              type="date"
+                              className="border w-full px-2 py-1 mb-1"
+                              value={searchNgayGiao}
+                              onChange={(e) =>
+                                setSearchNgayGiao(e.target.value)
+                              }
+                            />
+
+                            <label className="flex gap-1 items-center mb-1 font-semibold">
+                              <input
+                                type="checkbox"
+                                checked={
+                                  filteredNgayGiaoHang.length > 0 &&
+                                  filteredNgayGiaoHang.every((d) =>
+                                    excelSelected.ngayGiaoHang.includes(d),
+                                  )
+                                }
+                                onChange={() => {
+                                  setExcelSelected((prev) => {
+                                    const isAllSelected =
+                                      filteredNgayGiaoHang.every((d) =>
+                                        prev.ngayGiaoHang.includes(d),
+                                      );
+
+                                    return {
+                                      ...prev,
+                                      ngayGiaoHang: isAllSelected
+                                        ? prev.ngayGiaoHang.filter(
+                                            (x) =>
+                                              !filteredNgayGiaoHang.includes(x),
+                                          )
+                                        : [
+                                            ...prev.ngayGiaoHang,
+                                            ...filteredNgayGiaoHang.filter(
+                                              (x) =>
+                                                !prev.ngayGiaoHang.includes(x),
+                                            ),
+                                          ],
+                                    };
+                                  });
+                                  setPage(1);
+                                }}
+                              />
+                              Chọn tất cả ({filteredNgayGiaoHang.length})
+                            </label>
+
+                            <div className="max-h-40 overflow-y-auto border p-1">
+                              {filteredNgayGiaoHang.map((d) => (
+                                <label
+                                  key={d}
+                                  className="flex gap-1 items-center"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={excelSelected.ngayGiaoHang.includes(
+                                      d,
+                                    )}
+                                    onChange={() =>
+                                      setExcelSelected((p) => ({
+                                        ...p,
+                                        ngayGiaoHang: p.ngayGiaoHang.includes(d)
+                                          ? p.ngayGiaoHang.filter(
+                                              (x) => x !== d,
+                                            )
+                                          : [...p.ngayGiaoHang, d],
+                                      }))
+                                    }
+                                  />
+                                  <span>
+                                    {d === "__EMPTY__"
+                                      ? "(Trống / chưa có)"
+                                      : new Date(d).toLocaleDateString("vi-VN")}
+                                  </span>
+                                </label>
+                              ))}
+                            </div>
+
+                            <div className="flex gap-1 mt-2">
+                              <button
+                                className="flex-1 bg-blue-600 text-white px-2 py-1 rounded"
+                                onClick={() => {
+                                  setPage(1);
+                                  setOpenFilter(null);
+                                }}
+                              >
+                                Áp dụng
+                              </button>
+
+                              <button
+                                className="flex-1 bg-gray-200 px-2 py-1 rounded"
+                                onClick={() => {
+                                  setExcelSelected((p) => ({
+                                    ...p,
+                                    ngayGiaoHang: [],
+                                  }));
+                                  setSearchNgayGiao("");
+                                  setPage(1);
+                                  setOpenFilter(null);
+                                }}
+                              >
+                                Xóa
+                              </button>
+                            </div>
+                          </>
+                        )}
 
                         {/* ===== FILTER CÁC CỘT CÒN LẠI (TEXT / DATE) ===== */}
                         {![
@@ -2743,14 +3064,13 @@ export default function ManageTrip({ user, onLogout }) {
                           "cuocPhi",
                           "maHoaDon",
                           "debtCode",
+                          "ngayGiaoHang",
                         ].includes(openFilter) &&
                           !moneyColumns.includes(openFilter) && (
                             <>
-                              {[
-                                "ngayBoc",
-                                "ngayBocHang",
-                                "ngayGiaoHang",
-                              ].includes(openFilter) ? (
+                              {["ngayBoc", "ngayBocHang"].includes(
+                                openFilter,
+                              ) ? (
                                 <input
                                   type="date"
                                   className="w-full border px-2 py-1 rounded text-black"
@@ -2767,7 +3087,7 @@ export default function ManageTrip({ user, onLogout }) {
                                   type="text"
                                   className="w-full border px-2 py-1 rounded text-black"
                                   placeholder={`Lọc theo ${getColumnLabel(
-                                    openFilter
+                                    openFilter,
                                   )}`}
                                   value={filters[openFilter] || ""}
                                   onChange={(e) =>
@@ -3032,8 +3352,8 @@ export default function ManageTrip({ user, onLogout }) {
                   ].includes(col.key)
                     ? formatDate(r[col.key])
                     : col.key === "dieuVan"
-                    ? getFullName(r.dieuVanID)
-                    : r[col.key] ?? "";
+                      ? getFullName(r.dieuVanID)
+                      : (r[col.key] ?? "");
 
                   let leftOffset = null;
                   if (colIndex === 0) leftOffset = 40;
@@ -3064,8 +3384,8 @@ export default function ManageTrip({ user, onLogout }) {
                         background: warnings[r._id]
                           ? "#fecaca"
                           : selectedRows.includes(r._id)
-                          ? "#fef08a" // màu vàng nhạt
-                          : "#fff",
+                            ? "#fef08a" // màu vàng nhạt
+                            : "#fff",
 
                         textAlign: "left",
                         width,
@@ -3094,7 +3414,7 @@ export default function ManageTrip({ user, onLogout }) {
                                     x: e.clientX + 15,
                                     y: e.clientY + 15,
                                   }
-                                : null
+                                : null,
                             );
                           }}
                           onMouseLeave={() => setHoverVehicle(null)}
@@ -3306,8 +3626,11 @@ export default function ManageTrip({ user, onLogout }) {
       <div className="fixed z-[99999]">
         <RideRequestListModal
           open={showMyRequestModal}
-          onClose={() => setShowMyRequestModal(false)}
-          requests={myRequests}
+          onClose={() => {
+            setShowMyRequestModal(false);
+            setOpeningRequests(false);
+          }}
+          onLoaded={() => setOpeningRequests(false)}
           title="Yêu cầu chỉnh sửa của tôi"
         />
       </div>
@@ -3348,7 +3671,7 @@ export default function ManageTrip({ user, onLogout }) {
           onClose={() => setOpenBoSung(false)}
           onSaved={(updatedRide) => {
             setRides((prev) =>
-              prev.map((r) => (r._id === updatedRide._id ? updatedRide : r))
+              prev.map((r) => (r._id === updatedRide._id ? updatedRide : r)),
             );
 
             setOpenBoSung(false);

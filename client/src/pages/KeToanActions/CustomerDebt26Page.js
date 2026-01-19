@@ -59,7 +59,7 @@ export default function CustomerDebt26Page() {
     const now = new Date();
     return format(
       new Date(now.getFullYear(), now.getMonth() + 1, 0),
-      "yyyy-MM-dd"
+      "yyyy-MM-dd",
     );
   };
 
@@ -200,6 +200,7 @@ export default function CustomerDebt26Page() {
     dienGiai: [],
     cuocPhi: [],
     daThanhToan: [],
+    ngayGiaoHang: [],
   });
 
   const [excelSelected, setExcelSelected] = useState({
@@ -209,20 +210,8 @@ export default function CustomerDebt26Page() {
     dienGiai: [],
     cuocPhi: [],
     daThanhToan: [],
+    ngayGiaoHang: [],
   });
-
-  useEffect(() => {
-    axios
-      .get(`${API}/odd-debt/filter-all`, {
-        headers: `Bearer ${localStorage.getItem("token")}`,
-        params: {
-          fromDate: startDate || undefined,
-          toDate: endDate || undefined,
-        },
-      })
-      .then((res) => setExcelOptions(res.data))
-      .catch((err) => console.error("❌ fetch filter-all error:", err));
-  }, [startDate, endDate]);
 
   const [searchKH, setSearchKH] = useState("");
   const [searchDriver, setSearchDriver] = useState("");
@@ -230,6 +219,7 @@ export default function CustomerDebt26Page() {
   const [searchDGiai, setSearchDGiai] = useState("");
   const [searchCuocPhiBD, setSearchCuocPhiBD] = useState("");
   const [searchDTT, setSearchDTT] = useState("");
+  const [searchNgayGiao, setSearchNgayGiao] = useState("");
 
   // ===== SORT (match BE getOddCustomerDebt) =====
   const SORTABLE_COLUMNS = {
@@ -265,6 +255,58 @@ export default function CustomerDebt26Page() {
   const [tongTienAll, setTongTienAll] = useState(0);
   const [conLaiAll, setConLaiAll] = useState(0);
 
+  const buildQueryParams = () => {
+    const q = {};
+
+    if (startDate) q.startDate = startDate;
+    if (endDate) q.endDate = endDate;
+
+    // excelSelected
+    Object.entries(excelSelected).forEach(([key, arr]) => {
+      if (Array.isArray(arr) && arr.length > 0) {
+        q[key] = arr;
+      }
+    });
+
+    // filter text
+    Object.entries(filters).forEach(([k, v]) => {
+      if (v !== "" && v !== null && v !== undefined) {
+        q[k] = v;
+      }
+    });
+
+    // money filter
+    Object.entries(moneyFilter).forEach(([k, v]) => {
+      if (v.empty) q[`${k}Empty`] = "1";
+      if (v.filled) q[`${k}Filled`] = "1";
+    });
+
+    return q;
+  };
+
+  useEffect(() => {
+    axios
+      .get(`${API}/odd-debt/filter-all`, {
+        headers: `Bearer ${localStorage.getItem("token")}`,
+        params: buildQueryParams(),
+        paramsSerializer: { indexes: null },
+      })
+      .then((res) => setExcelOptions(res.data))
+      .catch((err) => console.error("❌ fetch filter-all error:", err));
+  }, [
+    startDate,
+    endDate,
+    excelSelected.nameCustomer.join("|"),
+    excelSelected.tenLaiXe.join("|"),
+    excelSelected.bienSoXe.join("|"),
+    excelSelected.dienGiai.join("|"),
+    excelSelected.cuocPhi.join("|"),
+    excelSelected.daThanhToan.join("|"),
+    excelSelected.ngayGiaoHang.join("|"),
+    JSON.stringify(filters),
+    JSON.stringify(moneyFilter),
+  ]);
+
   const loadData = async (p = page) => {
     if (loading) return;
     setLoading(true);
@@ -296,7 +338,12 @@ export default function CustomerDebt26Page() {
       if (excelSelected.daThanhToan.length > 0) {
         excelSelected.daThanhToan.forEach((v) => q.append("daThanhToan", v));
       }
-
+      if (excelSelected.ngayGiaoHang.length > 0) {
+        excelSelected.ngayGiaoHang.forEach((v) => q.append("ngayGiaoHang", v));
+      }
+      if (excelSelected.ngayGiaoHang?.length > 0) {
+        excelSelected.ngayGiaoHang.forEach((v) => q.append("ngayGiaoHang", v));
+      }
       // ===== FILTER NHẬP TEXT / DATE (GỬI LÊN BE) =====
       Object.entries(filters || {}).forEach(([key, val]) => {
         if (val !== undefined && val !== null && val !== "") {
@@ -355,6 +402,7 @@ export default function CustomerDebt26Page() {
     excelSelected.dienGiai.join("|"),
     excelSelected.cuocPhi.join("|"),
     excelSelected.daThanhToan.join("|"),
+    excelSelected.ngayGiaoHang.join("|"),
     JSON.stringify(filters),
     JSON.stringify(moneyFilter),
     sort,
@@ -380,7 +428,7 @@ export default function CustomerDebt26Page() {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
-        }
+        },
       );
 
       alert("✅ Đã tạo công nợ khách lẻ");
@@ -396,7 +444,7 @@ export default function CustomerDebt26Page() {
   const handleSyncOddDebt = async () => {
     if (
       !window.confirm(
-        "Cập nhật thông tin từ chuyến gốc sang công nợ trong khoảng ngày này?"
+        "Cập nhật thông tin từ chuyến gốc sang công nợ trong khoảng ngày này?",
       )
     )
       return;
@@ -410,7 +458,7 @@ export default function CustomerDebt26Page() {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
-        }
+        },
       );
 
       alert("🔄 Đã cập nhật công nợ");
@@ -426,7 +474,7 @@ export default function CustomerDebt26Page() {
   const handleSyncOddToBase = async () => {
     if (
       !window.confirm(
-        "Chèn chi phí Khách Lẻ về chuyến gốc theo chi phí bổ sung theo khoảng ngày giao này?"
+        "Chèn chi phí Khách Lẻ về chuyến gốc theo chi phí bổ sung theo khoảng ngày giao này?",
       )
     )
       return;
@@ -441,7 +489,7 @@ export default function CustomerDebt26Page() {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
-        }
+        },
       );
 
       alert("Đã chèn chi phí về chuyến gốc :v");
@@ -478,12 +526,12 @@ export default function CustomerDebt26Page() {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
-        }
+        },
       );
 
       saveAs(
         new Blob([res.data]),
-        `CONG_NO_KHACH_LE_${startDate}_den_${endDate}.xlsx`
+        `CONG_NO_KHACH_LE_${startDate}_den_${endDate}.xlsx`,
       );
     } catch (err) {
       console.error(err);
@@ -495,7 +543,7 @@ export default function CustomerDebt26Page() {
 
   const toggleColumn = (key) => {
     const newCols = columns.map((c) =>
-      c.key === key ? { ...c, visible: !c.visible } : c
+      c.key === key ? { ...c, visible: !c.visible } : c,
     );
     saveColumns(newCols);
   };
@@ -569,8 +617,8 @@ export default function CustomerDebt26Page() {
 
       saveColumns(
         columns.map((c) =>
-          c.key === resizing.key ? { ...c, width: newWidth } : c
-        )
+          c.key === resizing.key ? { ...c, width: newWidth } : c,
+        ),
       );
     };
 
@@ -615,7 +663,7 @@ export default function CustomerDebt26Page() {
       const fieldValue = removeVietnameseTones(t[key] ?? "");
       const filterValue = removeVietnameseTones(val);
       return fieldValue.includes(filterValue);
-    })
+    }),
   );
 
   const [showColumnSetting, setShowColumnSetting] = useState(false);
@@ -628,12 +676,14 @@ export default function CustomerDebt26Page() {
       dienGiai: [],
       cuocPhi: [],
       daThanhToan: [],
+      ngayGiaoHang: [],
     });
     setSearchKH("");
     setSearchDriver("");
     setSearchDGiai("");
     setSearchCuocPhiBD("");
     setSearchDTT("");
+    setSearchNgayGiao("");
     setPage(1);
   };
 
@@ -673,14 +723,14 @@ export default function CustomerDebt26Page() {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
-        }
+        },
       );
 
       // update state local
       setTrips((prev) =>
         prev.map((x) =>
-          x.maChuyen === maChuyen ? { ...x, highlightColor: color || null } : x
-        )
+          x.maChuyen === maChuyen ? { ...x, highlightColor: color || null } : x,
+        ),
       );
     } catch (err) {
       console.error("❌ updateHighlight error", err);
@@ -722,35 +772,123 @@ export default function CustomerDebt26Page() {
     return () => document.removeEventListener("mousedown", close);
   }, []);
 
-  const filteredKhachHang = (excelOptions.nameCustomer || []).filter((c) => {
-    if (!searchKH) return true;
-    return normalize(c).includes(normalize(searchKH));
-  });
+  const moveEmptyToTop = (arr) => {
+    if (!arr.includes("__EMPTY__")) return arr;
+    return ["__EMPTY__", ...arr.filter((x) => x !== "__EMPTY__")];
+  };
 
-  const filteredTenLaiXe = (excelOptions.tenLaiXe || []).filter((d) => {
-    if (!searchDriver) return true;
-    return normalize(d).includes(normalize(searchDriver));
-  });
+  const filteredKhachHang = (() => {
+    const list = excelOptions.nameCustomer.filter((c) => {
+      if (!searchKH) return true;
+      return normalize(c).includes(normalize(searchKH));
+    });
 
-  const filteredBienSoXe = (excelOptions.bienSoXe || []).filter((p) => {
-    if (!searchPlate) return true;
-    return normalize(p).includes(normalize(searchPlate));
-  });
+    if (
+      excelSelected.nameCustomer.includes("__EMPTY__") &&
+      !list.includes("__EMPTY__")
+    ) {
+      list.push("__EMPTY__");
+    }
 
-  const filteredDienGiai = (excelOptions.dienGiai || []).filter((dg) => {
-    if (!searchDGiai) return true;
-    return normalize(dg).includes(normalize(searchDGiai));
-  });
+    return moveEmptyToTop(list);
+  })();
 
-  const filteredCuocPhi = (excelOptions.cuocPhi || []).filter((cp) => {
-    if (!searchCuocPhiBD) return true;
-    return normalize(cp).includes(normalize(searchCuocPhiBD));
-  });
+  const filteredTenLaiXe = (() => {
+    const list = excelOptions.tenLaiXe.filter((d) => {
+      if (!searchDriver) return true;
+      return normalize(d).includes(normalize(searchDriver));
+    });
 
-  const filteredDTT = (excelOptions.daThanhToan || []).filter((dt) => {
-    if (!searchDTT) return true;
-    return normalize(dt).includes(normalize(searchDTT));
-  });
+    if (
+      excelSelected.tenLaiXe.includes("__EMPTY__") &&
+      !list.includes("__EMPTY__")
+    ) {
+      list.push("__EMPTY__");
+    }
+
+    return moveEmptyToTop(list);
+  })();
+
+  const filteredBienSoXe = (() => {
+    const list = excelOptions.bienSoXe.filter((p) => {
+      if (!searchPlate) return true;
+      return normalize(p).includes(normalize(searchPlate));
+    });
+
+    if (
+      excelSelected.bienSoXe.includes("__EMPTY__") &&
+      !list.includes("__EMPTY__")
+    ) {
+      list.push("__EMPTY__");
+    }
+
+    return moveEmptyToTop(list);
+  })();
+
+  const filteredDienGiai = (() => {
+    const list = excelOptions.dienGiai.filter((dg) => {
+      if (!searchDGiai) return true;
+      return normalize(dg).includes(normalize(searchDGiai));
+    });
+
+    if (
+      excelSelected.dienGiai.includes("__EMPTY__") &&
+      !list.includes("__EMPTY__")
+    ) {
+      list.push("__EMPTY__");
+    }
+
+    return moveEmptyToTop(list);
+  })();
+
+  const filteredCuocPhi = (() => {
+    const list = excelOptions.cuocPhi.filter((cp) => {
+      if (!searchCuocPhiBD) return true;
+      return normalize(cp).includes(normalize(searchCuocPhiBD));
+    });
+
+    if (
+      excelSelected.cuocPhi.includes("__EMPTY__") &&
+      !list.includes("__EMPTY__")
+    ) {
+      list.push("__EMPTY__");
+    }
+
+    return moveEmptyToTop(list);
+  })();
+
+  const filteredDTT = (() => {
+    const list = excelOptions.daThanhToan.filter((dt) => {
+      if (!searchDTT) return true;
+      return normalize(dt).includes(normalize(searchDTT));
+    });
+
+    if (
+      excelSelected.daThanhToan.includes("__EMPTY__") &&
+      !list.includes("__EMPTY__")
+    ) {
+      list.push("__EMPTY__");
+    }
+
+    return moveEmptyToTop(list);
+  })();
+
+  const filteredNgayGiaoHang = (() => {
+    const list = excelOptions.ngayGiaoHang.filter((d) => {
+      if (!searchNgayGiao) return true;
+      if (d === "__EMPTY__") return true;
+      return d.includes(searchNgayGiao);
+    });
+
+    if (
+      excelSelected.ngayGiaoHang.includes("__EMPTY__") &&
+      !list.includes("__EMPTY__")
+    ) {
+      list.push("__EMPTY__");
+    }
+
+    return moveEmptyToTop(list);
+  })();
 
   const renderSortIcon = (field) => {
     if (!SORTABLE_COLUMNS[field]) return null;
@@ -1003,7 +1141,7 @@ export default function CustomerDebt26Page() {
                     headers: {
                       Authorization: `Bearer ${localStorage.getItem("token")}`,
                     },
-                  }
+                  },
                 );
 
                 loadData();
@@ -1038,10 +1176,10 @@ export default function CustomerDebt26Page() {
                     {
                       headers: {
                         Authorization: `Bearer ${localStorage.getItem(
-                          "token"
+                          "token",
                         )}`,
                       },
-                    }
+                    },
                   );
                   setSelectedForNameCustomer([]);
                   setNameCustomerInput("");
@@ -1077,10 +1215,10 @@ export default function CustomerDebt26Page() {
                     {
                       headers: {
                         Authorization: `Bearer ${localStorage.getItem(
-                          "token"
+                          "token",
                         )}`,
                       },
-                    }
+                    },
                   );
                   setSelectedForNoteOdd([]);
                   setNoteOddInput("");
@@ -1154,12 +1292,12 @@ export default function CustomerDebt26Page() {
                       checked={
                         allTripCodes.length > 0 &&
                         allTripCodes.every((code) =>
-                          selectedForNameCustomer.includes(code)
+                          selectedForNameCustomer.includes(code),
                         )
                       }
                       onChange={(e) => {
                         setSelectedForNameCustomer(
-                          e.target.checked ? allTripCodes : []
+                          e.target.checked ? allTripCodes : [],
                         );
                       }}
                     />
@@ -1238,15 +1376,15 @@ export default function CustomerDebt26Page() {
                                           filteredKhachHang.length > 0 &&
                                           filteredKhachHang.every((c) =>
                                             excelSelected.nameCustomer.includes(
-                                              c
-                                            )
+                                              c,
+                                            ),
                                           )
                                         }
                                         onChange={() => {
                                           setExcelSelected((prev) => {
                                             const isAllSelected =
                                               filteredKhachHang.every((c) =>
-                                                prev.nameCustomer.includes(c)
+                                                prev.nameCustomer.includes(c),
                                               );
 
                                             return {
@@ -1255,16 +1393,16 @@ export default function CustomerDebt26Page() {
                                                 ? prev.nameCustomer.filter(
                                                     (x) =>
                                                       !filteredKhachHang.includes(
-                                                        x
-                                                      )
+                                                        x,
+                                                      ),
                                                   )
                                                 : [
                                                     ...prev.nameCustomer,
                                                     ...filteredKhachHang.filter(
                                                       (x) =>
                                                         !prev.nameCustomer.includes(
-                                                          x
-                                                        )
+                                                          x,
+                                                        ),
                                                     ),
                                                   ],
                                             };
@@ -1284,7 +1422,7 @@ export default function CustomerDebt26Page() {
                                           <input
                                             type="checkbox"
                                             checked={excelSelected.nameCustomer.includes(
-                                              c
+                                              c,
                                             )}
                                             onChange={() =>
                                               setExcelSelected((p) => ({
@@ -1292,13 +1430,17 @@ export default function CustomerDebt26Page() {
                                                 nameCustomer:
                                                   p.nameCustomer.includes(c)
                                                     ? p.nameCustomer.filter(
-                                                        (x) => x !== c
+                                                        (x) => x !== c,
                                                       )
                                                     : [...p.nameCustomer, c],
                                               }))
                                             }
                                           />
-                                          <span className="truncate">{c}</span>
+                                          <span className="truncate">
+                                            {c === "__EMPTY__"
+                                              ? "(Trống / chưa có)"
+                                              : c}
+                                          </span>
                                         </label>
                                       ))}
                                     </div>
@@ -1350,14 +1492,14 @@ export default function CustomerDebt26Page() {
                                         checked={
                                           filteredTenLaiXe.length > 0 &&
                                           filteredTenLaiXe.every((d) =>
-                                            excelSelected.tenLaiXe.includes(d)
+                                            excelSelected.tenLaiXe.includes(d),
                                           )
                                         }
                                         onChange={() => {
                                           setExcelSelected((prev) => {
                                             const isAllSelected =
                                               filteredTenLaiXe.every((d) =>
-                                                prev.tenLaiXe.includes(d)
+                                                prev.tenLaiXe.includes(d),
                                               );
                                             return {
                                               ...prev,
@@ -1365,16 +1507,16 @@ export default function CustomerDebt26Page() {
                                                 ? prev.tenLaiXe.filter(
                                                     (x) =>
                                                       !filteredTenLaiXe.includes(
-                                                        x
-                                                      )
+                                                        x,
+                                                      ),
                                                   )
                                                 : [
                                                     ...prev.tenLaiXe,
                                                     ...filteredTenLaiXe.filter(
                                                       (x) =>
                                                         !prev.tenLaiXe.includes(
-                                                          x
-                                                        )
+                                                          x,
+                                                        ),
                                                     ),
                                                   ],
                                             };
@@ -1394,20 +1536,24 @@ export default function CustomerDebt26Page() {
                                           <input
                                             type="checkbox"
                                             checked={excelSelected.tenLaiXe.includes(
-                                              d
+                                              d,
                                             )}
                                             onChange={() =>
                                               setExcelSelected((p) => ({
                                                 ...p,
                                                 tenLaiXe: p.tenLaiXe.includes(d)
                                                   ? p.tenLaiXe.filter(
-                                                      (x) => x !== d
+                                                      (x) => x !== d,
                                                     )
                                                   : [...p.tenLaiXe, d],
                                               }))
                                             }
                                           />
-                                          <span className="truncate">{d}</span>
+                                          <span className="truncate">
+                                            {d === "__EMPTY__"
+                                              ? "(Trống / chưa có)"
+                                              : d}
+                                          </span>
                                         </label>
                                       ))}
                                     </div>
@@ -1459,14 +1605,14 @@ export default function CustomerDebt26Page() {
                                         checked={
                                           filteredBienSoXe.length > 0 &&
                                           filteredBienSoXe.every((p) =>
-                                            excelSelected.bienSoXe.includes(p)
+                                            excelSelected.bienSoXe.includes(p),
                                           )
                                         }
                                         onChange={() => {
                                           setExcelSelected((prev) => {
                                             const isAllSelected =
                                               filteredBienSoXe.every((p) =>
-                                                prev.bienSoXe.includes(p)
+                                                prev.bienSoXe.includes(p),
                                               );
                                             return {
                                               ...prev,
@@ -1474,16 +1620,16 @@ export default function CustomerDebt26Page() {
                                                 ? prev.bienSoXe.filter(
                                                     (x) =>
                                                       !filteredBienSoXe.includes(
-                                                        x
-                                                      )
+                                                        x,
+                                                      ),
                                                   )
                                                 : [
                                                     ...prev.bienSoXe,
                                                     ...filteredBienSoXe.filter(
                                                       (x) =>
                                                         !prev.bienSoXe.includes(
-                                                          x
-                                                        )
+                                                          x,
+                                                        ),
                                                     ),
                                                   ],
                                             };
@@ -1503,20 +1649,24 @@ export default function CustomerDebt26Page() {
                                           <input
                                             type="checkbox"
                                             checked={excelSelected.bienSoXe.includes(
-                                              p
+                                              p,
                                             )}
                                             onChange={() =>
                                               setExcelSelected((s) => ({
                                                 ...s,
                                                 bienSoXe: s.bienSoXe.includes(p)
                                                   ? s.bienSoXe.filter(
-                                                      (x) => x !== p
+                                                      (x) => x !== p,
                                                     )
                                                   : [...s.bienSoXe, p],
                                               }))
                                             }
                                           />
-                                          <span className="truncate">{p}</span>
+                                          <span className="truncate">
+                                            {p === "__EMPTY__"
+                                              ? "(Trống / chưa có)"
+                                              : p}
+                                          </span>
                                         </label>
                                       ))}
                                     </div>
@@ -1568,14 +1718,14 @@ export default function CustomerDebt26Page() {
                                         checked={
                                           filteredDienGiai.length > 0 &&
                                           filteredDienGiai.every((dg) =>
-                                            excelSelected.dienGiai.includes(dg)
+                                            excelSelected.dienGiai.includes(dg),
                                           )
                                         }
                                         onChange={() => {
                                           setExcelSelected((prev) => {
                                             const isAllSelected =
                                               filteredDienGiai.every((dg) =>
-                                                prev.dienGiai.includes(dg)
+                                                prev.dienGiai.includes(dg),
                                               );
                                             return {
                                               ...prev,
@@ -1583,16 +1733,16 @@ export default function CustomerDebt26Page() {
                                                 ? prev.dienGiai.filter(
                                                     (x) =>
                                                       !filteredDienGiai.includes(
-                                                        x
-                                                      )
+                                                        x,
+                                                      ),
                                                   )
                                                 : [
                                                     ...prev.dienGiai,
                                                     ...filteredDienGiai.filter(
                                                       (x) =>
                                                         !prev.dienGiai.includes(
-                                                          x
-                                                        )
+                                                          x,
+                                                        ),
                                                     ),
                                                   ],
                                             };
@@ -1612,7 +1762,7 @@ export default function CustomerDebt26Page() {
                                           <input
                                             type="checkbox"
                                             checked={excelSelected.dienGiai.includes(
-                                              dg
+                                              dg,
                                             )}
                                             onChange={() =>
                                               setExcelSelected((prev) => ({
@@ -1620,13 +1770,17 @@ export default function CustomerDebt26Page() {
                                                 dienGiai:
                                                   prev.dienGiai.includes(dg)
                                                     ? prev.dienGiai.filter(
-                                                        (x) => x !== dg
+                                                        (x) => x !== dg,
                                                       )
                                                     : [...prev.dienGiai, dg],
                                               }))
                                             }
                                           />
-                                          <span className="truncate">{dg}</span>
+                                          <span className="truncate">
+                                            {dg === "__EMPTY__"
+                                              ? "(Trống / chưa có)"
+                                              : dg}
+                                          </span>
                                         </label>
                                       ))}
                                     </div>
@@ -1678,14 +1832,14 @@ export default function CustomerDebt26Page() {
                                         checked={
                                           filteredCuocPhi.length > 0 &&
                                           filteredCuocPhi.every((cp) =>
-                                            excelSelected.cuocPhi.includes(cp)
+                                            excelSelected.cuocPhi.includes(cp),
                                           )
                                         }
                                         onChange={() => {
                                           setExcelSelected((prev) => {
                                             const isAllSelected =
                                               filteredCuocPhi.every((cp) =>
-                                                prev.cuocPhi.includes(cp)
+                                                prev.cuocPhi.includes(cp),
                                               );
                                             return {
                                               ...prev,
@@ -1693,16 +1847,16 @@ export default function CustomerDebt26Page() {
                                                 ? prev.cuocPhi.filter(
                                                     (x) =>
                                                       !filteredCuocPhi.includes(
-                                                        x
-                                                      )
+                                                        x,
+                                                      ),
                                                   )
                                                 : [
                                                     ...prev.cuocPhi,
                                                     ...filteredCuocPhi.filter(
                                                       (x) =>
                                                         !prev.cuocPhi.includes(
-                                                          x
-                                                        )
+                                                          x,
+                                                        ),
                                                     ),
                                                   ],
                                             };
@@ -1722,23 +1876,25 @@ export default function CustomerDebt26Page() {
                                           <input
                                             type="checkbox"
                                             checked={excelSelected.cuocPhi.includes(
-                                              cp
+                                              cp,
                                             )}
                                             onChange={() =>
                                               setExcelSelected((prev) => ({
                                                 ...prev,
                                                 cuocPhi: prev.cuocPhi.includes(
-                                                  cp
+                                                  cp,
                                                 )
                                                   ? prev.cuocPhi.filter(
-                                                      (x) => x !== cp
+                                                      (x) => x !== cp,
                                                     )
                                                   : [...prev.cuocPhi, cp],
                                               }))
                                             }
                                           />
                                           <span className="truncate">
-                                            {formatNumber(cp)}
+                                            {cp === "__EMPTY__"
+                                              ? "(Trống / chưa có)"
+                                              : formatNumber(cp)}
                                           </span>
                                         </label>
                                       ))}
@@ -1792,30 +1948,30 @@ export default function CustomerDebt26Page() {
                                           filteredDTT.length > 0 &&
                                           filteredDTT.every((dt) =>
                                             excelSelected.daThanhToan.includes(
-                                              dt
-                                            )
+                                              dt,
+                                            ),
                                           )
                                         }
                                         onChange={() => {
                                           setExcelSelected((prev) => {
                                             const isAllSelected =
                                               filteredDTT.every((dt) =>
-                                                prev.daThanhToan.includes(dt)
+                                                prev.daThanhToan.includes(dt),
                                               );
                                             return {
                                               ...prev,
                                               daThanhToan: isAllSelected
                                                 ? prev.daThanhToan.filter(
                                                     (x) =>
-                                                      !filteredDTT.includes(x)
+                                                      !filteredDTT.includes(x),
                                                   )
                                                 : [
                                                     ...prev.daThanhToan,
                                                     ...filteredDTT.filter(
                                                       (x) =>
                                                         !prev.daThanhToan.includes(
-                                                          x
-                                                        )
+                                                          x,
+                                                        ),
                                                     ),
                                                   ],
                                             };
@@ -1835,7 +1991,7 @@ export default function CustomerDebt26Page() {
                                           <input
                                             type="checkbox"
                                             checked={excelSelected.daThanhToan.includes(
-                                              dt
+                                              dt,
                                             )}
                                             onChange={() =>
                                               setExcelSelected((prev) => ({
@@ -1843,14 +1999,16 @@ export default function CustomerDebt26Page() {
                                                 daThanhToan:
                                                   prev.daThanhToan.includes(dt)
                                                     ? prev.daThanhToan.filter(
-                                                        (x) => x !== dt
+                                                        (x) => x !== dt,
                                                       )
                                                     : [...prev.daThanhToan, dt],
                                               }))
                                             }
                                           />
                                           <span className="truncate">
-                                            {formatNumber(dt)}
+                                            {dt === "__EMPTY__"
+                                              ? "(Trống / chưa có)"
+                                              : formatNumber(dt)}
                                           </span>
                                         </label>
                                       ))}
@@ -1884,7 +2042,125 @@ export default function CustomerDebt26Page() {
                                     </div>
                                   </>
                                 )}
+                                {/* ===== FILTER NGÀY GIAO HÀNG ===== */}
+                                {openFilter === "ngayGiaoHang" && (
+                                  <>
+                                    <input
+                                      type="date"
+                                      className="border w-full px-2 py-1 mb-1"
+                                      value={searchNgayGiao}
+                                      onChange={(e) =>
+                                        setSearchNgayGiao(e.target.value)
+                                      }
+                                    />
 
+                                    <label className="flex gap-1 items-center mb-1 font-semibold">
+                                      <input
+                                        type="checkbox"
+                                        checked={
+                                          filteredNgayGiaoHang.length > 0 &&
+                                          filteredNgayGiaoHang.every((d) =>
+                                            excelSelected.ngayGiaoHang.includes(
+                                              d,
+                                            ),
+                                          )
+                                        }
+                                        onChange={() => {
+                                          setExcelSelected((prev) => {
+                                            const isAllSelected =
+                                              filteredNgayGiaoHang.every((d) =>
+                                                prev.ngayGiaoHang.includes(d),
+                                              );
+
+                                            return {
+                                              ...prev,
+                                              ngayGiaoHang: isAllSelected
+                                                ? prev.ngayGiaoHang.filter(
+                                                    (x) =>
+                                                      !filteredNgayGiaoHang.includes(
+                                                        x,
+                                                      ),
+                                                  )
+                                                : [
+                                                    ...prev.ngayGiaoHang,
+                                                    ...filteredNgayGiaoHang.filter(
+                                                      (x) =>
+                                                        !prev.ngayGiaoHang.includes(
+                                                          x,
+                                                        ),
+                                                    ),
+                                                  ],
+                                            };
+                                          });
+                                          setPage(1);
+                                        }}
+                                      />
+                                      Chọn tất cả ({filteredNgayGiaoHang.length}
+                                      )
+                                    </label>
+
+                                    <div className="max-h-40 overflow-y-auto border p-1">
+                                      {filteredNgayGiaoHang.map((d) => (
+                                        <label
+                                          key={d}
+                                          className="flex gap-1 items-center"
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={excelSelected.ngayGiaoHang.includes(
+                                              d,
+                                            )}
+                                            onChange={() =>
+                                              setExcelSelected((p) => ({
+                                                ...p,
+                                                ngayGiaoHang:
+                                                  p.ngayGiaoHang.includes(d)
+                                                    ? p.ngayGiaoHang.filter(
+                                                        (x) => x !== d,
+                                                      )
+                                                    : [...p.ngayGiaoHang, d],
+                                              }))
+                                            }
+                                          />
+                                          <span>
+                                            {d === "__EMPTY__"
+                                              ? "(Trống / chưa có)"
+                                              : new Date(d).toLocaleDateString(
+                                                  "vi-VN",
+                                                )}
+                                          </span>
+                                        </label>
+                                      ))}
+                                    </div>
+
+                                    <div className="flex gap-1 mt-2">
+                                      <button
+                                        className="flex-1 bg-blue-600 text-white px-2 py-1 rounded"
+                                        onClick={() => {
+                                          setPage(1);
+                                          setOpenFilter(null);
+                                        }}
+                                      >
+                                        Áp dụng
+                                      </button>
+
+                                      <button
+                                        className="flex-1 bg-gray-200 px-2 py-1 rounded"
+                                        onClick={() => {
+                                          setExcelSelected((p) => ({
+                                            ...p,
+                                            ngayGiaoHang: [],
+                                          }));
+                                          setSearchNgayGiao("");
+                                          setPage(1);
+                                          setOpenFilter(null);
+                                        }}
+                                      >
+                                        Xóa
+                                      </button>
+                                    </div>
+                                  </>
+                                )}
                                 {/* ===== FILTER CÁC CỘT CÒN LẠI (TEXT / DATE) ===== */}
                                 {![
                                   "nameCustomer",
@@ -1893,12 +2169,11 @@ export default function CustomerDebt26Page() {
                                   "dienGiai",
                                   "cuocPhi",
                                   "daThanhToan",
+                                  "ngayGiaoHang",
                                 ].includes(openFilter) &&
                                   !moneyColumns.includes(openFilter) && (
                                     <>
-                                      {["ngayBocHang", "ngayGiaoHang"].includes(
-                                        openFilter
-                                      ) ? (
+                                      {["ngayBocHang"].includes(openFilter) ? (
                                         <input
                                           type="date"
                                           className="w-full border px-2 py-1 rounded text-black"
@@ -1915,7 +2190,7 @@ export default function CustomerDebt26Page() {
                                           type="text"
                                           className="w-full border px-2 py-1 rounded text-black"
                                           placeholder={`Lọc theo ${getColumnLabel(
-                                            openFilter
+                                            openFilter,
                                           )}`}
                                           value={filters[openFilter] || ""}
                                           onChange={(e) =>
@@ -2071,12 +2346,12 @@ export default function CustomerDebt26Page() {
                       checked={
                         allTripCodes.length > 0 &&
                         allTripCodes.every((code) =>
-                          selectedForNoteOdd.includes(code)
+                          selectedForNoteOdd.includes(code),
                         )
                       }
                       onChange={(e) => {
                         setSelectedForNoteOdd(
-                          e.target.checked ? allTripCodes : []
+                          e.target.checked ? allTripCodes : [],
                         );
                       }}
                     />
@@ -2106,7 +2381,7 @@ export default function CustomerDebt26Page() {
                           setSelectedForNameCustomer((prev) =>
                             e.target.checked
                               ? [...prev, t.maChuyen]
-                              : prev.filter((m) => m !== t.maChuyen)
+                              : prev.filter((m) => m !== t.maChuyen),
                           );
                         }}
                       />
@@ -2150,7 +2425,7 @@ export default function CustomerDebt26Page() {
                               onClick={() => {
                                 if (t.isLocked) {
                                   alert(
-                                    "Chuyến đã bị khoá, không được sửa chi phí"
+                                    "Chuyến đã bị khoá, không được sửa chi phí",
                                   );
                                   return;
                                 }
@@ -2292,10 +2567,10 @@ export default function CustomerDebt26Page() {
                                     {
                                       headers: {
                                         Authorization: `Bearer ${localStorage.getItem(
-                                          "token"
+                                          "token",
                                         )}`,
                                       },
-                                    }
+                                    },
                                   );
                                   loadData();
                                 }}
@@ -2338,7 +2613,7 @@ export default function CustomerDebt26Page() {
                             <div
                               className={`cell-content ${
                                 ["tongTien", "daThanhToan", "conLai"].includes(
-                                  col.key
+                                  col.key,
                                 )
                                   ? "text-right"
                                   : ""
@@ -2360,7 +2635,7 @@ export default function CustomerDebt26Page() {
                           setSelectedForNoteOdd((prev) =>
                             e.target.checked
                               ? [...prev, t.maChuyen]
-                              : prev.filter((m) => m !== t.maChuyen)
+                              : prev.filter((m) => m !== t.maChuyen),
                           );
                         }}
                       />
