@@ -2704,11 +2704,13 @@ export default function CustomerDebt26Page() {
       )}
 
       {selectedTrip && (
-        <TripPaymentModal
-          onReloadPayment={loadData}
-          maChuyenCode={selectedTrip.maChuyen}
-          onClose={() => setSelectedTrip(null)}
-        />
+        <div className="fixed inset-0 z-[9999]">
+          <TripPaymentModal
+            onReloadPayment={loadData}
+            maChuyenCode={selectedTrip.maChuyen}
+            onClose={() => setSelectedTrip(null)}
+          />
+        </div>
       )}
 
       <CostEditModal

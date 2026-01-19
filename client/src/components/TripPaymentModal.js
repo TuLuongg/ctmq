@@ -130,24 +130,27 @@ export default function TripPaymentModal({
 
   // Thêm thanh toán mới
   const handleAddPayment = async () => {
-    if (!amount) return alert("Nhập số tiền!");
+    if (amount === "") return alert("Nhập số tiền!");
 
     const numericAmount = parseMoneyToNumber(amount);
-    if (!numericAmount) return alert("Số tiền không hợp lệ");
+
+    if (Number.isNaN(numericAmount)) {
+      return alert("Số tiền không hợp lệ");
+    }
 
     try {
       await axios.post(
         `${API}/odd-debt/payment`,
         {
           maChuyenCode,
-          amount: numericAmount,
+          amount: numericAmount, // có thể = 0
           method,
           note,
           createdDay,
         },
         {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        }
+        },
       );
 
       setAmount("");
@@ -158,13 +161,10 @@ export default function TripPaymentModal({
       onReloadPayment();
       if (onChange) onChange();
     } catch (err) {
-      console.error("Lỗi thêm thanh toán:", err);
-
       const msg =
         err?.response?.data?.error ||
         err?.response?.data?.message ||
         "Không thể thêm thanh toán";
-
       alert(msg);
     }
   };
