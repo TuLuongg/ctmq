@@ -223,8 +223,8 @@ const importVehiclesFromExcel = async (req, res) => {
           // Giấy đi đường và ghi chú
           dayTravel: parseDate(row["Giấy đi đường"]),
           note: row["Ghi chú"] || "",
-          bhTNDS: row["Bảo hiểm TNDS"] || "",
-          bhVC: row["Bảo hiểm VC"] || "",
+          bhTNDS: parseDate(row["Bảo hiểm TNDS"]),
+          bhVC: parseDate(row["Bảo hiểm VC"]),
 
           // Mảng ảnh, nếu cần bạn có thể map từ Excel
           registrationImage: row["Ảnh đăng ký"] ? [row["Ảnh đăng ký"]] : [],

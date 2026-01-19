@@ -7,16 +7,6 @@ const path = require("path");
 // ===============================
 // 🔧 CALC COST – KH LẺ
 // ===============================
-const fieldMap = {
-  luatChiPhiKhac: { base: "luatChiPhiKhac" },
-  cuocPhi: { base: "cuocPhi" },
-  bocXep: { base: "bocXep" },
-  ve: { base: "ve" },
-  hangVe: { base: "hangVe" },
-  luuCa: { base: "luuCa" },
-  themDiem: { base: "themDiem" },
-};
-
 const num = (v) => Number(v) || 0;
 
 const calcOddTotalFromBaseTrip = (t) =>
@@ -27,17 +17,6 @@ const calcOddTotalFromBaseTrip = (t) =>
   num(t.luuCa) +
   num(t.luatChiPhiKhac) +
   num(t.themDiem);
-
-const pickBaseOnly = (obj, field) => Number(obj[fieldMap[field]?.base]) || 0;
-
-const calcTripCostOddCustomer = (trip) =>
-  pickBaseOnly(trip, "cuocPhi") +
-  pickBaseOnly(trip, "bocXep") +
-  pickBaseOnly(trip, "ve") +
-  pickBaseOnly(trip, "hangVe") +
-  pickBaseOnly(trip, "luuCa") +
-  pickBaseOnly(trip, "luatChiPhiKhac") +
-  pickBaseOnly(trip, "themDiem");
 
 const genDebtCodeFromDate = (date) => {
   const d = new Date(date);
@@ -111,8 +90,8 @@ exports.createOddDebtByDate = async (req, res) => {
           tongTien - daThanhToan <= 0
             ? "HOAN_TAT"
             : daThanhToan > 0
-            ? "TRA_MOT_PHAN"
-            : "CHUA_TRA",
+              ? "TRA_MOT_PHAN"
+              : "CHUA_TRA",
       });
 
       // ✅ GẮN MÃ CÔNG NỢ CHO CHUYẾN GỐC
@@ -245,8 +224,8 @@ exports.syncOddDebtByDate = async (req, res) => {
                 conLai <= 0
                   ? "HOAN_TAT"
                   : daThanhToan > 0
-                  ? "TRA_MOT_PHAN"
-                  : "CHUA_TRA",
+                    ? "TRA_MOT_PHAN"
+                    : "CHUA_TRA",
             },
           },
         },
@@ -284,170 +263,149 @@ exports.syncOddDebtByDate = async (req, res) => {
 // + FILTER MẢNG FIELD
 // + SORT ABC & SORT NGÀY GIAO
 // =====================================================
+const buildOddDebtFilter = (query) => {
+  const andConditions = [];
+
+  // ===== KH LẺ =====
+  andConditions.push({ maKH: "26" });
+
+  // ===== LỌC NGÀY GIAO (KHOẢNG) =====
+  if (query.startDate || query.endDate) {
+    const range = {};
+    if (query.startDate) range.$gte = new Date(query.startDate);
+    if (query.endDate) {
+      const end = new Date(query.endDate);
+      end.setHours(23, 59, 59, 999);
+      range.$lte = end;
+    }
+    andConditions.push({ ngayGiaoHang: range });
+  }
+
+  // ===== FILTER MẢNG (CÓ __EMPTY__) =====
+  const ARRAY_FIELDS = {
+    nameCustomer: "nameCustomer",
+    tenLaiXe: "tenLaiXe",
+    bienSoXe: "bienSoXe",
+    dienGiai: "dienGiai",
+    cuocPhi: "cuocPhi",
+    daThanhToan: "daThanhToan",
+    ngayGiaoHang: "ngayGiaoHang",
+  };
+
+  for (const [queryKey, field] of Object.entries(ARRAY_FIELDS)) {
+    let values = query[queryKey] || query[`${queryKey}[]`];
+    if (!values) continue;
+    if (!Array.isArray(values)) values = [values];
+
+    const hasEmpty = values.includes("__EMPTY__");
+
+    const normalValues = values.filter((v) => v && v !== "__EMPTY__");
+
+    const orConditions = [];
+
+    // ===== RIÊNG NGÀY =====
+    if (field === "ngayGiaoHang" && normalValues.length) {
+      const dateOr = normalValues.map((d) => {
+        const start = new Date(d);
+        const end = new Date(d);
+        end.setHours(23, 59, 59, 999);
+        return { ngayGiaoHang: { $gte: start, $lte: end } };
+      });
+      orConditions.push({ $or: dateOr });
+    }
+
+    // ===== FIELD THƯỜNG =====
+    if (field !== "ngayGiaoHang" && normalValues.length) {
+      orConditions.push({ [field]: { $in: normalValues } });
+    }
+
+    // ===== EMPTY =====
+    if (hasEmpty) {
+      orConditions.push({
+        $or: [
+          { [field]: { $exists: false } },
+          { [field]: null },
+          { [field]: "" },
+        ],
+      });
+    }
+
+    if (orConditions.length === 1) {
+      andConditions.push(orConditions[0]);
+    } else if (orConditions.length > 1) {
+      andConditions.push({ $or: orConditions });
+    }
+  }
+
+  // ===== TEXT SEARCH =====
+  const TEXT_FIELDS = [
+    "ghiChu",
+    "noteOdd",
+    "maChuyen",
+    "diemXepHang",
+    "diemDoHang",
+    "soDiem",
+  ];
+
+  TEXT_FIELDS.forEach((f) => {
+    if (query[f]) {
+      andConditions.push({
+        [f]: { $regex: query[f], $options: "i" },
+      });
+    }
+  });
+
+  // ===== NUMBER RANGE =====
+  const NUMBER_FIELDS = ["tongTien", "conLai"];
+
+  NUMBER_FIELDS.forEach((f) => {
+    const from = query[`${f}From`];
+    const to = query[`${f}To`];
+    if (from || to) {
+      const cond = {};
+      if (from) cond.$gte = Number(from);
+      if (to) cond.$lte = Number(to);
+      andConditions.push({ [f]: cond });
+    }
+  });
+
+  return andConditions.length ? { $and: andConditions } : {};
+};
+
 exports.getOddCustomerDebt = async (req, res) => {
   try {
-    let {
-      startDate,
-      endDate,
-      page = 1,
-      limit = 50,
-
-      // ===== FILTER =====
-      nameCustomer,
-      tenLaiXe,
-      bienSoXe,
-      dienGiai,
-      cuocPhi,
-      daThanhToan,
-    } = req.query;
-
-    if (!startDate || !endDate) {
-      return res.status(400).json({ error: "Thiếu startDate hoặc endDate" });
-    }
+    let { page = 1, limit = 50 } = req.query;
 
     page = Number(page);
     limit = Number(limit);
+    const skip = (page - 1) * limit;
 
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    end.setDate(end.getDate() + 1);
+    const filter = buildOddDebtFilter(req.query);
 
-    const condition = {
-      maKH: "26",
-      ngayGiaoHang: { $gte: start, $lt: end },
-    };
-
-    // ===============================
-    // 🔍 FILTER THEO MẢNG FIELD
-    // ===============================
-
-    if (nameCustomer) {
-      const arr = Array.isArray(nameCustomer) ? nameCustomer : [nameCustomer];
-      condition.nameCustomer = { $in: arr };
-    }
-
-    if (tenLaiXe) {
-      const arr = Array.isArray(tenLaiXe) ? tenLaiXe : [tenLaiXe];
-      condition.tenLaiXe = { $in: arr };
-    }
-
-    if (bienSoXe) {
-      const arr = Array.isArray(bienSoXe) ? bienSoXe : [bienSoXe];
-      condition.bienSoXe = { $in: arr };
-    }
-
-    if (dienGiai) {
-      const arr = Array.isArray(dienGiai) ? dienGiai : [dienGiai];
-      condition.dienGiai = { $in: arr };
-    }
-
-    if (cuocPhi) {
-      const arr = Array.isArray(cuocPhi) ? cuocPhi : [cuocPhi];
-      condition.cuocPhi = { $in: arr };
-    }
-
-    if (daThanhToan) {
-      const arr = Array.isArray(daThanhToan) ? daThanhToan : [daThanhToan];
-      condition.daThanhToan = { $in: arr };
-    }
-
-    // ===============================
-    // 🔍 FILTER CÁC TRƯỜNG CÒN LẠI (CHUNG)
-    // ===============================
-
-    // các field string search
-    const TEXT_FIELDS = [
-      "ghiChu",
-      "noteOdd",
-      "maChuyen",
-      "diemXepHang",
-      "diemDoHang",
-      "soDiem",
-      "trongLuong",
-      "themDiem",
-      "bocXep",
-      "ve",
-      "hangVe",
-      "luuCa",
-      "luatChiPhiKhac",
-    ];
-
-    // field number
-    const NUMBER_FIELDS = ["tongTien", "conLai"];
-
-    // ===== TEXT =====
-    TEXT_FIELDS.forEach((field) => {
-      if (req.query[field]) {
-        condition[field] = {
-          $regex: req.query[field],
-          $options: "i",
-        };
-      }
-    });
-
-    // ===== NUMBER =====
-    NUMBER_FIELDS.forEach((field) => {
-      const from = req.query[`${field}From`];
-      const to = req.query[`${field}To`];
-
-      if (from || to) {
-        condition[field] = {};
-        if (from) condition[field].$gte = Number(from);
-        if (to) condition[field].$lte = Number(to);
-      }
-    });
-
-    // ===============================
-    // 🔃 SORT (DYNAMIC – FE TRUYỀN)
-    // ===============================
+    // ===== SORT =====
     let sortObj = {};
-
-    // FE truyền sort dạng JSON
     if (req.query.sort) {
       try {
         let sort = req.query.sort;
-
-        if (typeof sort === "string") {
-          sort = JSON.parse(sort);
-        }
-
-        if (Array.isArray(sort)) {
-          sort.forEach((s) => {
-            if (s?.field) {
-              sortObj[s.field] = s.order === "asc" ? 1 : -1;
-            }
-          });
-        }
-      } catch (e) {
-        console.warn("⚠️ Sort parse error");
-      }
+        if (typeof sort === "string") sort = JSON.parse(sort);
+        sort.forEach((s) => {
+          if (s?.field) sortObj[s.field] = s.order === "asc" ? 1 : -1;
+        });
+      } catch {}
     }
 
-    // fallback mặc định (nếu FE không truyền)
-    if (Object.keys(sortObj).length === 0) {
+    if (!Object.keys(sortObj).length) {
       sortObj = {
-        ngayGiaoHang: req.query.sortDate === "asc" ? 1 : -1,
+        ngayGiaoHang: -1,
         nameCustomer: 1,
-        dienGiai: 1,
       };
     }
 
-    const skip = (page - 1) * limit;
-
     const [total, trips, sumResult] = await Promise.all([
-      // số chuyến (có phân trang)
-      SchCustomerOdd.countDocuments(condition),
-
-      // danh sách chuyến theo page
-      SchCustomerOdd.find(condition)
-        .sort(sortObj)
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-
-      // 🔥 TÍNH TỔNG TOÀN BỘ (KHÔNG LIMIT)
+      SchCustomerOdd.countDocuments(filter),
+      SchCustomerOdd.find(filter).sort(sortObj).skip(skip).limit(limit).lean(),
       SchCustomerOdd.aggregate([
-        { $match: condition },
+        { $match: filter },
         {
           $group: {
             _id: null,
@@ -458,34 +416,14 @@ exports.getOddCustomerDebt = async (req, res) => {
       ]),
     ]);
 
-    const tongTienAll = sumResult[0]?.tongTien || 0;
-    const conLaiAll = sumResult[0]?.conLai || 0;
-
-    const list = await Promise.all(
-      trips.map(async (t) => {
-        const latestPayment = await TripPayment.findOne({
-          maChuyenCode: t.maChuyen,
-        })
-          .sort({ createdAt: -1 })
-          .lean();
-
-        return {
-          ...t,
-          ngayCK: latestPayment?.createdAt || null,
-          taiKhoanCK: latestPayment?.method || "",
-          noiDungCK: latestPayment?.note || "",
-        };
-      })
-    );
-
     res.json({
       maKH: "26",
       soChuyen: total,
       page,
       limit,
-      tongTienAll,
-      conLaiAll,
-      chiTietChuyen: list,
+      tongTienAll: sumResult[0]?.tongTien || 0,
+      conLaiAll: sumResult[0]?.conLai || 0,
+      chiTietChuyen: trips,
     });
   } catch (err) {
     console.error(err);
@@ -498,40 +436,73 @@ exports.getOddCustomerDebt = async (req, res) => {
 // ==============================
 exports.getAllOddDebtFilterOptions = async (req, res) => {
   try {
-    const { fromDate, toDate } = req.query;
+    const filter = buildOddDebtFilter(req.query);
 
-    const baseFilter = {
-      isDeleted: { $ne: true },
-    };
+    const fields = [
+      "nameCustomer",
+      "tenLaiXe",
+      "bienSoXe",
+      "dienGiai",
+      "cuocPhi",
+      "daThanhToan",
+      "ngayGiaoHang",
+    ];
 
-    // ===== THÊM LỌC NGÀY GIAO =====
-    if (fromDate || toDate) {
-      baseFilter.ngayGiaoHang = {};
-      if (fromDate)
-        baseFilter.ngayGiaoHang.$gte = new Date(fromDate + "T00:00:00");
-      if (toDate) baseFilter.ngayGiaoHang.$lte = new Date(toDate + "T23:59:59");
-    }
+    const result = {};
 
-    const [nameCustomer, tenLaiXe, bienSoXe, dienGiai, cuocPhi, daThanhToan] =
-      await Promise.all([
-        SchCustomerOdd.distinct("nameCustomer", baseFilter),
-        SchCustomerOdd.distinct("tenLaiXe", baseFilter),
-        SchCustomerOdd.distinct("bienSoXe", baseFilter),
-        SchCustomerOdd.distinct("dienGiai", baseFilter),
-        SchCustomerOdd.distinct("cuocPhi", baseFilter),
-        SchCustomerOdd.distinct("daThanhToan", baseFilter),
-      ]);
+    await Promise.all(
+      fields.map(async (field) => {
+        // ===== NGÀY =====
+        if (field === "ngayGiaoHang") {
+          const values = await SchCustomerOdd.distinct(field, filter);
 
-    res.json({
-      nameCustomer: nameCustomer.filter(Boolean).sort(),
-      tenLaiXe: tenLaiXe.filter(Boolean).sort(),
-      bienSoXe: bienSoXe.filter(Boolean).sort(),
-      dienGiai: dienGiai.filter(Boolean).sort(),
-      cuocPhi: cuocPhi.filter(Boolean).sort(),
-      daThanhToan: daThanhToan.filter(Boolean).sort(),
-    });
+          const dates = values.filter(Boolean).map((d) => {
+             const date = new Date(d);
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, "0");
+            const day = String(date.getDate()).padStart(2, "0");
+            return `${y}-${m}-${day}`;
+          });
+
+          const unique = [...new Set(dates)].sort();
+
+          const hasEmpty = await SchCustomerOdd.exists({
+            ...filter,
+            $or: [{ ngayGiaoHang: { $exists: false } }, { ngayGiaoHang: null }],
+          });
+
+          if (hasEmpty) unique.unshift("__EMPTY__");
+
+          result.ngayGiaoHang = unique;
+          return;
+        }
+
+        // ===== FIELD THƯỜNG =====
+        const values = await SchCustomerOdd.distinct(field, filter);
+
+        const cleaned = values
+          .map((v) => v?.toString().trim())
+          .filter(Boolean)
+          .sort();
+
+        const hasEmpty = await SchCustomerOdd.exists({
+          ...filter,
+          $or: [
+            { [field]: { $exists: false } },
+            { [field]: null },
+            { [field]: "" },
+          ],
+        });
+
+        if (hasEmpty) cleaned.unshift("__EMPTY__");
+
+        result[field] = cleaned;
+      }),
+    );
+
+    res.json(result);
   } catch (err) {
-    console.error("❌ Filter options error:", err);
+    console.error("❌ Odd filter options error:", err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -607,8 +578,8 @@ exports.addTripPayment = async (req, res) => {
       oddTrip.conLai <= 0
         ? "HOAN_TAT"
         : oddTrip.daThanhToan > 0
-        ? "TRA_MOT_PHAN"
-        : "CHUA_TRA";
+          ? "TRA_MOT_PHAN"
+          : "CHUA_TRA";
 
     await oddTrip.save();
 
@@ -669,8 +640,8 @@ exports.deleteTripPayment = async (req, res) => {
       oddTrip.conLai <= 0
         ? "HOAN_TAT"
         : oddTrip.daThanhToan > 0
-        ? "TRA_MOT_PHAN"
-        : "CHUA_TRA";
+          ? "TRA_MOT_PHAN"
+          : "CHUA_TRA";
 
     await oddTrip.save();
 
@@ -707,7 +678,7 @@ exports.updateTripNameCustomer = async (req, res) => {
         maChuyen: { $in: maChuyenList },
         isLocked: { $ne: true },
       },
-      { $set: { nameCustomer } }
+      { $set: { nameCustomer } },
     );
 
     res.json({
@@ -742,7 +713,7 @@ exports.updateTripNoteOdd = async (req, res) => {
         maChuyen: { $in: maChuyenList },
         isLocked: { $ne: true },
       },
-      { $set: { noteOdd } }
+      { $set: { noteOdd } },
     );
 
     res.json({
@@ -939,7 +910,7 @@ exports.lockOddTripsByDate = async (req, res) => {
       {
         ngayGiaoHang: { $gte: start, $lt: end },
       },
-      { $set: { isLocked: true } }
+      { $set: { isLocked: true } },
     );
 
     res.json({
@@ -1022,7 +993,7 @@ exports.exportOddDebtByDateRange = async (req, res) => {
 
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(
-      path.join(__dirname, "../templates/DSC_KL.xlsx")
+      path.join(__dirname, "../templates/DSC_KL.xlsx"),
     );
 
     const sheet = workbook.getWorksheet("Sheet1");
@@ -1089,11 +1060,11 @@ exports.exportOddDebtByDateRange = async (req, res) => {
 
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename=CONG_NO_KH_LE_${from}_DEN_${to}.xlsx`
+      `attachment; filename=CONG_NO_KH_LE_${from}_DEN_${to}.xlsx`,
     );
     res.setHeader(
       "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     );
 
     await workbook.xlsx.write(res);

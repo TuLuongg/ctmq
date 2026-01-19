@@ -74,6 +74,15 @@ const calcHoaHong = async (schedule) => {
 
 const escapeRegex = (str = "") => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+const hasEmptyValue = async (field, filter) => {
+  const count = await ScheduleAdmin.countDocuments({
+    ...filter,
+    $or: [{ [field]: { $exists: false } }, { [field]: null }, { [field]: "" }],
+  });
+
+  return count > 0;
+};
+
 // 🆕 Tạo chuyến mới
 const createScheduleAdmin = async (req, res) => {
   try {
@@ -119,7 +128,7 @@ const createScheduleAdmin = async (req, res) => {
       await Counter.updateOne(
         { key: counterKey },
         { $set: { seq: lastNumber } },
-        { upsert: true }
+        { upsert: true },
       );
     }
 
@@ -127,7 +136,7 @@ const createScheduleAdmin = async (req, res) => {
     const updated = await Counter.findOneAndUpdate(
       { key: counterKey },
       { $inc: { seq: 1 } },
-      { new: true }
+      { new: true },
     );
 
     const maChuyen = `${counterKey}.${String(updated.seq).padStart(4, "0")}`;
@@ -167,7 +176,7 @@ const updateScheduleAdmin = async (req, res) => {
     // 🔒 Kiểm tra khóa công nợ
     const lockedOld = await checkLockedDebtPeriod(
       schedule.maKH,
-      schedule.maChuyen
+      schedule.maChuyen,
     );
     if (lockedOld)
       return res.status(400).json({
@@ -176,7 +185,7 @@ const updateScheduleAdmin = async (req, res) => {
 
     const lockedNew = await checkLockedDebtPeriod(
       schedule.maKH,
-      schedule.maChuyen
+      schedule.maChuyen,
     );
     if (lockedNew)
       return res.status(400).json({
@@ -244,7 +253,7 @@ const updateScheduleAdmin = async (req, res) => {
       changedFields.every(
         (field) =>
           importantFields.includes(field) &&
-          [0, null, ""].includes(Number(previousData[field]) || 0)
+          [0, null, ""].includes(Number(previousData[field]) || 0),
       );
 
     // 3️⃣ Chỉ tạo lịch sử nếu không thuộc 2 trường hợp trên
@@ -314,7 +323,7 @@ const deleteSchedulesByDateRange = async (req, res) => {
 
     const result = await ScheduleAdmin.updateMany(
       { ngayGiaoHang: { $gte: start, $lte: end } },
-      { $set: { isDeleted: true, deletedAt: new Date() } }
+      { $set: { isDeleted: true, deletedAt: new Date() } },
     );
 
     res.json({
@@ -389,7 +398,7 @@ const restoreSchedule = async (req, res) => {
 
     const result = await ScheduleAdmin.updateMany(
       { maChuyen: { $in: maChuyenList }, isDeleted: true },
-      { $set: { isDeleted: false, deletedAt: null } }
+      { $set: { isDeleted: false, deletedAt: null } },
     );
 
     return res.json({
@@ -433,6 +442,147 @@ const emptyTrash = async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+};
+
+const buildScheduleFilter = (query) => {
+  const filter = { isDeleted: { $ne: true } };
+  const andConditions = [];
+
+  // ===== LỌC NGÀY GIAO =====
+  const { giaoFrom, giaoTo } = query;
+  if (giaoFrom || giaoTo) {
+    const range = {};
+    if (giaoFrom) range.$gte = new Date(giaoFrom);
+    if (giaoTo) {
+      const end = new Date(giaoTo);
+      end.setHours(23, 59, 59, 999);
+      range.$lte = end;
+    }
+    andConditions.push({ ngayGiaoHang: range });
+  }
+
+  // ===== ARRAY FILTER =====
+  // ===== ARRAY FILTER (HỖ TRỢ __EMPTY__ ĐÚNG NGHĨA DATA) =====
+  const arrayFilterMap = {
+    khachHang: "khachHang",
+    tenLaiXe: "tenLaiXe",
+    bienSoXe: "bienSoXe",
+    dienGiai: "dienGiai",
+    cuocPhi: "cuocPhi",
+    maHoaDon: "maHoaDon",
+    debtCode: "debtCode",
+    ngayGiaoHang: "ngayGiaoHang",
+  };
+
+  for (const [queryKey, field] of Object.entries(arrayFilterMap)) {
+    let values = query[queryKey] || query[`${queryKey}[]`];
+    if (!values) continue;
+    if (!Array.isArray(values)) values = [values];
+
+    const hasEmpty = values.includes("__EMPTY__");
+
+    const normalValues = values
+      .map((v) => v?.toString().trim())
+      .filter((v) => v && v !== "__EMPTY__");
+
+    const orConditions = [];
+    // ===== TRƯỜNG NGÀY (XỬ RIÊNG) =====
+    if (field === "ngayGiaoHang" && normalValues.length) {
+      const dateOr = normalValues.map((d) => {
+        const start = new Date(d);
+        const end = new Date(d);
+        end.setHours(23, 59, 59, 999);
+        return { [field]: { $gte: start, $lte: end } };
+      });
+      orConditions.push({ $or: dateOr });
+    }
+
+    // ===== TRƯỜNG THƯỜNG =====
+    if (field !== "ngayGiaoHang" && normalValues.length) {
+      orConditions.push({ [field]: { $in: normalValues } });
+    }
+
+    // EMPTY = null | "" | not exists
+    if (hasEmpty) {
+      orConditions.push({
+        $or: [
+          { [field]: { $exists: false } },
+          { [field]: null },
+          { [field]: "" },
+        ],
+      });
+    }
+
+    if (orConditions.length === 1) {
+      andConditions.push(orConditions[0]);
+    } else if (orConditions.length > 1) {
+      andConditions.push({ $or: orConditions });
+    }
+  }
+
+  // ===== EMPTY FILTER =====
+  if (query.maHoaDonEmpty === "1") {
+    andConditions.push({
+      $or: [
+        { maHoaDon: { $exists: false } },
+        { maHoaDon: null },
+        { maHoaDon: "" },
+      ],
+    });
+  }
+
+  if (query.debtCodeEmpty === "1") {
+    andConditions.push({
+      $or: [
+        { debtCode: { $exists: false } },
+        { debtCode: null },
+        { debtCode: "" },
+      ],
+    });
+  }
+
+  // ===== MONEY FILTER =====
+  const moneyFields = [
+    "bocXep",
+    "ve",
+    "hangVe",
+    "luuCa",
+    "luatChiPhiKhac",
+    "cuocPhiBS",
+    "bocXepBS",
+    "veBS",
+    "hangVeBS",
+    "luuCaBS",
+    "cpKhacBS",
+    "daThanhToan",
+  ];
+
+  moneyFields.forEach((field) => {
+    const isEmpty = query[`${field}Empty`];
+    const isFilled = query[`${field}Filled`];
+
+    if (isEmpty && !isFilled) {
+      andConditions.push({
+        $or: [
+          { [field]: { $exists: false } },
+          { [field]: null },
+          { [field]: "" },
+        ],
+      });
+    }
+
+    if (isFilled && !isEmpty) {
+      andConditions.push({
+        [field]: { $nin: ["", null] },
+      });
+    }
+  });
+
+  if (andConditions.length) {
+    filter.$and = andConditions;
+  }
+
+  return filter;
 };
 
 const getAllSchedulesAdmin = async (req, res) => {
@@ -482,24 +632,38 @@ const getAllSchedulesAdmin = async (req, res) => {
     };
 
     for (const [queryKey, field] of Object.entries(arrayFilterMap)) {
-      // ❗ nếu đang lọc Empty thì bỏ qua filter thường
-      if (
-        (queryKey === "maHoaDon" && query.maHoaDonEmpty === "1") ||
-        (queryKey === "debtCode" && query.debtCodeEmpty === "1")
-      ) {
-        continue;
-      }
-
       let values = query[queryKey] || query[`${queryKey}[]`];
       if (!values) continue;
       if (!Array.isArray(values)) values = [values];
 
-      values = values.map((v) => v?.toString().trim()).filter(Boolean);
-      if (!values.length) continue;
+      // tách EMPTY ra riêng
+      const hasEmpty = values.includes("__EMPTY__");
 
-      andConditions.push({
-        [field]: { $in: values },
-      });
+      values = values
+        .map((v) => v?.toString().trim())
+        .filter((v) => v && v !== "__EMPTY__");
+
+      if (!values.length && !hasEmpty) continue;
+
+      const orConditions = [];
+
+      if (values.length) {
+        orConditions.push({ [field]: { $in: values } });
+      }
+
+      if (hasEmpty) {
+        orConditions.push({
+          $or: [
+            { [field]: { $exists: false } },
+            { [field]: null },
+            { [field]: "" },
+          ],
+        });
+      }
+
+      andConditions.push(
+        orConditions.length === 1 ? orConditions[0] : { $or: orConditions },
+      );
     }
 
     // ===============================
@@ -565,6 +729,22 @@ const getAllSchedulesAdmin = async (req, res) => {
     }
 
     // ===============================
+    // 🔹 FILTER MA CHUYẾN (GÕ 1 PHẦN – TRẢ VỀ TRÙNG)
+    // ===============================
+    if (query.maChuyen) {
+      const keyword = query.maChuyen.toString().trim();
+
+      if (keyword) {
+        andConditions.push({
+          maChuyen: {
+            $regex: escapeRegex(keyword),
+            $options: "i", // không phân biệt hoa thường
+          },
+        });
+      }
+    }
+
+    // ===============================
     // 🔹 AUTO TEXT FILTER (KHÔNG PHÁ ARRAY + MONEY)
     // ===============================
     const ignoreKeys = [
@@ -581,6 +761,7 @@ const getAllSchedulesAdmin = async (req, res) => {
 
     ignoreKeys.push("maHoaDonEmpty");
     ignoreKeys.push("debtCodeEmpty");
+    ignoreKeys.push("maChuyen");
 
     moneyFields.forEach((f) => {
       ignoreKeys.push(`${f}Empty`);
@@ -664,6 +845,199 @@ const getAllSchedulesAdmin = async (req, res) => {
   }
 };
 
+// 📌 Lấy danh sách chuyến theo kế toán phụ trách
+const getSchedulesByAccountant = async (req, res) => {
+  try {
+    const user = req.user;
+    const query = req.query;
+
+    if (!user || user.role !== "keToan") {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    // ==============================
+    // 🔹 BASE FILTER (CHỈ KHÁC ALL Ở ĐÂY)
+    // ==============================
+    const filter = buildScheduleFilter(query);
+
+    // ÉP thêm điều kiện kế toán phụ trách
+    filter.accountUsername = user.username;
+
+    // ==============================
+    // 🔹 PHÂN TRANG
+    // ==============================
+    const page = parseInt(query.page || 1);
+    const limit = parseInt(query.limit || 50);
+    const skip = (page - 1) * limit;
+
+    // ==============================
+    // 🔹 SORT (GIỐNG ALL)
+    // ==============================
+    const { sortBy, sortOrder } = query;
+
+    const SORT_FIELDS = {
+      ngayBocHang: "ngayBocHang",
+      ngayGiaoHang: "ngayGiaoHang",
+      maChuyen: "maChuyen",
+    };
+
+    let sortOption = { createdAt: -1 };
+
+    if (sortBy && SORT_FIELDS[sortBy]) {
+      sortOption = {
+        [SORT_FIELDS[sortBy]]: sortOrder === "asc" ? 1 : -1,
+      };
+    }
+
+    // ==============================
+    // 🔹 QUERY DB
+    // ==============================
+    const total = await ScheduleAdmin.countDocuments(filter);
+
+    const schedules = await ScheduleAdmin.find(filter)
+      .sort(sortOption)
+      .skip(skip)
+      .limit(limit);
+
+    return res.json({
+      data: schedules,
+      total,
+      totalPages: Math.ceil(total / limit),
+      page,
+    });
+  } catch (err) {
+    console.error("❌ Lỗi khi lấy chuyến kế toán:", err);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// ==============================
+// Lấy tất cả filter options theo khoảng ngày giao
+// ==============================
+const getAllScheduleFilterOptions = async (req, res) => {
+  try {
+    const filter = buildScheduleFilter(req.query);
+
+    const fields = [
+      "khachHang",
+      "tenLaiXe",
+      "bienSoXe",
+      "dienGiai",
+      "cuocPhi",
+      "maHoaDon",
+      "debtCode",
+    ];
+
+    const results = {};
+
+    await Promise.all(
+      fields.map(async (field) => {
+        const [values, hasEmpty] = await Promise.all([
+          ScheduleAdmin.distinct(field, filter),
+          hasEmptyValue(field, filter),
+        ]);
+
+        const cleaned = values
+          .map((v) => v?.toString().trim())
+          .filter(Boolean)
+          .sort();
+
+        if (hasEmpty) {
+          cleaned.push("__EMPTY__");
+        }
+
+        results[field] = cleaned;
+      }),
+    );
+
+    res.json(results);
+  } catch (err) {
+    console.error("❌ Filter options error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ==============================
+// Lấy filter options theo kế toán + khoảng ngày giao
+// ==============================
+const getScheduleFilterOptions = async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user || user.role !== "keToan") {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    // 🔑 build filter CHUNG
+    const filter = buildScheduleFilter(req.query);
+
+    // 🔒 ép theo kế toán
+    filter.accountUsername = user.username;
+
+    const fields = [
+      "khachHang",
+      "tenLaiXe",
+      "bienSoXe",
+      "dienGiai",
+      "cuocPhi",
+      "maHoaDon",
+      "debtCode",
+      "ngayGiaoHang",
+    ];
+
+    const results = {};
+
+    await Promise.all(
+      fields.map(async (field) => {
+        // ===== NGÀY GIAO =====
+        if (field === "ngayGiaoHang") {
+          const values = await ScheduleAdmin.distinct(field, filter);
+
+          const cleaned = values.filter(Boolean).map((d) => {
+            const date = new Date(d);
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, "0");
+            const day = String(date.getDate()).padStart(2, "0");
+            return `${y}-${m}-${day}`;
+          });
+
+          const uniqueSorted = [...new Set(cleaned)].sort();
+
+          // check empty
+          const hasEmpty = await ScheduleAdmin.exists({
+            ...filter,
+            $or: [{ ngayGiaoHang: { $exists: false } }, { ngayGiaoHang: null }],
+          });
+
+          if (hasEmpty) uniqueSorted.unshift("__EMPTY__");
+
+          results.ngayGiaoHang = uniqueSorted;
+          return;
+        }
+
+        // ===== FIELD THƯỜNG =====
+        const [values, hasEmpty] = await Promise.all([
+          ScheduleAdmin.distinct(field, filter),
+          hasEmptyValue(field, filter),
+        ]);
+
+        const cleaned = values
+          .map((v) => v?.toString().trim())
+          .filter(Boolean)
+          .sort();
+
+        if (hasEmpty) cleaned.unshift("__EMPTY__");
+
+        results[field] = cleaned;
+      }),
+    );
+
+    res.json(results);
+  } catch (err) {
+    console.error("❌ Filter options error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // 🔍 Lấy lịch trình theo tên điều vận
 const getSchedulesByDieuVan = async (req, res) => {
   try {
@@ -724,418 +1098,6 @@ const getSchedulesByDieuVan = async (req, res) => {
   }
 };
 
-// 📌 Lấy danh sách chuyến theo kế toán phụ trách
-const getSchedulesByAccountant = async (req, res) => {
-  try {
-    const user = req.user;
-    const query = req.query;
-
-    if (!user) {
-      return res.status(401).json({ error: "Không xác thực được người dùng" });
-    }
-
-    if (user.role !== "keToan") {
-      return res
-        .status(403)
-        .json({ error: "Chỉ kế toán mới được xem danh sách này" });
-    }
-
-    // =================================================
-    // 🔹 FILTER GỐC
-    // =================================================
-    const filter = {
-      accountUsername: user.username,
-      isDeleted: { $ne: true },
-    };
-
-    const andConditions = [];
-
-    // =================================================
-    // 🔹 LỌC NGÀY GIAO
-    // =================================================
-    const { giaoFrom, giaoTo } = query;
-
-    if (giaoFrom || giaoTo) {
-      const range = {};
-      if (giaoFrom) range.$gte = new Date(giaoFrom);
-      if (giaoTo) {
-        const end = new Date(giaoTo);
-        end.setHours(23, 59, 59, 999);
-        range.$lte = end;
-      }
-      andConditions.push({ ngayGiaoHang: range });
-    }
-
-    // =================================================
-    // 🔹 FILTER ARRAY (KH / LÁI XE / BIỂN SỐ)
-    // =================================================
-    const arrayFilterMap = {
-      khachHang: "khachHang",
-      tenLaiXe: "tenLaiXe",
-      bienSoXe: "bienSoXe",
-      dienGiai: "dienGiai",
-      cuocPhi: "cuocPhi",
-      maHoaDon: "maHoaDon",
-      debtCode: "debtCode",
-    };
-
-    for (const [queryKey, field] of Object.entries(arrayFilterMap)) {
-      // ❗ nếu đang lọc Empty thì bỏ qua filter thường
-      if (
-        (queryKey === "maHoaDon" && query.maHoaDonEmpty === "1") ||
-        (queryKey === "debtCode" && query.debtCodeEmpty === "1")
-      ) {
-        continue;
-      }
-
-      let values = query[queryKey] || query[`${queryKey}[]`];
-      if (!values) continue;
-      if (!Array.isArray(values)) values = [values];
-
-      values = values.map((v) => v?.toString().trim()).filter(Boolean);
-
-      if (!values.length) continue;
-
-      andConditions.push({
-        [field]: { $in: values },
-      });
-    }
-
-    // =================================================
-    // 🔹 FILTER TIỀN (ĐÃ NHẬP / CHƯA NHẬP)
-    // =================================================
-    const moneyFields = [
-      "bocXep",
-      "ve",
-      "hangVe",
-      "luuCa",
-      "luatChiPhiKhac",
-      "cuocPhiBS",
-      "bocXepBS",
-      "veBS",
-      "hangVeBS",
-      "luuCaBS",
-      "cpKhacBS",
-      "daThanhToan",
-    ];
-
-    moneyFields.forEach((field) => {
-      const isEmpty = query[`${field}Empty`];
-      const isFilled = query[`${field}Filled`];
-
-      // CHƯA NHẬP
-      if (isEmpty && !isFilled) {
-        andConditions.push({
-          $or: [
-            { [field]: { $exists: false } },
-            { [field]: null },
-            { [field]: "" },
-          ],
-        });
-      }
-
-      // =================================================
-      // 🔹 FILTER EMPTY (maHoaDon / debtCode)
-      // =================================================
-      if (query.maHoaDonEmpty === "1") {
-        andConditions.push({
-          $or: [
-            { maHoaDon: { $exists: false } },
-            { maHoaDon: null },
-            { maHoaDon: "" },
-          ],
-        });
-      }
-
-      if (query.debtCodeEmpty === "1") {
-        andConditions.push({
-          $or: [
-            { debtCode: { $exists: false } },
-            { debtCode: null },
-            { debtCode: "" },
-          ],
-        });
-      }
-
-      // ĐÃ NHẬP
-      if (isFilled && !isEmpty) {
-        andConditions.push({
-          [field]: { $nin: ["", null] },
-        });
-      }
-    });
-
-    // =================================================
-    // 🔹 AUTO TEXT FILTER (CHỈ FIELD THẬT TRONG DB)
-    // =================================================
-    const ignoreKeys = [
-      "page",
-      "limit",
-      "giaoFrom",
-      "giaoTo",
-      "ngayGiaoHang",
-      ...Object.keys(arrayFilterMap),
-      ...Object.keys(arrayFilterMap).map((k) => `${k}[]`),
-    ];
-
-    ignoreKeys.push("maHoaDonEmpty");
-    ignoreKeys.push("debtCodeEmpty");
-
-    moneyFields.forEach((f) => {
-      ignoreKeys.push(`${f}Empty`);
-      ignoreKeys.push(`${f}Filled`);
-    });
-
-    for (const [key, value] of Object.entries(query)) {
-      if (!value) continue;
-      if (ignoreKeys.includes(key)) continue;
-
-      andConditions.push({
-        [key]: new RegExp(escapeRegex(value), "i"),
-      });
-    }
-
-    if (andConditions.length) {
-      filter.$and = andConditions;
-    }
-
-    // =================================================
-    // 🔹 PHÂN TRANG
-    // =================================================
-    const page = parseInt(query.page || 1);
-    const limit = parseInt(query.limit || 50);
-    const skip = (page - 1) * limit;
-
-    const total = await ScheduleAdmin.countDocuments(filter);
-
-    const schedules = await ScheduleAdmin.find(filter)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
-
-    return res.json({
-      data: schedules,
-      total,
-      totalPages: Math.ceil(total / limit),
-      page,
-    });
-  } catch (err) {
-    console.error("❌ Lỗi khi lấy chuyến theo kế toán:", err);
-    return res.status(500).json({ error: err.message });
-  }
-};
-
-// ==============================
-// Lấy tất cả filter options theo khoảng ngày giao
-// ==============================
-
-const buildScheduleFilter = (query) => {
-  const filter = { isDeleted: { $ne: true } };
-  const andConditions = [];
-
-  // ===== LỌC NGÀY GIAO =====
-  const { giaoFrom, giaoTo } = query;
-  if (giaoFrom || giaoTo) {
-    const range = {};
-    if (giaoFrom) range.$gte = new Date(giaoFrom);
-    if (giaoTo) {
-      const end = new Date(giaoTo);
-      end.setHours(23, 59, 59, 999);
-      range.$lte = end;
-    }
-    andConditions.push({ ngayGiaoHang: range });
-  }
-
-  // ===== ARRAY FILTER =====
-  const arrayFilterMap = {
-    khachHang: "khachHang",
-    tenLaiXe: "tenLaiXe",
-    bienSoXe: "bienSoXe",
-    dienGiai: "dienGiai",
-    cuocPhi: "cuocPhi",
-    maHoaDon: "maHoaDon",
-    debtCode: "debtCode",
-  };
-
-  for (const [queryKey, field] of Object.entries(arrayFilterMap)) {
-    if (
-      (queryKey === "maHoaDon" && query.maHoaDonEmpty === "1") ||
-      (queryKey === "debtCode" && query.debtCodeEmpty === "1")
-    ) {
-      continue;
-    }
-
-    let values = query[queryKey] || query[`${queryKey}[]`];
-    if (!values) continue;
-    if (!Array.isArray(values)) values = [values];
-
-    values = values.map((v) => v?.toString().trim()).filter(Boolean);
-    if (!values.length) continue;
-
-    andConditions.push({ [field]: { $in: values } });
-  }
-
-  // ===== EMPTY FILTER =====
-  if (query.maHoaDonEmpty === "1") {
-    andConditions.push({
-      $or: [
-        { maHoaDon: { $exists: false } },
-        { maHoaDon: null },
-        { maHoaDon: "" },
-      ],
-    });
-  }
-
-  if (query.debtCodeEmpty === "1") {
-    andConditions.push({
-      $or: [
-        { debtCode: { $exists: false } },
-        { debtCode: null },
-        { debtCode: "" },
-      ],
-    });
-  }
-
-  // ===== MONEY FILTER =====
-  const moneyFields = [
-    "bocXep",
-    "ve",
-    "hangVe",
-    "luuCa",
-    "luatChiPhiKhac",
-    "cuocPhiBS",
-    "bocXepBS",
-    "veBS",
-    "hangVeBS",
-    "luuCaBS",
-    "cpKhacBS",
-    "daThanhToan",
-  ];
-
-  moneyFields.forEach((field) => {
-    const isEmpty = query[`${field}Empty`];
-    const isFilled = query[`${field}Filled`];
-
-    if (isEmpty && !isFilled) {
-      andConditions.push({
-        $or: [
-          { [field]: { $exists: false } },
-          { [field]: null },
-          { [field]: "" },
-        ],
-      });
-    }
-
-    if (isFilled && !isEmpty) {
-      andConditions.push({
-        [field]: { $nin: ["", null] },
-      });
-    }
-  });
-
-  if (andConditions.length) {
-    filter.$and = andConditions;
-  }
-
-  return filter;
-};
-
-const getAllScheduleFilterOptions = async (req, res) => {
-  try {
-    // 🔥 DÙNG CHUNG FILTER
-    const filter = buildScheduleFilter(req.query);
-
-    const [
-      khachHang,
-      tenLaiXe,
-      bienSoXe,
-      dienGiai,
-      cuocPhi,
-      maHoaDon,
-      debtCode,
-    ] = await Promise.all([
-      ScheduleAdmin.distinct("khachHang", filter),
-      ScheduleAdmin.distinct("tenLaiXe", filter),
-      ScheduleAdmin.distinct("bienSoXe", filter),
-      ScheduleAdmin.distinct("dienGiai", filter),
-      ScheduleAdmin.distinct("cuocPhi", filter),
-      ScheduleAdmin.distinct("maHoaDon", filter),
-      ScheduleAdmin.distinct("debtCode", filter),
-    ]);
-
-    res.json({
-      khachHang: khachHang.filter(Boolean).sort(),
-      tenLaiXe: tenLaiXe.filter(Boolean).sort(),
-      bienSoXe: bienSoXe.filter(Boolean).sort(),
-      dienGiai: dienGiai.filter(Boolean).sort(),
-      cuocPhi: cuocPhi.filter(Boolean).sort(),
-      maHoaDon: maHoaDon.filter(Boolean).sort(),
-      debtCode: debtCode.filter(Boolean).sort(),
-    });
-  } catch (err) {
-    console.error("❌ Filter options error:", err);
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// ==============================
-// Lấy filter options theo kế toán + khoảng ngày giao
-// ==============================
-const getScheduleFilterOptions = async (req, res) => {
-  try {
-    const user = req.user;
-    const { fromDate, toDate } = req.query;
-
-    if (!user || user.role !== "keToan") {
-      return res.status(403).json({ error: "Forbidden" });
-    }
-
-    const baseFilter = {
-      accountUsername: user.username,
-      isDeleted: { $ne: true },
-    };
-
-    // ===== THÊM LỌC NGÀY GIAO =====
-    if (fromDate || toDate) {
-      baseFilter.ngayGiaoHang = {};
-      if (fromDate)
-        baseFilter.ngayGiaoHang.$gte = new Date(fromDate + "T00:00:00");
-      if (toDate) baseFilter.ngayGiaoHang.$lte = new Date(toDate + "T23:59:59");
-    }
-
-    const [
-      khachHang,
-      tenLaiXe,
-      bienSoXe,
-      dienGiai,
-      cuocPhi,
-      maHoaDon,
-      debtCode,
-    ] = await Promise.all([
-      ScheduleAdmin.distinct("khachHang", baseFilter),
-      ScheduleAdmin.distinct("tenLaiXe", baseFilter),
-      ScheduleAdmin.distinct("bienSoXe", baseFilter),
-      ScheduleAdmin.distinct("dienGiai", baseFilter),
-      ScheduleAdmin.distinct("cuocPhi", baseFilter),
-      ScheduleAdmin.distinct("maHoaDon", baseFilter),
-      ScheduleAdmin.distinct("debtCode", baseFilter),
-    ]);
-
-    res.json({
-      khachHang: khachHang.filter(Boolean).sort(),
-      tenLaiXe: tenLaiXe.filter(Boolean).sort(),
-      bienSoXe: bienSoXe.filter(Boolean).sort(),
-      dienGiai: dienGiai.filter(Boolean).sort(),
-      cuocPhi: cuocPhi.filter(Boolean).sort(),
-      maHoaDon: maHoaDon.filter(Boolean).sort(),
-      debtCode: debtCode.filter(Boolean).sort(),
-    });
-  } catch (err) {
-    console.error("❌ Filter options error:", err);
-    res.status(500).json({ error: err.message });
-  }
-};
-
 // 🆕 Thêm mã hoá đơn cho 1 hoặc nhiều chuyến
 const addHoaDonToSchedules = async (req, res) => {
   try {
@@ -1154,7 +1116,7 @@ const addHoaDonToSchedules = async (req, res) => {
     // Cập nhật tất cả chuyến có mã chuyến trong maChuyenList
     const result = await ScheduleAdmin.updateMany(
       { maChuyen: { $in: maChuyenList } },
-      { $set: { maHoaDon } }
+      { $set: { maHoaDon } },
     );
 
     res.json({
@@ -1179,7 +1141,7 @@ const removeHoaDonFromSchedules = async (req, res) => {
 
     const result = await ScheduleAdmin.updateMany(
       { maChuyen: { $in: maChuyenList } },
-      { $set: { maHoaDon: "" } }
+      { $set: { maHoaDon: "" } },
     );
 
     return res.json({
@@ -1397,7 +1359,7 @@ const importSchedulesFromExcel = async (req, res) => {
 
       if (locked) {
         console.log(
-          `⛔ Bỏ qua chuyến ${maChuyen} vì kỳ ${locked.periodCode} đã khoá`
+          `⛔ Bỏ qua chuyến ${maChuyen} vì kỳ ${locked.periodCode} đã khoá`,
         );
         skipped++;
         skippedTrips.push(maChuyen);
@@ -1608,7 +1570,7 @@ const exportTripsByDateRange = async (req, res) => {
     // ======================
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(
-      path.join(__dirname, "../templates/DANH_SACH_CHUYEN.xlsx")
+      path.join(__dirname, "../templates/DANH_SACH_CHUYEN.xlsx"),
     );
 
     const sheet = workbook.getWorksheet("Thang 11"); // ⚠️ đúng tên sheet mẫu
@@ -1635,10 +1597,10 @@ const exportTripsByDateRange = async (req, res) => {
 
       // DATE
       row.getCell("H").value = new Date(
-        trip.ngayBocHang.toISOString().slice(0, 10)
+        trip.ngayBocHang.toISOString().slice(0, 10),
       );
       row.getCell("I").value = new Date(
-        trip.ngayGiaoHang.toISOString().slice(0, 10)
+        trip.ngayGiaoHang.toISOString().slice(0, 10),
       );
 
       row.getCell("J").value = trip.diemXepHang || "";
@@ -1674,11 +1636,11 @@ const exportTripsByDateRange = async (req, res) => {
     // ======================
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename=DANH_SACH_CHUYEN_${from}_den_${to}.xlsx`
+      `attachment; filename=DANH_SACH_CHUYEN_${from}_den_${to}.xlsx`,
     );
     res.setHeader(
       "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     );
 
     await workbook.xlsx.write(res);
@@ -1726,7 +1688,7 @@ const exportTripsByDateRangeBS = async (req, res) => {
     // ======================
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(
-      path.join(__dirname, "../templates/DSC_BS.xlsm")
+      path.join(__dirname, "../templates/DSC_BS.xlsm"),
     );
 
     const sheet = workbook.getWorksheet("Thang 10"); // ⚠️ đúng tên sheet mẫu
@@ -1753,10 +1715,10 @@ const exportTripsByDateRangeBS = async (req, res) => {
 
       // DATE
       row.getCell("H").value = new Date(
-        trip.ngayBocHang.toISOString().slice(0, 10)
+        trip.ngayBocHang.toISOString().slice(0, 10),
       );
       row.getCell("I").value = new Date(
-        trip.ngayGiaoHang.toISOString().slice(0, 10)
+        trip.ngayGiaoHang.toISOString().slice(0, 10),
       );
 
       row.getCell("J").value = trip.diemXepHang || "";
@@ -1799,11 +1761,11 @@ const exportTripsByDateRangeBS = async (req, res) => {
     // ======================
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename=DANH_SACH_CHUYEN_${from}_den_${to}.xlsx`
+      `attachment; filename=DANH_SACH_CHUYEN_${from}_den_${to}.xlsx`,
     );
     res.setHeader(
       "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     );
 
     await workbook.xlsx.write(res);
