@@ -10,7 +10,8 @@ const {
   getAllDieuVan,
   refreshToken,
   updateUserPermissions,
-  updateProfile
+  updateProfile,
+  adminResetPassword
 } = require('../controllers/authController');
 
 const multer = require("multer");
@@ -52,6 +53,9 @@ router.post('/admin-create', authMiddleware(['admin']), adminCreate);
 router.delete('/users/:id', authMiddleware(['admin']), deleteUser);
 router.get('/dieu-van', authMiddleware(), getAllDieuVan);
 router.put("/users/:id/permissions", authMiddleware(['admin']), updateUserPermissions);
+// 🔐 Admin reset mật khẩu user
+router.put('/users/:id/reset-password', authMiddleware(['admin']), adminResetPassword);
+
 router.put(
   "/profile",
   authMiddleware(["admin", "dieuVan", "keToan"]),

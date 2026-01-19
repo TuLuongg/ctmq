@@ -168,3 +168,29 @@ exports.updateProfile = async (req, res) => {
 };
 
 
+// 🔐 Admin reset mật khẩu user
+exports.adminResetPassword = async (req, res) => {
+  try {
+    // đã có authMiddleware(['admin']) nên không cần check lại role
+    const { id } = req.params;
+    const { newPassword } = req.body;
+
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ message: 'Mật khẩu phải >= 6 ký tự' });
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+
+    await User.findByIdAndUpdate(id, {
+      password: hashed
+    });
+
+    res.json({ message: 'Đã reset mật khẩu thành công' });
+  } catch (err) {
+    res.status(500).json({
+      message: 'Lỗi reset mật khẩu',
+      error: err.message
+    });
+  }
+};
+
