@@ -4,7 +4,7 @@ const userSchema = new mongoose.Schema(
   {
     username: { type: String, required: true, unique: true },
     password: { type: String, required: true },
-    email: { type: String, default: ""},
+    email: { type: String, default: "" },
     fullname: { type: String, default: "" }, // Họ tên đầy đủ
     phone: { type: String, default: "" }, // Số điện thoại
     avatar: { type: String, default: "" }, // Link ảnh đại diện
@@ -15,8 +15,9 @@ const userSchema = new mongoose.Schema(
       default: "dieuVan",
     },
 
-    resetOTP: String,
-    resetOTPExpire: Date,
+    resetOTP: { type: String },
+    resetOTPExpire: { type: Date },
+    resetOTPLastSentAt: { type: Date },
 
     // 🧩 Quyền chi tiết cho từng danh sách
     // admin có full quyền, các role khác chỉ có quyền trong mảng này

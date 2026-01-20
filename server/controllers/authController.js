@@ -277,42 +277,43 @@ exports.forgotPassword = async (req, res) => {
       });
     }
 
-    // ⛔ OTP còn hạn
-    if (user.resetOTPExpire && user.resetOTPExpire > new Date()) {
+    const now = Date.now();
+
+    // ⛔ CHẶN RESEND TRONG 30s
+    if (
+      user.resetOTPLastSentAt &&
+      now - new Date(user.resetOTPLastSentAt).getTime() < 30 * 1000
+    ) {
+      const wait =
+        30 -
+        Math.floor(
+          (now - new Date(user.resetOTPLastSentAt).getTime()) / 1000
+        );
+
       return res.status(429).json({
-        step: "CHECK_OTP_EXPIRE",
-        message: "OTP vẫn còn hiệu lực, vui lòng đợi",
-        expireAt: user.resetOTPExpire,
-        now: new Date(),
+        step: "RESEND_LIMIT",
+        message: `Vui lòng đợi ${wait}s để gửi lại OTP`,
+        retryAfterSeconds: wait,
       });
     }
 
+    // 🔢 TẠO OTP MỚI
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // 👉 SEND MAIL
-    try {
-      await sendOTPEmail(user.email, otp, user.fullname);
-    } catch (mailErr) {
-      console.error("❌ SEND MAIL ERROR:", mailErr);
-
-      return res.status(500).json({
-        step: "SEND_MAIL",
-        message: "Gửi email OTP thất bại",
-        error: mailErr.message,
-        code: mailErr.code,
-        response: mailErr.response,
-      });
-    }
-
-    // 👉 SAVE OTP
+    // ✅ SAVE OTP + TIME
     user.resetOTP = otp;
-    user.resetOTPExpire = new Date(Date.now() + 5 * 60 * 1000);
+    user.resetOTPExpire = new Date(now + 5 * 60 * 1000); // 5 phút
+    user.resetOTPLastSentAt = new Date(now);
     await user.save();
+
+    // ✉️ SEND MAIL
+    await sendOTPEmail(user.email, otp, user.fullname);
 
     return res.json({
       step: "DONE",
       message: "Đã gửi OTP qua email",
       expireInMinutes: 5,
+      resendAfterSeconds: 30,
     });
   } catch (err) {
     console.error("❌ FORGOT PASSWORD ERROR:", err);
@@ -321,7 +322,6 @@ exports.forgotPassword = async (req, res) => {
       step: "UNKNOWN",
       message: "Lỗi server",
       error: err.message,
-      stack: err.stack,
     });
   }
 };

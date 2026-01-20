@@ -582,6 +582,20 @@ const buildScheduleFilter = (query) => {
     filter.$and = andConditions;
   }
 
+  // ===== FILTER MA CHUYẾN (GÕ 1 PHẦN – TRẢ VỀ TRÙNG) =====
+  if (query.maChuyen) {
+    const keyword = query.maChuyen.toString().trim();
+
+    if (keyword) {
+      andConditions.push({
+        maChuyen: {
+          $regex: escapeRegex(keyword),
+          $options: "i", // không phân biệt hoa thường
+        },
+      });
+    }
+  }
+
   return filter;
 };
 

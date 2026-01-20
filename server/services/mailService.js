@@ -1,23 +1,24 @@
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 exports.sendOTPEmail = async (to, otp, fullname = "") => {
-  return transporter.sendMail({
-    from: `"He Thong Dieu Van" <${process.env.GMAIL_USER}>`,
-    to,
-    subject: "Ma OTP lay lai mat khau",
-    html: `
-      <p>Chao ${fullname || "ban"},</p>
-      <p>Ma OTP cua ban la:</p>
-      <h2>${otp}</h2>
-      <p>OTP co hieu luc trong <b>5 phut</b>.</p>
-    `,
-  });
+  try {
+    const result = await resend.emails.send({
+      from: "no-reply@mail.ctmq.com", // ⚠️ BẮT BUỘC
+      to,
+      subject: "Ma OTP lay lai mat khau",
+      html: `
+        <p>Chao ${fullname || "ban"},</p>
+        <h2>${otp}</h2>
+        <p>OTP co hieu luc 5 phut</p>
+      `,
+    });
+
+    console.log("✅ RESEND OK:", result);
+    return result;
+  } catch (err) {
+    console.error("❌ RESEND ERROR:", err);
+    throw err; // QUAN TRỌNG
+  }
 };
