@@ -15,7 +15,6 @@ const FIELD_MAP = [
   { key: "diemXepHang", label: "Điểm đóng" },
   { key: "diemDoHang", label: "Điểm giao" },
   { key: "soDiem", label: "Số điểm" },
-  { key: "themDiem", label: "Thêm điểm" },
   { key: "trongLuong", label: "Trọng lượng" },
   { key: "bienSoXe", label: "Biển số xe" },
   { key: "cuocPhi", label: "Cước phí BĐ", isMoney: true },
@@ -91,9 +90,51 @@ export default function RideAllRequestModal({ open, onClose, onLoaded }) {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [processingId, setProcessingId] = useState(null);
 
   const PER_PAGE = 20;
   const token = localStorage.getItem("token");
+
+  const tableRef = React.useRef(null);
+
+  const useResizableColumns = () => {
+    const startResize = (e, colIndex, tableRef) => {
+      e.preventDefault();
+      const table = tableRef.current;
+      if (!table) return;
+
+      const startX = e.clientX;
+      const th = table.querySelectorAll("th")[colIndex];
+      if (!th) return;
+
+      const startWidth = th.offsetWidth;
+
+      const onMouseMove = (ev) => {
+        const newWidth = Math.max(60, startWidth + ev.clientX - startX);
+
+        table.querySelectorAll("tr").forEach((row) => {
+          const cell = row.children[colIndex];
+          if (cell) {
+            cell.style.width = `${newWidth}px`;
+            cell.style.minWidth = `${newWidth}px`;
+            cell.style.maxWidth = `${newWidth}px`;
+          }
+        });
+      };
+
+      const onMouseUp = () => {
+        document.removeEventListener("mousemove", onMouseMove);
+        document.removeEventListener("mouseup", onMouseUp);
+      };
+
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp);
+    };
+
+    return { startResize };
+  };
+
+  const { startResize } = useResizableColumns();
 
   const fetchRequests = async (p = page) => {
     try {
@@ -130,7 +171,11 @@ export default function RideAllRequestModal({ open, onClose, onLoaded }) {
   if (!open) return null;
 
   const handleProcess = async (req, action) => {
+    if (processingId) return; // chặn double click
+
     try {
+      setProcessingId(req._id);
+
       await axios.post(
         `${API_URL}/edit-process`,
         {
@@ -141,9 +186,12 @@ export default function RideAllRequestModal({ open, onClose, onLoaded }) {
         { headers: { Authorization: `Bearer ${token}` } },
       );
 
-      reload && reload();
+      // ✅ reload lại danh sách
+      await fetchRequests(page);
     } catch (e) {
       alert("Lỗi xử lý");
+    } finally {
+      setProcessingId(null);
     }
   };
 
@@ -159,31 +207,48 @@ export default function RideAllRequestModal({ open, onClose, onLoaded }) {
           </button>
         </div>
 
+        {loading && (
+          <div className="absolute inset-0 bg-white bg-opacity-70 z-40 flex flex-col items-center justify-center">
+            <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-500 border-t-transparent mb-3"></div>
+            <div className="text-sm text-gray-700 font-semibold">
+              Đang tải dữ liệu, vui lòng chờ...
+            </div>
+          </div>
+        )}
+
         {/* TABLE SCROLL */}
         <div className="overflow-auto border">
-          <table
-            className="min-w-[2400px] text-xs"
-            style={{
-              borderCollapse: "separate",
-              borderSpacing: 0,
-            }}
-          >
-            <thead className="sticky top-0 bg-gray-200 z-20">
+          <table ref={tableRef} className="text-xs border-collapse table-fixed">
+            <thead className="sticky top-0 bg-gray-200 z-30">
               <tr>
-                <th className="border p-2">Thời gian</th>
-                <th className="border p-2 sticky left-[0px] bg-gray-200 z-20">
-                  Mã chuyến
-                </th>
-                <th className="border p-2">Người yêu cầu</th>
-                <th className="border p-2">Lý do chỉnh sửa</th>
+                {[
+                  "Thời gian",
+                  "Mã chuyến",
+                  "Người YC",
+                  "Lý do",
+                  ...FIELD_MAP.map((f) => f.label),
+                  "Xử lý",
+                ].map((label, index) => {
+                  const isMaChuyen = index === 1;
+                  const isActionCol = index === FIELD_MAP.length + 4;
 
-                {FIELD_MAP.map((f) => (
-                  <th key={f.key} className="border p-2 whitespace-nowrap">
-                    {f.label}
-                  </th>
-                ))}
+                  return (
+                    <th
+                      key={index}
+                      className={`border p-2 relative select-none whitespace-nowrap overflow-hidden
+    ${isMaChuyen ? "sticky left-0 z-40 bg-gray-200" : ""}
+    ${isActionCol ? "sticky right-0 z-40 bg-gray-200" : ""}
+  `}
+                    >
+                      <div className="truncate pr-2">{label}</div>
 
-                <th className="border p-2 sticky right-0 bg-gray-200">Xử lý</th>
+                      <div
+                        onMouseDown={(e) => startResize(e, index, tableRef)}
+                        className="absolute top-0 right-0 h-full w-2 cursor-col-resize hover:bg-blue-500"
+                      />
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
 
@@ -194,16 +259,29 @@ export default function RideAllRequestModal({ open, onClose, onLoaded }) {
 
                 return (
                   <tr key={req._id} className="hover:bg-gray-50">
-                    <td className="border p-2">
-                      {format(new Date(req.createdAt), "dd/MM HH:mm")}
+                    {/* Thời gian */}
+                    <td className="border p-2 overflow-hidden">
+                      <div className="truncate">
+                        {format(new Date(req.createdAt), "dd/MM HH:mm")}
+                      </div>
                     </td>
 
-                    <td className="border p-2 sticky left-[0px] bg-white z-10 font-semibold">
-                      {oldData.maChuyen || "—"}
+                    {/* MÃ CHUYẾN – STICKY */}
+                    <td className="border p-2 sticky left-0 bg-white z-30 font-semibold overflow-hidden">
+                      <div className="truncate">{oldData.maChuyen || "—"}</div>
                     </td>
 
-                    <td className="border p-2">{req.requestedBy}</td>
-                    <td className="border p-2">{req.reason || "—"}</td>
+                    {/* Người YC */}
+                    <td className="border p-2 overflow-hidden">
+                      <div className="truncate">{req.requestedBy}</div>
+                    </td>
+
+                    {/* Lý do */}
+                    <td className="border p-2 overflow-hidden text-blue-600">
+                      <div className="truncate">{req.reason || "—"}</div>
+                    </td>
+
+                    {/* FIELD MAP */}
                     {FIELD_MAP.map((f) => {
                       let oldVal, newVal;
                       let changed = false;
@@ -226,63 +304,76 @@ export default function RideAllRequestModal({ open, onClose, onLoaded }) {
                       }
 
                       return (
-                        <td key={f.key} className="border p-2">
-                          {changed ? (
-                            <span className="text-red-600 font-semibold">
-                              {f.isDate
-                                ? formatDate(oldVal)
-                                : f.isMoney
-                                  ? formatMoney(oldVal)
-                                  : (oldVal ?? "—")}
-                              {" → "}
-                              {f.isDate
-                                ? formatDate(newVal)
-                                : f.isMoney
-                                  ? formatMoney(newVal)
-                                  : (newVal ?? "—")}
-                            </span>
-                          ) : (
-                            <span>
-                              {f.isDate
-                                ? formatDate(oldVal)
-                                : f.isMoney
-                                  ? formatMoney(oldVal)
-                                  : (oldVal ?? "—")}
-                            </span>
-                          )}
+                        <td key={f.key} className="border p-2 overflow-hidden">
+                          <div className="truncate">
+                            {changed ? (
+                              <span className="font-semibold">
+                                {/* GIÁ TRỊ CŨ – ĐỎ */}
+                                <span className="text-red-600">
+                                  {f.isDate
+                                    ? formatDate(oldVal)
+                                    : f.isMoney
+                                      ? formatMoney(oldVal)
+                                      : (oldVal ?? "—")}
+                                </span>
+
+                                {/* MŨI TÊN – ĐEN */}
+                                <span className="mx-1 text-black">→</span>
+
+                                {/* GIÁ TRỊ MỚI – XANH */}
+                                <span className="text-green-600">
+                                  {f.isDate
+                                    ? formatDate(newVal)
+                                    : f.isMoney
+                                      ? formatMoney(newVal)
+                                      : (newVal ?? "—")}
+                                </span>
+                              </span>
+                            ) : f.isDate ? (
+                              formatDate(oldVal)
+                            ) : f.isMoney ? (
+                              formatMoney(oldVal)
+                            ) : (
+                              (oldVal ?? "—")
+                            )}
+                          </div>
                         </td>
                       );
                     })}
 
-                    {/* ACTION */}
-                    <td className="border p-2 sticky right-0 bg-white min-w-[130px]">
+                    {/* ACTION – STICKY RIGHT */}
+                    <td className="border p-2 sticky right-0 bg-white z-30 min-w-[130px]">
                       {req.status !== "pending" ? (
                         <div className="text-center font-semibold">
                           {req.status === "approved" && (
                             <span className="text-green-600">Đã duyệt</span>
                           )}
-
                           {req.status === "rejected" && (
                             <span className="text-red-600">Từ chối</span>
                           )}
                         </div>
                       ) : (
-                        <>
-                          <div className="flex gap-1 justify-center">
-                            <button
-                              className="flex-1 bg-green-600 text-white px-1 py-1 rounded"
-                              onClick={() => handleProcess(req, "approve")}
-                            >
-                              Duyệt
-                            </button>
-                            <button
-                              className="flex-1 bg-red-600 text-white px-1 py-1 rounded"
-                              onClick={() => handleProcess(req, "reject")}
-                            >
-                              Từ chối
-                            </button>
-                          </div>
-                        </>
+                        <div className="flex gap-1 justify-center">
+                          <button
+                            disabled={processingId === req._id}
+                            className="flex-1 bg-green-600 text-white px-1 py-1 rounded disabled:opacity-50"
+                            onClick={() => handleProcess(req, "approve")}
+                          >
+                            {processingId === req._id
+                              ? "Đang xử lý..."
+                              : "Duyệt"}
+                          </button>
+
+                          <button
+                            disabled={processingId === req._id}
+                            className="flex-1 bg-red-600 text-white px-1 py-1 rounded disabled:opacity-50"
+                            onClick={() => handleProcess(req, "reject")}
+                          >
+                            {processingId === req._id
+                              ? "Đang xử lý..."
+                              : "Từ chối"}
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>

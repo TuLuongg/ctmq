@@ -229,18 +229,22 @@ export default function RideRequestListModal({
                       return (
                         <td key={f.key} className="border p-2">
                           {changed ? (
-                            <span className="text-red-600 font-semibold">
-                              {f.isDate
-                                ? formatDate(oldVal)
-                                : f.isMoney
-                                  ? formatMoney(oldVal)
-                                  : (oldVal ?? "—")}
-                              {" → "}
-                              {f.isDate
-                                ? formatDate(newVal)
-                                : f.isMoney
-                                  ? formatMoney(newVal)
-                                  : (newVal ?? "—")}
+                            <span className="font-semibold">
+                              <span className="text-red-600">
+                                {f.isDate
+                                  ? formatDate(oldVal)
+                                  : f.isMoney
+                                    ? formatMoney(oldVal)
+                                    : (oldVal ?? "—")}
+                              </span>
+                              <span className="mx-1 text-black">→</span>
+                              <span className="text-green-600">
+                                {f.isDate
+                                  ? formatDate(newVal)
+                                  : f.isMoney
+                                    ? formatMoney(newVal)
+                                    : (newVal ?? "—")}
+                              </span>
                             </span>
                           ) : (
                             <span>

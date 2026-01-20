@@ -56,10 +56,11 @@ export default function RideHistoryModal({ ride, historyData, onClose, role }) {
           <table className="border-collapse border w-full text-sm">
             <thead className="bg-gray-200">
               <tr>
-                <th className="border p-2 text-left">Thời gian</th>
-                <th className="border p-2 text-left">Người chỉnh sửa</th>
-                <th className="border p-2 text-left">Lý do</th>
-                <th className="border p-2 text-left">Các trường thay đổi</th>
+                <th className="border p-2 text-center w-[150px]">Thời gian</th>
+                <th className="border p-2 text-center w-[130px]">Người chỉnh sửa</th>
+                <th className="border p-2 text-center w-[150px]">Người phê duyệt</th>
+                <th className="border p-2 text-center">Lý do</th>
+                <th className="border p-2 text-center">Các trường thay đổi</th>
               </tr>
             </thead>
             <tbody>
@@ -69,6 +70,7 @@ export default function RideHistoryModal({ ride, historyData, onClose, role }) {
                     {new Date(h.createdAt).toLocaleString()}
                   </td>
                   <td className="border p-2">{h.editedBy}</td>
+                  <td className="border p-2">{h.approvedBy}</td>
                   <td className="border p-2">{h.reason || "-"}</td>
 
                   <td className="border p-2 space-y-1 text-left">
