@@ -1,4 +1,5 @@
 const RideHistory = require("../models/RideHistory");
+const User = require("../models/User");
 const ScheduleAdmin = require("../models/ScheduleAdmin");
 const RideEditRequest = require("../models/RideEditRequest");
 
@@ -131,6 +132,14 @@ exports.processEditRideRequest = async (req, res) => {
   try {
     const { requestID, action, note } = req.body;
 
+    const approverID = req.user.id;
+
+    // 🔥 LẤY FULL USER
+    const approver =
+      await User.findById(approverID).select("fullname username");
+
+    const approverName = approver?.fullname || approver?.username || "Unknown";
+
     if (!requestID || !action) {
       return res.status(400).json({ error: "Thiếu dữ liệu đầu vào" });
     }
@@ -189,6 +198,8 @@ exports.processEditRideRequest = async (req, res) => {
         rideID: ride._id,
         editedByID: request.requestedByID,
         editedBy: request.requestedBy,
+        approvedByID: approverID,
+        approvedBy: approverName,
         reason: request.reason,
         previousData,
         newData: ride.toObject(),
