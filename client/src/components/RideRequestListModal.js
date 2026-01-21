@@ -45,9 +45,15 @@ const formatDate = (v) => {
 
 const formatMoney = (value) => {
   if (value == null || value === "") return "—";
-  const num = Number(String(value).replace(/[^\d-]/g, ""));
-  if (isNaN(num)) return value;
-  return num.toLocaleString("vi-VN");
+
+  const str = String(value);
+
+  // thay từng cụm số liên tiếp bằng số đã format
+  return str.replace(/\d+/g, (match) => {
+    const num = Number(match);
+    if (isNaN(num)) return match;
+    return num.toLocaleString("vi-VN");
+  });
 };
 
 const isDifferent = (oldVal, newVal) => {

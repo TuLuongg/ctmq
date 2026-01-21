@@ -113,6 +113,8 @@ export default function VoucherListPage() {
 
   const [expenseTypeOptions, setExpenseTypeOptions] = useState([]);
   const [companyOptions, setCompanyOptions] = useState([]);
+  const [receiverOptions, setReceiverOptions] = useState([]);
+
   useEffect(() => {
     const fetchFilterOptions = async () => {
       try {
@@ -130,6 +132,22 @@ export default function VoucherListPage() {
 
     fetchFilterOptions();
   }, []);
+
+  useEffect(() => {
+  const fetchReceivers = async () => {
+    try {
+      const res = await axios.get(`${API}/vouchers/unique-receivers`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      setReceiverOptions(res.data || []);
+    } catch (err) {
+      console.error("Load receiver options failed", err);
+    }
+  };
+
+  fetchReceivers();
+}, []);
 
   const [originColWidth, setOriginColWidth] = useState(() => {
     try {
@@ -1667,6 +1685,7 @@ export default function VoucherListPage() {
         <VoucherCreateModal
           customers={customers}
           defaultData={copyData}
+          receivers={receiverOptions} 
           onClose={() => setShowCreate(false)}
           onSuccess={() => {
             setShowCreate(false);

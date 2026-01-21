@@ -78,11 +78,16 @@ const getApprovedChange = (req, field) => {
 const formatMoney = (value) => {
   if (value == null || value === "") return "—";
 
-  const num = Number(String(value).replace(/[^\d-]/g, ""));
-  if (isNaN(num)) return value;
+  const str = String(value);
 
-  return num.toLocaleString("vi-VN");
+  // thay từng cụm số liên tiếp bằng số đã format
+  return str.replace(/\d+/g, (match) => {
+    const num = Number(match);
+    if (isNaN(num)) return match;
+    return num.toLocaleString("vi-VN");
+  });
 };
+
 
 export default function RideAllRequestModal({ open, onClose, onLoaded }) {
   const [noteMap, setNoteMap] = useState({}); // note theo requestID

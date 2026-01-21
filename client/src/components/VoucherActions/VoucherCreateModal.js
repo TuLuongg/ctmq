@@ -125,6 +125,7 @@ function normalizeVN(str = "") {
 export default function VoucherCreateModal({
   customers,
   defaultData,
+  receivers,
   onClose,
   onSuccess,
 }) {
@@ -214,7 +215,7 @@ export default function VoucherCreateModal({
     new Set([
       ...receiverCompanyList.map((e) => e.name),
       ...(customers || []).map((c) => c.nameHoaDon),
-    ])
+    ]),
   ).filter(Boolean);
 
   async function loadExpenseTypes() {
@@ -237,7 +238,7 @@ export default function VoucherCreateModal({
       const res = await axios.post(
         `${API}/expense/expense-types`,
         { name: newExpenseName.trim() },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       // thêm vào list & chọn luôn
@@ -284,7 +285,7 @@ export default function VoucherCreateModal({
       const res = await axios.post(
         `${API}/expense/receiver-names`,
         { name: newReceiverName.trim() },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       setReceiverNameList((s) => [...s, res.data]);
@@ -307,7 +308,7 @@ export default function VoucherCreateModal({
       const res = await axios.post(
         `${API}/expense/receiver-companies`,
         { name: newReceiverCompany.trim() },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       setReceiverCompanyList((s) => [...s, res.data]);
@@ -334,6 +335,15 @@ export default function VoucherCreateModal({
 
     if (name === "receiverBankAccount") {
       setForm((s) => ({ ...s, receiverBankAccount: value }));
+      return;
+    }
+
+    // ===== NGƯỜI NHẬN / CÔNG TY → AUTO FILL =====
+    if (name === "receiverName" || name === "receiverCompany") {
+      setForm((prev) => {
+        const nextForm = { ...prev, [name]: value };
+        return autoFillBankAccount(nextForm);
+      });
       return;
     }
 
@@ -368,11 +378,44 @@ export default function VoucherCreateModal({
 
   const receiverNameExists = receiverNameList.some(
     (e) =>
-      e.name.trim().toLowerCase() === form.receiverName.trim().toLowerCase()
+      e.name.trim().toLowerCase() === form.receiverName.trim().toLowerCase(),
   );
 
   const expenseExists = expenseList.some(
-    (e) => e.name.trim().toLowerCase() === form.expenseType.trim().toLowerCase()
+    (e) =>
+      e.name.trim().toLowerCase() === form.expenseType.trim().toLowerCase(),
+  );
+
+  function autoFillBankAccount(nextForm) {
+    if (!receivers || receivers.length === 0) return nextForm;
+
+    const name = normalizeVN(nextForm.receiverName);
+    const company = normalizeVN(nextForm.receiverCompany);
+
+    // ❌ thiếu 1 trong 2 thì KHÔNG làm gì
+    if (!name || !company) return nextForm;
+
+    const matched = receivers.find((r) => {
+      return (
+        normalizeVN(r.receiverName) === name &&
+        normalizeVN(r.receiverCompany) === company
+      );
+    });
+
+    if (matched?.receiverBankAccount) {
+      return {
+        ...nextForm,
+        receiverBankAccount: matched.receiverBankAccount,
+      };
+    }
+
+    return nextForm;
+  }
+
+  const hasExactMatch = receivers.some(
+    (r) =>
+      normalizeVN(r.receiverName) === normalizeVN(form.receiverName) &&
+      normalizeVN(r.receiverCompany) === normalizeVN(form.receiverCompany),
   );
 
   return (
@@ -514,7 +557,11 @@ export default function VoucherCreateModal({
                 <div
                   key={idx}
                   onMouseDown={() => {
-                    setForm((s) => ({ ...s, receiverCompany: name }));
+                    setForm((prev) => {
+                      const nextForm = { ...prev, receiverCompany: name };
+                      return autoFillBankAccount(nextForm);
+                    });
+
                     setShowCompanySuggest(false);
                   }}
                   className="px-3 py-2 cursor-pointer hover:bg-blue-100 text-sm"
@@ -556,6 +603,12 @@ export default function VoucherCreateModal({
             className="border border-gray-300 rounded-md outline-none p-2 w-full mt-2"
           />
           <datalist id="bankList"></datalist>
+
+          {form.receiverName && form.receiverCompany && !hasExactMatch && (
+            <p className="text-xs text-orange-600 mt-1">
+              ⚠ Không tìm thấy STK khớp với người nhận & công ty
+            </p>
+          )}
         </div>
 
         {/* NỘI DUNG */}
