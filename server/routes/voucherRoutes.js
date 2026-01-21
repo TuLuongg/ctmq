@@ -12,6 +12,7 @@ router.get("/", voucherController.getAllVouchers);
 router.get("/export", voucherController.exportVouchers);
 router.get("/expense-types", voucherController.getUniqueExpenseTypes);
 router.get("/receiver-companies", voucherController.getUniqueReceiverCompanies);
+router.get("/unique-receivers", voucherController.getUniqueReceivers);
 router.get("/:id", voucherController.getVoucherById);
 router.put("/:id", voucherController.updateVoucher);
 router.delete("/:id", voucherController.deleteVoucher);

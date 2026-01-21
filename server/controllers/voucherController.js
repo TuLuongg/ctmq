@@ -495,3 +495,55 @@ exports.getUniqueReceiverCompanies = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// =========================
+//  LẤY DS NGƯỜI NHẬN (UNIQUE THEO TỔ HỢP)
+// =========================
+exports.getUniqueReceivers = async (req, res) => {
+  try {
+    const list = await Voucher.aggregate([
+      {
+        // bỏ các bản ghi rỗng hoàn toàn
+        $match: {
+          $or: [
+            { receiverName: { $ne: null, $ne: "" } },
+            { receiverCompany: { $ne: null, $ne: "" } },
+            { receiverBankAccount: { $ne: null, $ne: "" } },
+          ],
+        },
+      },
+      {
+        // group theo tổ hợp 3 field
+        $group: {
+          _id: {
+            receiverName: "$receiverName",
+            receiverCompany: "$receiverCompany",
+            receiverBankAccount: "$receiverBankAccount",
+          },
+        },
+      },
+      {
+        // trả lại dạng object phẳng
+        $project: {
+          _id: 0,
+          receiverName: "$_id.receiverName",
+          receiverCompany: "$_id.receiverCompany",
+          receiverBankAccount: "$_id.receiverBankAccount",
+        },
+      },
+      {
+        // sort cho đẹp (optional)
+        $sort: {
+          receiverCompany: 1,
+          receiverName: 1,
+        },
+      },
+    ]);
+
+    res.json(list);
+  } catch (err) {
+    console.error("getUniqueReceivers error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
