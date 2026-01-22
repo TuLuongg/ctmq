@@ -61,7 +61,7 @@ export default function ManageContract() {
   const canEditContract = permissions.includes("edit_contract");
 
   const [visibleColumns, setVisibleColumns] = useState(
-    allColumns.map((c) => c.key)
+    allColumns.map((c) => c.key),
   );
   const [columnWidths, setColumnWidths] = useState({});
   const [prefsLoaded, setPrefsLoaded] = useState(false);
@@ -121,7 +121,7 @@ export default function ManageContract() {
   const [selectedRows, setSelectedRows] = useState([]);
   const toggleRowHighlight = (id) => {
     setSelectedRows((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
   };
 
@@ -134,20 +134,56 @@ export default function ManageContract() {
     fetchCustomers();
   }, []);
 
+  // ===== FILTER KHÁCH HÀNG (CHO HỢP ĐỒNG) =====
+  const [customersForFilter, setCustomersForFilter] = useState([]);
+  const [customerKeyword, setCustomerKeyword] = useState("");
+  const [selectedCustomers, setSelectedCustomers] = useState([]);
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+
+  useEffect(() => {
+    const fetchCustomersForFilter = async () => {
+      try {
+        const res = await axios.get(`${apiContracts}/unique-customers`, {
+          headers: {
+            Authorization: token ? `Bearer ${token}` : undefined,
+          },
+        });
+        setCustomersForFilter(res.data || []);
+      } catch (err) {
+        setCustomersForFilter([]);
+      }
+    };
+
+    fetchCustomersForFilter();
+  }, []);
+
+  const filteredCustomers = customersForFilter.filter((name) =>
+    name.toLowerCase().includes(customerKeyword.toLowerCase()),
+  );
+
+  const toggleCustomer = (name) => {
+    setSelectedCustomers((prev) =>
+      prev.includes(name) ? prev.filter((x) => x !== name) : [...prev, name],
+    );
+  };
+
   // -------- fetch contracts
-  const fetch = async (search = "") => {
+  const fetch = async () => {
     try {
-      const url = search
-        ? `${apiContracts}?khachHangArr=${encodeURIComponent(
-            JSON.stringify([search])
-          )}`
-        : apiContracts;
+      let url = apiContracts;
+
+      if (selectedCustomers.length > 0) {
+        url += `?khachHangArr=${encodeURIComponent(
+          JSON.stringify(selectedCustomers),
+        )}`;
+      }
+
       const res = await axios.get(url, {
         headers: { Authorization: token ? `Bearer ${token}` : undefined },
       });
+
       setContracts(res.data || []);
     } catch (err) {
-      console.error("Lỗi lấy contracts:", err.response?.data || err.message);
       setContracts([]);
     }
   };
@@ -168,7 +204,7 @@ export default function ManageContract() {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed.order)) {
         const valid = parsed.order.filter((k) =>
-          allColumns.some((ac) => ac.key === k)
+          allColumns.some((ac) => ac.key === k),
         );
         const missing = allColumns
           .map((c) => c.key)
@@ -286,7 +322,7 @@ export default function ManageContract() {
     } catch (err) {
       console.error("Xóa tất cả thất bại:", err);
       alert(
-        "Không thể xóa tất cả: " + (err.response?.data?.error || err.message)
+        "Không thể xóa tất cả: " + (err.response?.data?.error || err.message),
       );
     }
   };
@@ -309,14 +345,14 @@ export default function ManageContract() {
         {},
         {
           headers: { Authorization: token ? `Bearer ${token}` : undefined },
-        }
+        },
       );
 
       // cập nhật lại row trong bảng
       setContracts((prev) =>
         prev.map((c) =>
-          c._id === contract._id ? { ...c, isLocked: res.data.isLocked } : c
-        )
+          c._id === contract._id ? { ...c, isLocked: res.data.isLocked } : c,
+        ),
       );
 
       alert(res.data.message);
@@ -371,7 +407,7 @@ export default function ManageContract() {
         new Blob([res.data], {
           type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         }),
-        "DS_HOP_DONG.xlsx"
+        "DS_HOP_DONG.xlsx",
       );
     } catch (err) {
       console.error("Export contracts lỗi:", err);
@@ -380,6 +416,24 @@ export default function ManageContract() {
   };
 
   const isResizingRef = useRef(false);
+  const [showCustomerHeaderFilter, setShowCustomerHeaderFilter] =
+    useState(false);
+  const customerHeaderRef = useRef(null);
+  const [customerFilterPos, setCustomerFilterPos] = useState(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (
+        customerHeaderRef.current &&
+        !customerHeaderRef.current.contains(e.target)
+      ) {
+        setShowCustomerHeaderFilter(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   return (
     <div className="p-4 bg-gray-50 min-h-screen text-xs">
@@ -487,27 +541,6 @@ export default function ManageContract() {
       <h1 className="text-xl font-bold">HỢP ĐỒNG VẬN CHUYỂN</h1>
       <div className="flex justify-end items-center mb-4 mt-2">
         <div className="flex gap-2 items-center flex-wrap">
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Tìm tên khách hàng..."
-            className="border p-2 rounded"
-          />
-          <button
-            onClick={() => fetch(q)}
-            className="bg-blue-500 text-white px-3 py-1 rounded"
-          >
-            Tìm
-          </button>
-          <button
-            onClick={() => {
-              setQ("");
-              fetch();
-            }}
-            className="bg-gray-200 px-3 py-1 rounded"
-          >
-            Reset
-          </button>
           <button
             onClick={handleAdd}
             className="bg-green-500 px-3 py-1 text-white rounded"
@@ -532,6 +565,16 @@ export default function ManageContract() {
             className="bg-purple-600 text-white px-3 py-1 rounded"
           >
             {importing ? "Đang import..." : "Import Excel"}
+          </button>
+          <button
+            onClick={() => {
+              setSelectedCustomers([]);
+              setCustomerKeyword("");
+              fetch();
+            }}
+            className="bg-gray-200 px-3 py-1 rounded"
+          >
+            Reset
           </button>
         </div>
       </div>
@@ -571,6 +614,7 @@ export default function ManageContract() {
                   key: cKey,
                   label: cKey,
                 };
+                const isCustomerCol = cKey === "khachHang";
                 const widthStyle = columnWidths[cKey]
                   ? {
                       width: columnWidths[cKey],
@@ -583,22 +627,24 @@ export default function ManageContract() {
                 const leftOffset = isSecond
                   ? 30 + firstColWidth
                   : isFirst
-                  ? 30
-                  : undefined;
+                    ? 30
+                    : undefined;
 
                 return (
                   <th
                     key={cKey}
                     data-col={cKey}
                     ref={isFirst ? firstColRef : null}
-                    draggable={!isResizingRef.current}
+                    draggable={
+                      !isResizingRef.current || !showCustomerHeaderFilter
+                    }
                     onDragStart={(e) => {
                       if (!isResizingRef.current) onDragStart(e, cKey);
                       else e.preventDefault();
                     }}
                     onDragOver={onDragOver}
                     onDrop={(e) => onDrop(e, cKey)}
-                    className="border p-0 text-center bg-gray-200 relative select-none"
+                    className="border p-0 text-center bg-gray-200 relative"
                     style={{
                       position: "sticky",
                       top: 0,
@@ -610,7 +656,30 @@ export default function ManageContract() {
                       ...widthStyle,
                     }}
                   >
-                    <div className="p-2 text-xs truncate">{colMeta.label}</div>
+                    <div
+                      className="p-2 text-xs truncate cursor-pointer select-none"
+                      onClick={(e) => {
+                        if (!isCustomerCol) return;
+                        e.stopPropagation();
+
+                        const rect = e.currentTarget.getBoundingClientRect();
+
+                        setCustomerFilterPos({
+                          top: rect.bottom + 4,
+                          left: rect.left,
+                          width: rect.width,
+                        });
+
+                        setShowCustomerHeaderFilter((v) => !v);
+                      }}
+                    >
+                      {colMeta.label}
+                      {isCustomerCol && selectedCustomers.length > 0 && (
+                        <span className="ml-1 text-blue-600">
+                          ({selectedCustomers.length})
+                        </span>
+                      )}
+                    </div>
 
                     {/* Resize handle */}
                     <div
@@ -631,6 +700,77 @@ export default function ManageContract() {
                         userSelect: "none",
                       }}
                     />
+
+                    {showCustomerHeaderFilter && customerFilterPos && (
+                      <div
+                        ref={customerHeaderRef}
+                        className="fixed z-[9999] bg-white border rounded shadow-md p-2"
+                        style={{
+                          top: customerFilterPos.top,
+                          left: customerFilterPos.left,
+                          width: 400,
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {/* Search */}
+                        <input
+                          value={customerKeyword}
+                          onChange={(e) => setCustomerKeyword(e.target.value)}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          placeholder="Tìm khách hàng..."
+                          className="border px-2 py-1 rounded w-full mb-2 text-xs font-normal"
+                        />
+
+                        {/* List */}
+                        <div className="max-h-48 overflow-auto">
+                          {filteredCustomers.length === 0 && (
+                            <div className="text-gray-400 italic text-xs font-normal">
+                              Không có dữ liệu
+                            </div>
+                          )}
+
+                          {filteredCustomers.map((name) => (
+                            <label
+                              key={name}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              className="flex items-center gap-2 text-xs py-1 cursor-pointer hover:bg-gray-100 font-normal"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedCustomers.includes(name)}
+                                onChange={() => toggleCustomer(name)}
+                                onMouseDown={(e) => e.stopPropagation()}
+                              />
+                              <span className="text-black-700 text-left">
+                                {name}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex justify-end gap-2 mt-2">
+                          <button
+                            onClick={fetch}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            className="text-xs px-3 py-1 bg-blue-500 text-white rounded"
+                          >
+                            Lọc
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedCustomers([]);
+                              setCustomerKeyword("");
+                              fetch();
+                            }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            className="text-xs px-3 py-1 bg-gray-200 rounded"
+                          >
+                            Xoá
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </th>
                 );
               })}
@@ -684,8 +824,8 @@ export default function ManageContract() {
                   const stickyLeft = isFirst
                     ? 30
                     : isSecond
-                    ? 30 + firstColWidth
-                    : undefined;
+                      ? 30 + firstColWidth
+                      : undefined;
                   const cellWidthStyle = columnWidths[cKey]
                     ? {
                         width: columnWidths[cKey],
@@ -711,21 +851,21 @@ export default function ManageContract() {
                         background: selectedRows.includes(v._id)
                           ? "#fde68a"
                           : idx % 2 === 0
-                          ? "#fff"
-                          : "#f9fafb",
+                            ? "#fff"
+                            : "#f9fafb",
                         ...cellWidthStyle,
                       }}
                     >
                       {cKey === "price"
                         ? formatPrice(v[cKey])
                         : [
-                            "timeStart",
-                            "timeEnd",
-                            "dayRequest",
-                            "dayUse",
-                          ].includes(cKey)
-                        ? formatDate(v[cKey])
-                        : v[cKey]}
+                              "timeStart",
+                              "timeEnd",
+                              "dayRequest",
+                              "dayUse",
+                            ].includes(cKey)
+                          ? formatDate(v[cKey])
+                          : v[cKey]}
                     </td>
                   );
                 })}
