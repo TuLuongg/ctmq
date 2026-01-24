@@ -285,7 +285,6 @@ exports.printVoucher = async (req, res) => {
   }
 };
 
-
 // =========================
 //  DUYỆT PHIẾU ĐIỀU CHỈNH
 // =========================
@@ -463,7 +462,6 @@ exports.exportVouchers = async (req, res) => {
   }
 };
 
-
 // =========================
 //  LẤY DS PHÂN LOẠI CHI (UNIQUE)
 // =========================
@@ -546,4 +544,3 @@ exports.getUniqueReceivers = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-

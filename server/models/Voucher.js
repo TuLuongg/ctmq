@@ -18,12 +18,12 @@ const voucherSchema = new mongoose.Schema(
       // Tài khoản chi
       type: String,
       enum: [
-        "PERSONAL_VCB",   // TK cá nhân - VCB
-        "PERSONAL_TCB",   // TK cá nhân - TCB
-        "COMPANY_VCB",    // VCB công ty
-        "COMPANY_TCB",    // TCB công ty
-        "CASH",           // Tiền mặt
-        "OTHER",          // Khác
+        "PERSONAL_VCB", // TK cá nhân - VCB
+        "PERSONAL_TCB", // TK cá nhân - TCB
+        "COMPANY_VCB", // VCB công ty
+        "COMPANY_TCB", // TCB công ty
+        "CASH", // Tiền mặt
+        "OTHER", // Khác
       ],
       required: true,
     },
