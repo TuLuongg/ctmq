@@ -4,9 +4,7 @@ import axios from "axios";
 import API from "../../api";
 
 const boxClass =
-  "border border-gray-300 p-2 mt-1 " +
-  "text-gray-900 font-bold " 
-
+  "border border-gray-300 p-2 mt-1 " + "text-gray-900 font-bold ";
 
 function formatBankAccountWithText(raw) {
   if (!raw) return "";
@@ -19,13 +17,10 @@ function formatBankAccountWithText(raw) {
   const numberPart = match[1].replace(/\D/g, "");
   const textPart = match[2] || "";
 
-  const formattedNumber = numberPart
-    .replace(/(.{4})/g, "$1 ")
-    .trim();
+  const formattedNumber = numberPart.replace(/(.{4})/g, "$1 ").trim();
 
   return `${formattedNumber}${textPart}`;
 }
-
 
 const PAYMENT_SOURCE_LABEL = {
   PERSONAL_VCB: "Cá nhân - VCB",
@@ -107,7 +102,9 @@ export default function VoucherPrintPage() {
       {/* --- SỐ TK NHẬN --- */}
       <div className="mb-2">
         <div className="font-semibold">SỐ TÀI KHOẢN NHẬN TIỀN</div>
-        <div className={boxClass}>{formatBankAccountWithText(data.receiverBankAccount)}</div>
+        <div className={boxClass}>
+          {formatBankAccountWithText(data.receiverBankAccount)}
+        </div>
       </div>
 
       {/* --- NỘI DUNG CHUYỂN KHOẢN --- */}
@@ -142,7 +139,9 @@ export default function VoucherPrintPage() {
       {/* --- SỐ TIỀN BẰNG CHỮ --- */}
       <div className="mb-6">
         <div className="font-semibold">SỐ TIỀN BẰNG CHỮ</div>
-        <div className={`${boxClass} italic text-red-600 text-lg print:text-red-700`}>
+        <div
+          className={`${boxClass} italic text-red-600 text-lg print:text-red-700`}
+        >
           {data.amountInWords}
         </div>
       </div>

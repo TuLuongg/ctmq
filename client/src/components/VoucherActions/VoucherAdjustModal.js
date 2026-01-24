@@ -99,6 +99,16 @@ const PAYMENT_SOURCE_OPTIONS = [
   { value: "OTHER", label: "Khác" },
 ];
 
+const PAYMENT_SOURCE_COLOR = {
+  PERSONAL_TCB: "text-blue-600 font-semibold",
+  PERSONAL_VCB: "text-blue-600 font-semibold",
+
+  COMPANY_TCB: "text-green-600 font-semibold",
+  COMPANY_VCB: "text-green-600 font-semibold",
+
+  CASH: "text-blue-600 font-semibold",
+};
+
 export default function VoucherAdjustModal({
   id,
   customers,
@@ -106,6 +116,8 @@ export default function VoucherAdjustModal({
   onSuccess,
 }) {
   const token = localStorage.getItem("token");
+  const rawUser = localStorage.getItem("user");
+  const user = rawUser ? JSON.parse(rawUser) : null;
 
   const [form, setForm] = useState({
     dateCreated: new Date().toISOString().slice(0, 10),
@@ -119,6 +131,10 @@ export default function VoucherAdjustModal({
     amount: "",
     createdBy: "",
   });
+
+  // ===== ẢNH ĐÍNH KÈM (GIỐNG DriverModal) =====
+  const [attachmentFiles, setAttachmentFiles] = useState([]); // File[]
+  const [attachmentPreview, setAttachmentPreview] = useState([]); // string[]
 
   useEffect(() => {
     async function loadOriginalVoucher() {
@@ -172,17 +188,49 @@ export default function VoucherAdjustModal({
     setForm((s) => ({ ...s, [name]: value }));
   }
 
+  function handleSelectImages(e) {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    setAttachmentFiles((prev) => [...prev, ...files]);
+    setAttachmentPreview((prev) => [
+      ...prev,
+      ...files.map((f) => URL.createObjectURL(f)),
+    ]);
+  }
+
+  function removeImage(index) {
+    setAttachmentFiles((prev) => prev.filter((_, i) => i !== index));
+    setAttachmentPreview((prev) => prev.filter((_, i) => i !== index));
+  }
+
   async function submit() {
     try {
       setSaving(true);
 
-      const payload = {
-        ...form,
-        amount: Number(form.amount || 0),
-        amountInWords: numberToVietnameseWords(Number(form.amount || 0)),
-      };
+      const fd = new FormData();
 
-      const res = await axios.post(`${API}/vouchers/${id}/adjust`, payload, {
+      // append form thường
+      Object.entries(form).forEach(([key, value]) => {
+        if (key === "amount") {
+          fd.append("amount", Number(value || 0));
+        } else {
+          fd.append(key, value ?? "");
+        }
+      });
+
+      fd.append(
+        "amountInWords",
+        numberToVietnameseWords(Number(form.amount || 0))
+      );
+
+      fd.append("createByName", user?.fullname || user?.username);
+
+      // 🔥 append FILE – GIỐNG 100% DriverModal
+      attachmentFiles.forEach((file) => {
+        fd.append("attachments", file);
+      });
+      const res = await axios.post(`${API}/vouchers/${id}/adjust`, fd, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -225,7 +273,10 @@ export default function VoucherAdjustModal({
             name="paymentSource"
             value={form.paymentSource}
             onChange={change}
-            className="border border-gray-300 rounded-md outline-none p-2 w-48 mt-2"
+            className={`
+    border border-gray-300 rounded-md outline-none p-2 w-48 mt-2
+    ${PAYMENT_SOURCE_COLOR[form.paymentSource] || ""}
+  `}
           >
             {PAYMENT_SOURCE_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -321,6 +372,38 @@ export default function VoucherAdjustModal({
             rows={4}
             className="border border-gray-300 rounded-md outline-none p-2 w-full mt-2"
           />
+        </div>
+
+        {/* ẢNH / CHỨNG TỪ ĐÍNH KÈM */}
+        <div className="mb-4">
+          <label className="font-semibold block mb-2">
+            ẢNH / CHỨNG TỪ ĐÍNH KÈM
+          </label>
+
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleSelectImages}
+            className="mb-3"
+          />
+
+          {attachmentPreview.length > 0 && (
+            <div className="flex gap-2 flex-wrap">
+              {attachmentPreview.map((img, idx) => (
+                <div key={idx} className="relative">
+                  <img src={img} className="h-32 rounded border object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(idx)}
+                    className="absolute top-0 right-0 bg-red-600 text-white text-xs px-1 rounded"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* PHÂN LOẠI + SỐ TIỀN */}

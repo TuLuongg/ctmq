@@ -17,6 +17,18 @@ const PAYMENT_SOURCE_LABEL = {
   OTHER: "Khác",
 };
 
+const PAYMENT_SOURCE_COLOR = {
+  PERSONAL_TCB: "text-blue-600 font-semibold",
+  PERSONAL_VCB: "text-blue-600 font-semibold",
+
+  COMPANY_TCB: "text-green-600 font-semibold",
+  COMPANY_VCB: "text-green-600 font-semibold",
+
+  CASH: "text-blue-600 font-semibold",
+
+  // OTHER hoặc undefined → không set class → màu đen
+};
+
 const removeVietnameseTones = (str) => {
   if (!str) return "";
   return str
@@ -310,6 +322,7 @@ export default function VoucherListPage() {
           "company",
           "content",
           "reason",
+          "attachment",
           "expenseType",
           "transferDate",
           "amount",
@@ -329,6 +342,7 @@ export default function VoucherListPage() {
         "company",
         "content",
         "reason",
+        "attachment",
         "expenseType",
         "transferDate",
         "amount",
@@ -353,6 +367,7 @@ export default function VoucherListPage() {
           "company",
           "content",
           "reason",
+          "attachment",
           "expenseType",
           "transferDate",
           "amount",
@@ -373,6 +388,7 @@ export default function VoucherListPage() {
         "company",
         "content",
         "reason",
+        "attachment",
         "expenseType",
         "transferDate",
         "amount",
@@ -515,7 +531,7 @@ export default function VoucherListPage() {
               checked={value.includes(key)}
               onChange={() => toggle(key)}
             />
-            {label}
+            <span className={PAYMENT_SOURCE_COLOR[key] || ""}>{label}</span>
           </label>
         ))}
         <div className="text-[10px] text-gray-500 mt-1">Chọn tối đa 5</div>
@@ -1074,6 +1090,7 @@ export default function VoucherListPage() {
                         company: "Tên công ty",
                         content: "Nội dung",
                         reason: "Lý do chi",
+                        attachment: "Ảnh minh chứng",
                         expenseType: "Phân loại chi",
                         transferDate: "Ngày chuyển tiền",
                         amount: "Số tiền",
@@ -1163,14 +1180,21 @@ export default function VoucherListPage() {
                                 "vi-VN"
                               );
                             case "userCreate":
-                              return v.createdByName;
+                              return v.createByName;
                             case "code":
                               return v.voucherCode;
                             case "source":
                               return (
-                                PAYMENT_SOURCE_LABEL[v.paymentSource] ||
-                                v.paymentSource
+                                <span
+                                  className={
+                                    PAYMENT_SOURCE_COLOR[v.paymentSource] || ""
+                                  }
+                                >
+                                  {PAYMENT_SOURCE_LABEL[v.paymentSource] ||
+                                    v.paymentSource}
+                                </span>
                               );
+
                             case "receiver":
                               return v.receiverName;
                             case "company":
@@ -1179,6 +1203,25 @@ export default function VoucherListPage() {
                               return v.transferContent;
                             case "reason":
                               return v.reason;
+                            case "attachment":
+                              return Array.isArray(v.attachments) &&
+                                v.attachments.length > 0 ? (
+                                <div className="flex gap-1 overflow-x-auto max-w-full">
+                                  {v.attachments.map((url, i) => (
+                                    <img
+                                      key={i}
+                                      src={url}
+                                      alt={`att-${i}`}
+                                      className="h-5 w-auto border cursor-pointer shrink-0"
+                                      title="Click xem ảnh"
+                                      onClick={() => window.open(url, "_blank")}
+                                    />
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-gray-400 italic">—</span>
+                              );
+
                             case "expenseType":
                               return v.expenseType;
                             case "transferDate":
@@ -1333,6 +1376,7 @@ export default function VoucherListPage() {
                         company: "Tên công ty",
                         content: "Nội dung",
                         reason: "Lý do chi",
+                        attachment: "Ảnh minh chứng",
                         expenseType: "Phân loại chi",
                         transferDate: "Ngày chuyển tiền",
                         amount: "Số tiền",
@@ -1448,14 +1492,21 @@ export default function VoucherListPage() {
                                 ).toLocaleDateString("vi-VN");
 
                               case "userCreate":
-                                return v.createdByName;
+                                return v.createByName;
                               case "code":
                                 return v.voucherCode;
 
                               case "source":
                                 return (
-                                  PAYMENT_SOURCE_LABEL[v.paymentSource] ||
-                                  v.paymentSource
+                                  <span
+                                    className={
+                                      PAYMENT_SOURCE_COLOR[v.paymentSource] ||
+                                      ""
+                                    }
+                                  >
+                                    {PAYMENT_SOURCE_LABEL[v.paymentSource] ||
+                                      v.paymentSource}
+                                  </span>
                                 );
 
                               case "receiver":
@@ -1470,6 +1521,28 @@ export default function VoucherListPage() {
                               case "reason":
                                 return v.reason;
 
+                              case "attachment":
+                                return Array.isArray(v.attachments) &&
+                                  v.attachments.length > 0 ? (
+                                  <div className="flex gap-1 overflow-x-auto max-w-full">
+                                    {v.attachments.map((url, i) => (
+                                      <img
+                                        key={i}
+                                        src={url}
+                                        alt={`att-${i}`}
+                                        className="h-5 w-auto border cursor-pointer shrink-0"
+                                        title="Click xem ảnh"
+                                        onClick={() =>
+                                          window.open(url, "_blank")
+                                        }
+                                      />
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <span className="text-gray-400 italic">
+                                    —
+                                  </span>
+                                );
                               case "expenseType":
                                 return v.expenseType;
 
@@ -1709,6 +1782,7 @@ export default function VoucherListPage() {
           customers={customers}
           onClose={() => {
             setDetailId(null);
+            load();
           }}
         />
       )}
@@ -1716,7 +1790,10 @@ export default function VoucherListPage() {
         <VoucherDetailModal
           id={showOrigDetail}
           customers={customers}
-          onClose={() => setShowOrigDetail(null)}
+          onClose={() => {
+            setShowOrigDetail(null);
+            load();
+          }}
         />
       )}
 

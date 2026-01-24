@@ -73,6 +73,15 @@ const PAYMENT_SOURCE_OPTIONS = [
   { value: "CASH", label: "Tiền mặt" },
   { value: "OTHER", label: "Khác" },
 ];
+const PAYMENT_SOURCE_COLOR = {
+  PERSONAL_TCB: "text-blue-600 font-semibold",
+  PERSONAL_VCB: "text-blue-600 font-semibold",
+
+  COMPANY_TCB: "text-green-600 font-semibold",
+  COMPANY_VCB: "text-green-600 font-semibold",
+
+  CASH: "text-blue-600 font-semibold",
+};
 
 function normalizeVN(str = "") {
   return str
@@ -248,18 +257,66 @@ export default function VoucherEditModal({ id, customers, voucher, onClose }) {
     setForm({ ...form, [e.target.name]: e.target.value });
   }
 
+  // ===== ẢNH MINH CHỨNG =====
+  const [oldAttachments, setOldAttachments] = useState(
+    Array.isArray(voucher.attachments) ? voucher.attachments : []
+  );
+  const [newAttachmentFiles, setNewAttachmentFiles] = useState([]); // File[]
+  const [previewNewAttachments, setPreviewNewAttachments] = useState([]); // blob url
+
+  function handleAttachmentFiles(e) {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    setNewAttachmentFiles((prev) => [...prev, ...files]);
+    setPreviewNewAttachments((prev) => [
+      ...prev,
+      ...files.map((f) => URL.createObjectURL(f)),
+    ]);
+  }
+
+  function removeOldAttachment(idx) {
+    setOldAttachments((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  function removeNewAttachment(idx) {
+    setNewAttachmentFiles((prev) => prev.filter((_, i) => i !== idx));
+    setPreviewNewAttachments((prev) => prev.filter((_, i) => i !== idx));
+  }
+
   async function submit() {
     try {
       setSaving(true);
 
-      const payload = {
-        ...form,
-        amount: Number(form.amount || 0),
-        amountInWords: numberToWordsVND(Number(form.amount || 0)),
-      };
+      const fd = new FormData();
 
-      const res = await axios.put(`${API}/vouchers/${id}`, payload, {
-        headers: { Authorization: `Bearer ${token}` },
+      Object.entries(form).forEach(([key, val]) => {
+        if (key === "amount") {
+          fd.set("amount", Number(form.amount || 0));
+          return;
+        }
+        if (key === "amountInWords") {
+          fd.set("amountInWords", numberToWordsVND(Number(form.amount || 0)));
+          return;
+        }
+        fd.set(key, val ?? "");
+      });
+
+      /// ảnh cũ
+      oldAttachments.forEach((url) => {
+        fd.append("oldAttachments", url);
+      });
+
+      // ảnh mới
+      newAttachmentFiles.forEach((file) => {
+        fd.append("attachments", file);
+      });
+
+      const res = await axios.put(`${API}/vouchers/${id}`, fd, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
       });
 
       if (res.data) onClose?.();
@@ -296,7 +353,10 @@ export default function VoucherEditModal({ id, customers, voucher, onClose }) {
               name="paymentSource"
               value={form.paymentSource}
               onChange={change}
-              className="border border-gray-300 rounded-md outline-none p-2 w-48"
+              className={`
+    border border-gray-300 rounded-md outline-none p-2 w-48 mt-2
+    ${PAYMENT_SOURCE_COLOR[form.paymentSource] || ""}
+  `}
             >
               {PAYMENT_SOURCE_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -510,6 +570,60 @@ export default function VoucherEditModal({ id, customers, voucher, onClose }) {
             className="border p-2 rounded w-full"
             rows={3}
           />
+        </div>
+
+        {/* ẢNH MINH CHỨNG */}
+        <div className="mt-4">
+          <label className="font-semibold mb-2 block">Ảnh minh chứng</label>
+
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleAttachmentFiles}
+          />
+
+          {/* ẢNH CŨ */}
+          {oldAttachments.length > 0 && (
+            <>
+              <div className="text-xs mt-2 text-gray-500">Ảnh đã lưu</div>
+              <div className="flex gap-2 flex-wrap mt-1">
+                {oldAttachments.map((url, idx) => (
+                  <div key={idx} className="relative">
+                    <img src={url} className="h-28 rounded border" />
+                    <button
+                      type="button"
+                      onClick={() => removeOldAttachment(idx)}
+                      className="absolute top-0 right-0 bg-red-600 text-white text-xs px-1 rounded"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* ẢNH MỚI */}
+          {previewNewAttachments.length > 0 && (
+            <>
+              <div className="text-xs mt-3 text-gray-500">Ảnh mới</div>
+              <div className="flex gap-2 flex-wrap mt-1">
+                {previewNewAttachments.map((url, idx) => (
+                  <div key={idx} className="relative">
+                    <img src={url} className="h-28 rounded border" />
+                    <button
+                      type="button"
+                      onClick={() => removeNewAttachment(idx)}
+                      className="absolute top-0 right-0 bg-red-600 text-white text-xs px-1 rounded"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Nội dung CK */}

@@ -88,7 +88,6 @@ const formatMoney = (value) => {
   });
 };
 
-
 export default function RideAllRequestModal({ open, onClose, onLoaded }) {
   const [noteMap, setNoteMap] = useState({}); // note theo requestID
   const [requests, setRequests] = useState([]);
@@ -188,7 +187,7 @@ export default function RideAllRequestModal({ open, onClose, onLoaded }) {
           action,
           note: noteMap[req._id] || "",
         },
-        { headers: { Authorization: `Bearer ${token}` } },
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
       // ✅ reload lại danh sách
@@ -222,9 +221,12 @@ export default function RideAllRequestModal({ open, onClose, onLoaded }) {
         )}
 
         {/* TABLE SCROLL */}
-        <div className="overflow-auto border">
-          <table ref={tableRef} className="text-xs border-collapse table-fixed">
-            <thead className="sticky top-0 bg-gray-200 z-30">
+        <div className="relative h-[600px] overflow-y-auto">
+          <table
+            ref={tableRef}
+            className="text-xs border-separate border-spacing-0"
+          >
+            <thead className="bg-gray-200">
               <tr>
                 {[
                   "Thời gian",
@@ -240,9 +242,9 @@ export default function RideAllRequestModal({ open, onClose, onLoaded }) {
                   return (
                     <th
                       key={index}
-                      className={`border p-2 relative select-none whitespace-nowrap overflow-hidden
-    ${isMaChuyen ? "sticky left-0 z-40 bg-gray-200" : ""}
-    ${isActionCol ? "sticky right-0 z-40 bg-gray-200" : ""}
+                      className={`border p-2 relative whitespace-nowrap sticky top-0 bg-gray-200
+    ${isMaChuyen ? "left-0 z-40" : ""}
+    ${isActionCol ? "right-0 z-40" : ""}
   `}
                     >
                       <div className="truncate pr-2">{label}</div>
@@ -318,8 +320,8 @@ export default function RideAllRequestModal({ open, onClose, onLoaded }) {
                                   {f.isDate
                                     ? formatDate(oldVal)
                                     : f.isMoney
-                                      ? formatMoney(oldVal)
-                                      : (oldVal ?? "—")}
+                                    ? formatMoney(oldVal)
+                                    : oldVal ?? "—"}
                                 </span>
 
                                 {/* MŨI TÊN – ĐEN */}
@@ -330,8 +332,8 @@ export default function RideAllRequestModal({ open, onClose, onLoaded }) {
                                   {f.isDate
                                     ? formatDate(newVal)
                                     : f.isMoney
-                                      ? formatMoney(newVal)
-                                      : (newVal ?? "—")}
+                                    ? formatMoney(newVal)
+                                    : newVal ?? "—"}
                                 </span>
                               </span>
                             ) : f.isDate ? (
@@ -339,7 +341,7 @@ export default function RideAllRequestModal({ open, onClose, onLoaded }) {
                             ) : f.isMoney ? (
                               formatMoney(oldVal)
                             ) : (
-                              (oldVal ?? "—")
+                              oldVal ?? "—"
                             )}
                           </div>
                         </td>

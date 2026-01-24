@@ -112,6 +112,16 @@ const PAYMENT_SOURCE_OPTIONS = [
   { value: "OTHER", label: "Khác" },
 ];
 
+const PAYMENT_SOURCE_COLOR = {
+  PERSONAL_TCB: "text-blue-600 font-semibold",
+  PERSONAL_VCB: "text-blue-600 font-semibold",
+
+  COMPANY_TCB: "text-green-600 font-semibold",
+  COMPANY_VCB: "text-green-600 font-semibold",
+
+  CASH: "text-orange-600 font-semibold",
+};
+
 function normalizeVN(str = "") {
   return str
     .toLowerCase()
@@ -130,6 +140,8 @@ export default function VoucherCreateModal({
   onSuccess,
 }) {
   const token = localStorage.getItem("token");
+  const rawUser = localStorage.getItem("user");
+  const user = rawUser ? JSON.parse(rawUser) : null;
 
   useEffect(() => {
     if (defaultData) {
@@ -153,7 +165,12 @@ export default function VoucherCreateModal({
     reason: "",
     expenseType: "",
     amount: "", // lưu raw digits: "1000000"
+    createByName: user?.fullname || user?.username,
   });
+
+  // ===== ẢNH ĐÍNH KÈM =====
+  const [attachmentFiles, setAttachmentFiles] = useState([]); // File[]
+  const [attachmentPreview, setAttachmentPreview] = useState([]); // string[]
 
   const [saving, setSaving] = useState(false);
 
@@ -215,7 +232,7 @@ export default function VoucherCreateModal({
     new Set([
       ...receiverCompanyList.map((e) => e.name),
       ...(customers || []).map((c) => c.nameHoaDon),
-    ]),
+    ])
   ).filter(Boolean);
 
   async function loadExpenseTypes() {
@@ -238,7 +255,7 @@ export default function VoucherCreateModal({
       const res = await axios.post(
         `${API}/expense/expense-types`,
         { name: newExpenseName.trim() },
-        { headers: { Authorization: `Bearer ${token}` } },
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
       // thêm vào list & chọn luôn
@@ -285,7 +302,7 @@ export default function VoucherCreateModal({
       const res = await axios.post(
         `${API}/expense/receiver-names`,
         { name: newReceiverName.trim() },
-        { headers: { Authorization: `Bearer ${token}` } },
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
       setReceiverNameList((s) => [...s, res.data]);
@@ -308,7 +325,7 @@ export default function VoucherCreateModal({
       const res = await axios.post(
         `${API}/expense/receiver-companies`,
         { name: newReceiverCompany.trim() },
-        { headers: { Authorization: `Bearer ${token}` } },
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
       setReceiverCompanyList((s) => [...s, res.data]);
@@ -350,18 +367,52 @@ export default function VoucherCreateModal({
     setForm((s) => ({ ...s, [name]: value }));
   }
 
+  function handleSelectImages(e) {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    setAttachmentFiles((prev) => [...prev, ...files]);
+    setAttachmentPreview((prev) => [
+      ...prev,
+      ...files.map((f) => URL.createObjectURL(f)),
+    ]);
+  }
+
+  function removeImage(index) {
+    setAttachmentFiles((prev) => prev.filter((_, i) => i !== index));
+    setAttachmentPreview((prev) => prev.filter((_, i) => i !== index));
+  }
+
   async function submit() {
     try {
       setSaving(true);
 
-      const payload = {
-        ...form,
-        amount: Number(form.amount || 0),
-        amountInWords: numberToVietnameseWords(Number(form.amount || 0)),
-      };
+      const fd = new FormData();
 
-      const res = await axios.post(`${API}/vouchers`, payload, {
-        headers: { Authorization: `Bearer ${token}` },
+      // append form thường
+      Object.entries(form).forEach(([key, value]) => {
+        if (key === "amount") {
+          fd.append("amount", Number(value || 0));
+        } else {
+          fd.append(key, value ?? "");
+        }
+      });
+
+      fd.append(
+        "amountInWords",
+        numberToVietnameseWords(Number(form.amount || 0))
+      );
+
+      // 🔥 append FILE – GIỐNG 100% DriverModal
+      attachmentFiles.forEach((file) => {
+        fd.append("attachments", file);
+      });
+
+      const res = await axios.post(`${API}/vouchers`, fd, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          // ❌ KHÔNG set Content-Type
+        },
       });
 
       if (res.data && res.data._id) {
@@ -378,12 +429,11 @@ export default function VoucherCreateModal({
 
   const receiverNameExists = receiverNameList.some(
     (e) =>
-      e.name.trim().toLowerCase() === form.receiverName.trim().toLowerCase(),
+      e.name.trim().toLowerCase() === form.receiverName.trim().toLowerCase()
   );
 
   const expenseExists = expenseList.some(
-    (e) =>
-      e.name.trim().toLowerCase() === form.expenseType.trim().toLowerCase(),
+    (e) => e.name.trim().toLowerCase() === form.expenseType.trim().toLowerCase()
   );
 
   function autoFillBankAccount(nextForm) {
@@ -415,7 +465,7 @@ export default function VoucherCreateModal({
   const hasExactMatch = receivers.some(
     (r) =>
       normalizeVN(r.receiverName) === normalizeVN(form.receiverName) &&
-      normalizeVN(r.receiverCompany) === normalizeVN(form.receiverCompany),
+      normalizeVN(r.receiverCompany) === normalizeVN(form.receiverCompany)
   );
 
   return (
@@ -445,7 +495,10 @@ export default function VoucherCreateModal({
             name="paymentSource"
             value={form.paymentSource}
             onChange={change}
-            className="border border-gray-300 rounded-md outline-none p-2 w-48 mt-2"
+            className={`
+    border border-gray-300 rounded-md outline-none p-2 w-48 mt-2
+    ${PAYMENT_SOURCE_COLOR[form.paymentSource] || ""}
+  `}
           >
             {PAYMENT_SOURCE_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -633,6 +686,38 @@ export default function VoucherCreateModal({
             rows={4}
             className="border border-gray-300 rounded-md outline-none p-2 w-full mt-2"
           />
+        </div>
+
+        {/* ẢNH / CHỨNG TỪ ĐÍNH KÈM */}
+        <div className="mb-4">
+          <label className="font-semibold block mb-2">
+            ẢNH / CHỨNG TỪ ĐÍNH KÈM
+          </label>
+
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleSelectImages}
+            className="mb-3"
+          />
+
+          {attachmentPreview.length > 0 && (
+            <div className="flex gap-2 flex-wrap">
+              {attachmentPreview.map((img, idx) => (
+                <div key={idx} className="relative">
+                  <img src={img} className="h-32 rounded border object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(idx)}
+                    className="absolute top-0 right-0 bg-red-600 text-white text-xs px-1 rounded"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* PHÂN LOẠI + SỐ TIỀN */}

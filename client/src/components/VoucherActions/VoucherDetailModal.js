@@ -16,13 +16,10 @@ function formatAccountNumber(raw) {
   const numberPart = match[1].replace(/\D/g, "");
   const textPart = match[2] || "";
 
-  const formattedNumber = numberPart
-    .replace(/(.{4})/g, "$1 ")
-    .trim();
+  const formattedNumber = numberPart.replace(/(.{4})/g, "$1 ").trim();
 
   return `${formattedNumber}${textPart}`;
 }
-
 
 const PAYMENT_SOURCE_LABEL = {
   PERSONAL_VCB: "Cá nhân - VCB",
@@ -33,6 +30,15 @@ const PAYMENT_SOURCE_LABEL = {
   OTHER: "Khác",
 };
 
+const PAYMENT_SOURCE_COLOR = {
+  PERSONAL_TCB: "text-blue-600 font-semibold",
+  PERSONAL_VCB: "text-blue-600 font-semibold",
+
+  COMPANY_TCB: "text-green-600 font-semibold",
+  COMPANY_VCB: "text-green-600 font-semibold",
+
+  CASH: "text-blue-600 font-semibold",
+};
 
 export default function VoucherDetailModal({
   id,
@@ -106,7 +112,9 @@ export default function VoucherDetailModal({
           </div>
           <div>
             <b>Tài khoản chi:</b>{" "}
-            {PAYMENT_SOURCE_LABEL[v.paymentSource] || v.paymentSource}
+            <span className={PAYMENT_SOURCE_COLOR[v.paymentSource] || ""}>
+              {PAYMENT_SOURCE_LABEL[v.paymentSource] || v.paymentSource}
+            </span>
           </div>
           <div>
             <b>Tên công ty:</b> {v.receiverCompany}
@@ -176,22 +184,22 @@ export default function VoucherDetailModal({
           {/* Khi ĐÃ duyệt → chỉ hiện Tạo điều chỉnh */}
           {/* ============================== */}
           {v.status === "approved" && !v.adjustedFrom && (
-              <button
-                onClick={() => setShowAdjust(true)}
-                className="px-3 py-1 bg-purple-600 text-white rounded"
-              >
-                Tạo điều chỉnh
-              </button>
-            )}
+            <button
+              onClick={() => setShowAdjust(true)}
+              className="px-3 py-1 bg-purple-600 text-white rounded"
+            >
+              Tạo điều chỉnh
+            </button>
+          )}
 
-            {v.status === "adjusted" && (
-              <button
-                onClick={() => setShowAdjust(true)}
-                className="px-3 py-1 bg-purple-600 text-white rounded"
-              >
-                Tạo điều chỉnh
-              </button>
-            )}
+          {v.status === "adjusted" && (
+            <button
+              onClick={() => setShowAdjust(true)}
+              className="px-3 py-1 bg-purple-600 text-white rounded"
+            >
+              Tạo điều chỉnh
+            </button>
+          )}
 
           {/* Nút đóng */}
           <button
