@@ -8,6 +8,7 @@ const path = require("path");
 exports.createVoucher = async (req, res) => {
   try {
     const data = req.body;
+    const attachments = req.body.attachments || [];
 
     const dateCreated = data.dateCreated
       ? new Date(data.dateCreated)
@@ -49,6 +50,7 @@ exports.createVoucher = async (req, res) => {
           voucherCode,
           dateCreated,
           status: "waiting_check",
+          attachments,
         });
 
         await v.save();
@@ -129,17 +131,48 @@ exports.getVoucherById = async (req, res) => {
 exports.updateVoucher = async (req, res) => {
   try {
     const v = await Voucher.findById(req.params.id);
-    const data = req.body;
-
     if (!v) return res.status(404).json({ error: "Không tìm thấy phiếu" });
     if (v.status === "approved")
       return res.status(403).json({ error: "Phiếu đã duyệt, không thể sửa" });
 
-    // Cập nhật các trường FE gửi
-    Object.assign(v, data);
+    const data = req.body;
 
-    const saved = await v.save();
-    res.json(saved);
+    const ALLOWED_FIELDS = [
+      "dateCreated",
+      "paymentSource",
+      "receiverName",
+      "receiverCompany",
+      "receiverBankAccount",
+      "transferContent",
+      "reason",
+      "expenseType",
+      "amount",
+      "amountInWords",
+      "transferDate",
+    ];
+
+    ALLOWED_FIELDS.forEach((f) => {
+      if (data[f] !== undefined && data[f] !== "") {
+        v[f] = data[f];
+      }
+    });
+
+    // ====== XỬ LÝ ẢNH ======
+
+    // ảnh cũ (string | string[])
+    const oldAttachments = []
+      .concat(req.body.oldAttachments || [])
+      .filter((x) => typeof x === "string" && x.trim() !== "");
+
+    // ảnh mới (URL sau cloudinary)
+    const newAttachments = Array.isArray(req.body.attachments)
+      ? req.body.attachments
+      : [];
+
+    v.attachments = [...oldAttachments, ...newAttachments];
+
+    await v.save();
+    res.json(v);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -196,6 +229,7 @@ exports.adjustVoucher = async (req, res) => {
     }
 
     const data = req.body;
+    const attachments = req.body.attachments || [];
 
     // 🔹 Tìm phiếu điều chỉnh mới nhất của phiếu gốc
     const lastAdjust = await Voucher.findOne({
@@ -224,6 +258,7 @@ exports.adjustVoucher = async (req, res) => {
       origVoucherCode: orig.voucherCode,
       dateCreated: data.dateCreated ? new Date(data.dateCreated) : new Date(),
       status: "waiting_check",
+      attachments,
     });
 
     const saved = await newVoucher.save();

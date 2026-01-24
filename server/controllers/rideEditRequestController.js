@@ -135,8 +135,9 @@ exports.processEditRideRequest = async (req, res) => {
     const approverID = req.user.id;
 
     // 🔥 LẤY FULL USER
-    const approver =
-      await User.findById(approverID).select("fullname username");
+    const approver = await User.findById(approverID).select(
+      "fullname username"
+    );
 
     const approverName = approver?.fullname || approver?.username || "Unknown";
 
@@ -226,12 +227,13 @@ exports.processEditRideRequest = async (req, res) => {
   }
 };
 
-// Lấy danh sách yêu cầu
 exports.getEditRequests = async (req, res) => {
   try {
     const { page = 1, limit = 20, status, search } = req.query;
 
-    const skip = (page - 1) * limit;
+    const pageNum = Number(page);
+    const limitNum = Number(limit);
+    const skip = (pageNum - 1) * limitNum;
 
     const filter = {};
 
@@ -246,17 +248,26 @@ exports.getEditRequests = async (req, res) => {
       ];
     }
 
-    const requests = await RideEditRequest.find(filter)
-      .populate("rideID") // ⬅ LẤY FULL THÔNG TIN CHUYẾN GỐC
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(Number(limit));
+    // 🔹 LẤY TOÀN BỘ (hoặc số đủ lớn), SORT TRƯỚC
+    let allRequests = await RideEditRequest.find(filter)
+      .populate("rideID")
+      .sort({ createdAt: -1 }); // sort nền trước
 
-    const total = await RideEditRequest.countDocuments(filter);
+    // 🔥 ƯU TIÊN pending
+    allRequests.sort((a, b) => {
+      if (a.status === "pending" && b.status !== "pending") return -1;
+      if (a.status !== "pending" && b.status === "pending") return 1;
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+
+    // ✂️ CẮT PAGE SAU KHI SORT
+    const requests = allRequests.slice(skip, skip + limitNum);
+
+    const total = allRequests.length;
 
     res.json({
-      page: Number(page),
-      totalPages: Math.ceil(total / limit),
+      page: pageNum,
+      totalPages: Math.ceil(total / limitNum),
       totalRecords: total,
       data: requests,
     });

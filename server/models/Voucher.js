@@ -13,6 +13,7 @@ const voucherSchema = new mongoose.Schema(
     // ====== THÔNG TIN CƠ BẢN ======
     dateCreated: { type: Date, required: true }, // Ngày lập phiếu
     transferDate: { type: Date, default: null }, //  Ngày chuyển tiền
+    createByName: { type: String, required: true }, //người tạo mã
 
     paymentSource: {
       // Tài khoản chi
@@ -38,6 +39,8 @@ const voucherSchema = new mongoose.Schema(
     expenseType: { type: String, required: true }, // Phân loại chi
     amount: { type: Number, required: true }, // Số tiền
     amountInWords: { type: String, default: "" }, // Số tiền bằng chữ (auto)
+
+    attachments: { type: [String], default: [] },
 
     // ====== TRẠNG THÁI DUYỆT ======
     status: {

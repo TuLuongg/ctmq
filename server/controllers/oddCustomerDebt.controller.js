@@ -90,8 +90,8 @@ exports.createOddDebtByDate = async (req, res) => {
           tongTien - daThanhToan <= 0
             ? "HOAN_TAT"
             : daThanhToan > 0
-              ? "TRA_MOT_PHAN"
-              : "CHUA_TRA",
+            ? "TRA_MOT_PHAN"
+            : "CHUA_TRA",
       });
 
       // ✅ GẮN MÃ CÔNG NỢ CHO CHUYẾN GỐC
@@ -224,8 +224,8 @@ exports.syncOddDebtByDate = async (req, res) => {
                 conLai <= 0
                   ? "HOAN_TAT"
                   : daThanhToan > 0
-                    ? "TRA_MOT_PHAN"
-                    : "CHUA_TRA",
+                  ? "TRA_MOT_PHAN"
+                  : "CHUA_TRA",
             },
           },
         },
@@ -514,7 +514,7 @@ exports.getAllOddDebtFilterOptions = async (req, res) => {
         if (hasEmpty) cleaned.unshift("__EMPTY__");
 
         result[field] = cleaned;
-      }),
+      })
     );
 
     res.json(result);
@@ -601,8 +601,8 @@ exports.addTripPayment = async (req, res) => {
       oddTrip.conLai <= 0
         ? "HOAN_TAT"
         : oddTrip.daThanhToan > 0
-          ? "TRA_MOT_PHAN"
-          : "CHUA_TRA";
+        ? "TRA_MOT_PHAN"
+        : "CHUA_TRA";
 
     await oddTrip.save();
 
@@ -663,8 +663,8 @@ exports.deleteTripPayment = async (req, res) => {
       oddTrip.conLai <= 0
         ? "HOAN_TAT"
         : oddTrip.daThanhToan > 0
-          ? "TRA_MOT_PHAN"
-          : "CHUA_TRA";
+        ? "TRA_MOT_PHAN"
+        : "CHUA_TRA";
 
     await oddTrip.save();
 
@@ -701,7 +701,7 @@ exports.updateTripNameCustomer = async (req, res) => {
         maChuyen: { $in: maChuyenList },
         isLocked: { $ne: true },
       },
-      { $set: { nameCustomer } },
+      { $set: { nameCustomer } }
     );
 
     res.json({
@@ -736,7 +736,7 @@ exports.updateTripNoteOdd = async (req, res) => {
         maChuyen: { $in: maChuyenList },
         isLocked: { $ne: true },
       },
-      { $set: { noteOdd } },
+      { $set: { noteOdd } }
     );
 
     res.json({
@@ -933,7 +933,7 @@ exports.lockOddTripsByDate = async (req, res) => {
       {
         ngayGiaoHang: { $gte: start, $lt: end },
       },
-      { $set: { isLocked: true } },
+      { $set: { isLocked: true } }
     );
 
     res.json({
@@ -1016,7 +1016,7 @@ exports.exportOddDebtByDateRange = async (req, res) => {
 
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(
-      path.join(__dirname, "../templates/DSC_KL.xlsx"),
+      path.join(__dirname, "../templates/DSC_KL.xlsx")
     );
 
     const sheet = workbook.getWorksheet("Sheet1");
@@ -1054,7 +1054,7 @@ exports.exportOddDebtByDateRange = async (req, res) => {
 
       // ===== TIỀN KH LẺ =====
       row.getCell("M").value = parseMoneyStr(t.cuocPhi);
-      row.getCell("N").value = parseMoneyStr(t.daThanhToan);
+      row.getCell("N").value = parseMoneyStr(t.themDiem);
       row.getCell("O").value = parseMoneyStr(t.bocXep);
       row.getCell("P").value = parseMoneyStr(t.ve);
       row.getCell("Q").value = parseMoneyStr(t.hangVe);
@@ -1083,11 +1083,11 @@ exports.exportOddDebtByDateRange = async (req, res) => {
 
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename=CONG_NO_KH_LE_${from}_DEN_${to}.xlsx`,
+      `attachment; filename=CONG_NO_KH_LE_${from}_DEN_${to}.xlsx`
     );
     res.setHeader(
       "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     );
 
     await workbook.xlsx.write(res);
