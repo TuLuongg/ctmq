@@ -320,7 +320,7 @@ export default function ManageVehicle() {
       "insExpDay",
       "dayTravel",
       "bhTNDS",
-      "bhVC"
+      "bhVC",
     ];
 
     if (dateFields.includes(cKey)) {
@@ -346,7 +346,7 @@ export default function ManageVehicle() {
       }
 
       // dayTravel: báo đỏ nếu sắp hết hạn 5 ngày
-      if (cKey === "dayTravel") {
+      if (cKey === "dayTravel" || cKey === "bhTNDS" || cKey === "bhVC") {
         const fiveDaysLater = new Date(today);
         fiveDaysLater.setDate(today.getDate() + 5);
         const isNearExpire = d < fiveDaysLater;

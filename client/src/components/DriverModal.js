@@ -22,6 +22,7 @@ export default function DriverModal({
     { key: "cccdIssuedAt", label: "Ngày cấp CCCD" },
     { key: "cccdExpiryAt", label: "Ngày hết hạn CCCD" },
     { key: "licenseImageCCCD", label: "Ảnh CCCD" },
+    { key: "numberClass", label: "Số GPLX" },
     { key: "licenseClass", label: "Hạng BL" },
     { key: "licenseIssuedAt", label: "Ngày cấp BL" },
     { key: "licenseExpiryAt", label: "Ngày hết hạn BL" },

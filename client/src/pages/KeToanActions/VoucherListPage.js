@@ -134,20 +134,20 @@ export default function VoucherListPage() {
   }, []);
 
   useEffect(() => {
-  const fetchReceivers = async () => {
-    try {
-      const res = await axios.get(`${API}/vouchers/unique-receivers`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+    const fetchReceivers = async () => {
+      try {
+        const res = await axios.get(`${API}/vouchers/unique-receivers`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-      setReceiverOptions(res.data || []);
-    } catch (err) {
-      console.error("Load receiver options failed", err);
-    }
-  };
+        setReceiverOptions(res.data || []);
+      } catch (err) {
+        console.error("Load receiver options failed", err);
+      }
+    };
 
-  fetchReceivers();
-}, []);
+    fetchReceivers();
+  }, []);
 
   const [originColWidth, setOriginColWidth] = useState(() => {
     try {
@@ -303,6 +303,7 @@ export default function VoucherListPage() {
           "select",
           "stt",
           "date",
+          "userCreate",
           "code",
           "source",
           "receiver",
@@ -321,6 +322,7 @@ export default function VoucherListPage() {
         "select",
         "stt",
         "date",
+        "userCreate",
         "code",
         "source",
         "receiver",
@@ -344,6 +346,7 @@ export default function VoucherListPage() {
           "select",
           "stt",
           "date",
+          "userCreate",
           "code",
           "source",
           "receiver",
@@ -363,6 +366,7 @@ export default function VoucherListPage() {
         "select",
         "stt",
         "date",
+        "userCreate",
         "code",
         "source",
         "receiver",
@@ -1063,6 +1067,7 @@ export default function VoucherListPage() {
                         ),
                         stt: "STT",
                         date: "Ngày tạo phiếu",
+                        userCreate: "Người tạo phiếu",
                         code: "Mã phiếu chi",
                         source: "Tài khoản chi",
                         receiver: "Người nhận",
@@ -1157,6 +1162,8 @@ export default function VoucherListPage() {
                               return new Date(v.dateCreated).toLocaleDateString(
                                 "vi-VN"
                               );
+                            case "userCreate":
+                              return v.createdByName;
                             case "code":
                               return v.voucherCode;
                             case "source":
@@ -1320,6 +1327,7 @@ export default function VoucherListPage() {
                         stt: "STT",
                         date: "Ngày",
                         code: "Mã phiếu chi",
+                        userCreate: "Người tạo phiếu",
                         source: "Tài khoản chi",
                         receiver: "Người nhận",
                         company: "Tên công ty",
@@ -1439,6 +1447,8 @@ export default function VoucherListPage() {
                                   v.dateCreated
                                 ).toLocaleDateString("vi-VN");
 
+                              case "userCreate":
+                                return v.createdByName;
                               case "code":
                                 return v.voucherCode;
 
@@ -1685,7 +1695,7 @@ export default function VoucherListPage() {
         <VoucherCreateModal
           customers={customers}
           defaultData={copyData}
-          receivers={receiverOptions} 
+          receivers={receiverOptions}
           onClose={() => setShowCreate(false)}
           onSuccess={() => {
             setShowCreate(false);
