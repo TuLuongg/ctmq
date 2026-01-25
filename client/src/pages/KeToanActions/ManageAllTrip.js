@@ -118,6 +118,7 @@ export default function ManageTrip({ user, onLogout }) {
   const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
   const userId = currentUser?._id || "guest";
   const canEditTripFull = currentUser?.permissions?.includes("edit_trip_full");
+  const canImportCTXN = currentUser?.permissions?.includes("cuoc_tra_xe_ngoai");
 
   const location = useLocation();
   const isActive = (path) => location.pathname === path;
@@ -1538,45 +1539,43 @@ export default function ManageTrip({ user, onLogout }) {
     return moveEmptyToTop(list);
   })();
 
-const filteredMaHoaDon = (() => {
-  const list = excelOptions.maHoaDon.filter((m) => {
-    // chỉ lọc empty
-    if (onlyEmptyMaHoaDon && m) return false;
+  const filteredMaHoaDon = (() => {
+    const list = excelOptions.maHoaDon.filter((m) => {
+      // chỉ lọc empty
+      if (onlyEmptyMaHoaDon && m) return false;
 
-    if (!searchMaHoaDon) return true;
-    return normalize(m || "").includes(normalize(searchMaHoaDon));
-  });
+      if (!searchMaHoaDon) return true;
+      return normalize(m || "").includes(normalize(searchMaHoaDon));
+    });
 
-  if (
-    excelSelected.maHoaDon.includes("__EMPTY__") &&
-    !list.includes("__EMPTY__")
-  ) {
-    list.push("__EMPTY__");
-  }
+    if (
+      excelSelected.maHoaDon.includes("__EMPTY__") &&
+      !list.includes("__EMPTY__")
+    ) {
+      list.push("__EMPTY__");
+    }
 
-  return moveEmptyToTop(list);
-})();
+    return moveEmptyToTop(list);
+  })();
 
+  const filteredDebtCode = (() => {
+    const list = excelOptions.debtCode.filter((d) => {
+      // chỉ lọc empty
+      if (onlyEmptyDebtCode && d) return false;
 
-const filteredDebtCode = (() => {
-  const list = excelOptions.debtCode.filter((d) => {
-    // chỉ lọc empty
-    if (onlyEmptyDebtCode && d) return false;
+      if (!searchDebtCode) return true;
+      return normalize(d || "").includes(normalize(searchDebtCode));
+    });
 
-    if (!searchDebtCode) return true;
-    return normalize(d || "").includes(normalize(searchDebtCode));
-  });
+    if (
+      excelSelected.debtCode.includes("__EMPTY__") &&
+      !list.includes("__EMPTY__")
+    ) {
+      list.push("__EMPTY__");
+    }
 
-  if (
-    excelSelected.debtCode.includes("__EMPTY__") &&
-    !list.includes("__EMPTY__")
-  ) {
-    list.push("__EMPTY__");
-  }
-
-  return moveEmptyToTop(list);
-})();
-
+    return moveEmptyToTop(list);
+  })();
 
   // ---------- Render ----------
   return (
@@ -1842,18 +1841,29 @@ const filteredDebtCode = (() => {
         </label>
 
         {/* IMPORT CƯỚC TRẢ XE NGOÀI */}
-        <label className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg">
+        <label
+          className={`px-4 py-2 rounded-lg text-white 
+    ${
+      canImportCTXN
+        ? "bg-orange-500 hover:bg-orange-600 cursor-pointer"
+        : "bg-gray-400 cursor-not-allowed"
+    }`}
+        >
           {importHoaDonLoading ? "Đang import..." : "Import cước trả xe ngoài"}
+
           <input
             id="importHoaDonInput"
             type="file"
             hidden
-            accept=".xlsx,.xls, .xlsm"
-            disabled={importHoaDonLoading}
+            accept=".xlsx,.xls,.xlsm"
+            disabled={importHoaDonLoading || !canImportCTXN}
             onClick={(e) => {
               e.target.value = null;
             }}
-            onChange={(e) => handleImportCTXNExcel(e.target.files[0])}
+            onChange={(e) => {
+              if (!canImportCTXN) return;
+              handleImportCTXNExcel(e.target.files[0]);
+            }}
           />
         </label>
       </div>

@@ -277,6 +277,7 @@ export default function AdminPage({ onLogout }) {
                 </th>
                 <th className="px-4 py-2 border-b text-center">Khóa KCN</th>
                 <th className="px-4 py-2 border-b text-center">Khóa TCB</th>
+                <th className="px-4 py-2 border-b text-center">Cước trả xe ngoài</th>
                 <th className="px-4 py-2 border-b text-center">Thao tác</th>
               </tr>
             </thead>
@@ -307,6 +308,7 @@ export default function AdminPage({ onLogout }) {
                     "edit_contract",
                     "lock_kcn",
                     "lock_tcb",
+                    "cuoc_tra_xe_ngoai"
                   ].map((perm) => (
                     <td key={perm} className="px-4 py-2 border-b text-center">
                       <input

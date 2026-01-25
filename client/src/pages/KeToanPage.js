@@ -184,7 +184,7 @@ const KeToanPage = () => {
       const from = new Date(startDate).toISOString().split("T")[0];
       const to = new Date(endDate).toISOString().split("T")[0];
       const response = await axios.get(
-        `https://ctmq.onrender.com/schedules/export-range`,
+        `${API}/schedules/export-range`,
         {
           params: { from, to },
           responseType: "blob",
