@@ -3494,7 +3494,10 @@ export default function ManageTrip({ user, onLogout }) {
             initialData={editingTrip}
             onSubmit={submitTripEdit}
             currentUser={currentUser}
-            onClose={() => setShowTripEditModal(false)}
+            onClose={() => {
+              setShowTripEditModal(false);
+              fetchAllRides();
+            }}
             drivers={drivers}
             customers={customers}
             vehicles={vehicles}
