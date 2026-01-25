@@ -1,4 +1,8 @@
 import React, { useEffect, useState } from "react";
+import axios from "axios";
+import API from "../api";
+
+const API_URL = `${API}/schedule-admin`;
 
 const splitAddressInput = (value) => {
   const parts = value.split(";");
@@ -22,7 +26,7 @@ const levenshtein = (a, b) => {
       dp[i][j] = Math.min(
         dp[i - 1][j] + 1,
         dp[i][j - 1] + 1,
-        dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+        dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1),
       );
     }
   }
@@ -72,6 +76,118 @@ const getDiaChiMoiByDiaChi = (diaChi, addresses = []) => {
   return found ? getDiaChiMoi(found) : diaChi;
 };
 
+const formatDateVN = (v) => {
+  if (!v) return "";
+
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return String(v);
+
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+
+  return `${dd}/${mm}/${yyyy}`;
+};
+
+const normalizeDate = (v) => {
+  if (!v) return "";
+
+  // nếu đã là yyyy-MM-dd thì dùng luôn
+  if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) {
+    return v;
+  }
+
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return "";
+
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+const getByPath = (obj, path) => {
+  return path.split(".").reduce((acc, key) => acc?.[key], obj);
+};
+
+const DATE_FIELDS = ["ngayBocHang", "ngayGiaoHang"];
+
+const isEmpty = (v) => v === null || v === undefined || String(v).trim() === "";
+
+const compareValue = (a, b, fieldKey) => {
+  // ===== CẢ 2 RỖNG → TRÙNG =====
+  if (isEmpty(a) && isEmpty(b)) {
+    return { ok: true, score: 100 };
+  }
+
+  // ===== 1 RỖNG 1 KHÔNG → KHÁC =====
+  if (isEmpty(a) || isEmpty(b)) {
+    return { ok: false, score: 0 };
+  }
+
+  // ===== FIELD NGÀY =====
+  if (DATE_FIELDS.includes(fieldKey)) {
+    const da = normalizeDate(a);
+    const db = normalizeDate(b);
+
+    if (da && db && da === db) {
+      return { ok: true, score: 100 };
+    }
+
+    return { ok: false, score: 0 };
+  }
+
+  // ===== FIELD THƯỜNG =====
+  const na = removeVietnameseTones(String(a));
+  const nb = removeVietnameseTones(String(b));
+
+  if (na === nb) return { ok: true, score: 100 };
+
+  let score = 0;
+  na.split(/\s+/).forEach((w) => {
+    if (nb.includes(w)) score += 20;
+    else if (nb.split(/\s+/).some((t) => levenshtein(w, t) <= 1)) score += 10;
+  });
+
+  return { ok: score >= 60, score };
+};
+
+const renderLTValue = (value, fieldKey) => {
+  if (value === null || value === undefined || value === "") return "";
+
+  // chỉ field ngày mới format
+  if (DATE_FIELDS.includes(fieldKey)) {
+    return formatDateVN(value);
+  }
+
+  // còn lại trả thẳng, đéo parse
+  return String(value);
+};
+
+const CompareHint = ({ result, fieldKey }) => {
+  if (!result) return null;
+
+  const ltText = renderLTValue(result.ltValue, fieldKey);
+
+  return (
+    <div
+      className={`text-xs mt-1 ${
+        result.ok ? "text-green-600" : "text-red-500"
+      }`}
+    >
+      {result.ok ? (
+        "✓ Trùng lịch trình"
+      ) : (
+        <div>
+          ✗ Khác
+          {ltText && <> (LT: {ltText})</>}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function RideEditTripModal({
   initialData,
   onSubmit,
@@ -85,7 +201,184 @@ export default function RideEditTripModal({
 }) {
   const [formData, setFormData] = useState({});
 
+  useEffect(() => {
+    if (
+      initialData?.maLichTrinh &&
+      initialData.maLichTrinh.trim() &&
+      !compareData // 🔥 tránh gọi lại
+    ) {
+      const code = initialData.maLichTrinh.trim();
+
+      setCompareCode(code);
+
+      // ⏱ đợi state set xong rồi mới đối chiếu
+      setTimeout(() => {
+        handleCompareAuto(code);
+      }, 0);
+    }
+  }, [initialData]);
+
   const canEditFinancial = currentUser?.permissions?.includes("edit_trip_full");
+  const token = localStorage.getItem("token");
+  const [compareCode, setCompareCode] = useState("");
+  const [compareData, setCompareData] = useState(null);
+  const [compareResult, setCompareResult] = useState({});
+  const [assignLoading, setAssignLoading] = useState(false);
+  const [assignError, setAssignError] = useState("");
+
+  const FIELD_MAP = {
+    // ===== root =====
+    tenLaiXe: "tenLaiXe",
+    ngayBocHang: "ngayDi",
+    ngayGiaoHang: "ngayVe",
+
+    // ===== row =====
+    bienSoXe: "row.bienSoXe",
+    khachHang: "row.tenKhachHang",
+    diemXepHang: "row.noiDi",
+    diemDoHang: "row.noiDen",
+    soDiem: "row.soDiem",
+    trongLuong: "row.trongLuongHang",
+    onlState: "row.giayTo",
+
+    bocXep: "row.bocXep",
+    ve: "row.ve",
+    hangVe: "row.haiChieuVaLuuCa",
+    luuCa: "row.haiChieuVaLuuCa",
+    luatChiPhiKhac: "row.chiPhiKhac",
+  };
+
+  const LT_ONLY_FIELDS = [
+    { key: "an", label: "Ăn" },
+    { key: "tangCa", label: "Tăng ca" },
+    { key: "tienChuyen", label: "Tiền chuyến" },
+    { key: "tongTienLichTrinh", label: "Tổng tiền lịch trình" },
+    { key: "laiXeThuKhach", label: "Lái xe thu khách" },
+  ];
+
+  const [compareError, setCompareError] = useState("");
+
+  const handleCompareAuto = async (code) => {
+    setCompareError("");
+
+    try {
+      const res = await axios.get(`${API_URL}/schedules/row/${code}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.data || Object.keys(res.data).length === 0) {
+        setCompareError("Mã lịch trình không tồn tại");
+        setCompareData(null);
+        setCompareResult({});
+        return;
+      }
+
+      const lt = res.data;
+      const result = {};
+
+      Object.entries(FIELD_MAP).forEach(([bkKey, path]) => {
+        const ltValue = getByPath(lt, path);
+
+        result[bkKey] = {
+          ...compareValue(formData[bkKey], ltValue, bkKey),
+          ltValue,
+        };
+      });
+
+      setCompareData(lt);
+      setCompareResult(result);
+    } catch (err) {
+      setCompareError("Không lấy được dữ liệu lịch trình");
+      setCompareData(null);
+      setCompareResult({});
+    }
+  };
+
+  const handleCompare = async () => {
+    setCompareError(""); // reset lỗi cũ
+
+    if (!compareCode.trim()) {
+      setCompareError("Vui lòng nhập mã lịch trình");
+      return;
+    }
+
+    try {
+      const res = await axios.get(
+        `${API_URL}/schedules/row/${compareCode.trim()}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+
+      // 🔴 Phòng trường hợp BE trả null / {}
+      if (!res.data || Object.keys(res.data).length === 0) {
+        setCompareError("Mã lịch trình không tồn tại");
+        setCompareData(null);
+        setCompareResult({});
+        return;
+      }
+
+      const lt = res.data;
+
+      const result = {};
+      Object.entries(FIELD_MAP).forEach(([bkKey, path]) => {
+        const ltValue = getByPath(lt, path);
+
+        result[bkKey] = {
+          ...compareValue(formData[bkKey], ltValue, bkKey),
+          ltValue,
+        };
+      });
+
+      setCompareData(lt);
+      setCompareResult(result);
+    } catch (err) {
+      // ===== LỖI TỪ BE =====
+      if (err.response?.status === 404) {
+        setCompareError("Mã lịch trình không tồn tại");
+      } else {
+        setCompareError("Không lấy được dữ liệu lịch trình");
+      }
+
+      setCompareData(null);
+      setCompareResult({});
+    }
+  };
+
+  const handleSaveMaLichTrinh = async () => {
+    setAssignError("");
+
+    if (!compareData) {
+      setAssignError("Chưa đối chiếu lịch trình");
+      return;
+    }
+
+    if (!formData.maChuyen) {
+      setAssignError("Không xác định được mã chuyến");
+      return;
+    }
+
+    try {
+      setAssignLoading(true);
+
+      await axios.post(
+        `${API_URL}/assign-ma-lich-trinh`,
+        {
+          maChuyen: formData.maChuyen,
+          maLichTrinh: compareCode.trim(),
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+
+      alert("Đã lưu mã lịch trình vào chuyến");
+    } catch (err) {
+      setAssignError(err.response?.data?.error || "Lưu mã lịch trình thất bại");
+    } finally {
+      setAssignLoading(false);
+    }
+  };
 
   const moneyFields = [
     "cuocPhi",
@@ -161,15 +454,15 @@ export default function RideEditTripModal({
 
       const filtered = customers.filter((c) =>
         removeVietnameseTones(c.tenKhachHang || c.name).includes(
-          removeVietnameseTones(value)
-        )
+          removeVietnameseTones(value),
+        ),
       );
       setCustomerSuggestions(filtered);
 
       const matched = customers.find(
         (c) =>
           removeVietnameseTones(c.tenKhachHang || c.name) ===
-          removeVietnameseTones(value)
+          removeVietnameseTones(value),
       );
       if (matched) {
         setFormData((prev) => ({
@@ -187,7 +480,7 @@ export default function RideEditTripModal({
       setFormData((prev) => ({ ...prev, tenLaiXe: value }));
 
       const filtered = drivers.filter((d) =>
-        removeVietnameseTones(d.name).includes(removeVietnameseTones(value))
+        removeVietnameseTones(d.name).includes(removeVietnameseTones(value)),
       );
       setDriverSuggestions(filtered);
       return;
@@ -199,8 +492,8 @@ export default function RideEditTripModal({
 
       const filtered = vehicles.filter((v) =>
         removeVietnameseTones(v.plateNumber).includes(
-          removeVietnameseTones(value)
-        )
+          removeVietnameseTones(value),
+        ),
       );
       setVehicleSuggestions(filtered);
       return;
@@ -213,7 +506,7 @@ export default function RideEditTripModal({
         const completedList = splitCompletedPoints(next);
 
         const newList = completedList.map((diaChi) =>
-          getDiaChiMoiByDiaChi(diaChi, addresses)
+          getDiaChiMoiByDiaChi(diaChi, addresses),
         );
 
         return {
@@ -252,7 +545,7 @@ export default function RideEditTripModal({
         const completedList = splitCompletedPoints(next);
 
         const newList = completedList.map((diaChi) =>
-          getDiaChiMoiByDiaChi(diaChi, addresses)
+          getDiaChiMoiByDiaChi(diaChi, addresses),
         );
 
         return {
@@ -289,7 +582,7 @@ export default function RideEditTripModal({
       setFormData((prev) => ({ ...prev, KHdiemGiaoHang: value }));
 
       const filtered = customers2.filter((c) =>
-        removeVietnameseTones(c.nameKH).includes(removeVietnameseTones(value))
+        removeVietnameseTones(c.nameKH).includes(removeVietnameseTones(value)),
       );
 
       setCustomer2Suggestions(filtered);
@@ -310,9 +603,35 @@ export default function RideEditTripModal({
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white p-6 rounded-lg shadow-lg w-3/4 max-h-[90vh] overflow-y-auto">
-        <h2 className="text-xl font-bold mb-4">
-          Chỉnh sửa chuyến: {formData.maChuyen || formData._id}
-        </h2>
+        <div className="flex items-center gap-3 mb-4">
+          <h2 className="text-xl font-bold flex-1">
+            Chỉnh sửa chuyến: {formData.maChuyen || formData._id}
+          </h2>
+
+          <input
+            className="border rounded p-2 w-48"
+            placeholder="Nhập mã lịch trình..."
+            value={compareCode}
+            onChange={(e) => setCompareCode(e.target.value)}
+          />
+
+          <button
+            onClick={handleCompare}
+            className="bg-green-600 text-white px-3 py-2 rounded"
+          >
+            Đối chiếu
+          </button>
+
+          <button
+            onClick={handleSaveMaLichTrinh}
+            disabled={assignLoading}
+            className={`px-3 py-2 rounded text-white ${
+              assignLoading ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"
+            }`}
+          >
+            {assignLoading ? "Đang lưu..." : "Lưu"}
+          </button>
+        </div>
 
         <div className="grid grid-cols-2 gap-6">
           {/* ================== TRÁI ================== */}
@@ -324,14 +643,25 @@ export default function RideEditTripModal({
                 { key: "onlState", label: "ONL" },
                 { key: "offState", label: "OFF" },
               ].map(({ key, label }) => (
-                <div key={key}>
+                <div key={key} className="flex flex-col">
                   <label className="font-semibold">{label}</label>
+
                   <input
                     className="border rounded w-full p-2 mt-1"
                     value={formData[key] || ""}
                     name={key}
                     onChange={handleChange}
                   />
+
+                  {/* HÀNG HINT – LUÔN TỒN TẠI */}
+                  <div className="min-h-[16px] mt-1">
+                    {key === "onlState" && (
+                      <CompareHint
+                        result={compareResult.onlState}
+                        fieldKey="onlState"
+                      />
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -359,14 +689,14 @@ export default function RideEditTripModal({
                     if (e.key === "ArrowDown") {
                       e.preventDefault();
                       setCustomerIndex((i) =>
-                        i < customerSuggestions.length - 1 ? i + 1 : 0
+                        i < customerSuggestions.length - 1 ? i + 1 : 0,
                       );
                     }
 
                     if (e.key === "ArrowUp") {
                       e.preventDefault();
                       setCustomerIndex((i) =>
-                        i > 0 ? i - 1 : customerSuggestions.length - 1
+                        i > 0 ? i - 1 : customerSuggestions.length - 1,
                       );
                     }
 
@@ -396,6 +726,7 @@ export default function RideEditTripModal({
                   className="border p-2 w-full rounded"
                   autoComplete="off"
                 />
+                <CompareHint result={compareResult.khachHang} />
 
                 {isCustomerFocused && customerSuggestions.length > 0 && (
                   <ul className="absolute left-0 top-full w-full z-50 bg-white border max-h-40 overflow-y-auto mt-1 rounded shadow">
@@ -437,14 +768,14 @@ export default function RideEditTripModal({
                   if (e.key === "ArrowDown") {
                     e.preventDefault();
                     setPickupIndex((i) =>
-                      i < pickupSuggestions.length - 1 ? i + 1 : 0
+                      i < pickupSuggestions.length - 1 ? i + 1 : 0,
                     );
                   }
 
                   if (e.key === "ArrowUp") {
                     e.preventDefault();
                     setPickupIndex((i) =>
-                      i > 0 ? i - 1 : pickupSuggestions.length - 1
+                      i > 0 ? i - 1 : pickupSuggestions.length - 1,
                     );
                   }
 
@@ -458,7 +789,7 @@ export default function RideEditTripModal({
                       diemXepHang: appendAddress(prev.diemXepHang, a.diaChi),
                       diemXepHangNew: appendAddress(
                         prev.diemXepHangNew,
-                        diaChiMoi
+                        diaChiMoi,
                       ),
                     }));
 
@@ -476,6 +807,7 @@ export default function RideEditTripModal({
                 autoComplete="off"
                 spellCheck={false}
               />
+              <CompareHint result={compareResult.diemXepHang} />
               {isPickupFocused && pickupSuggestions.length > 0 && (
                 <ul className="absolute w-full top-full left-0 z-50 bg-white border w-full max-h-48 overflow-y-auto mt-1 rounded shadow">
                   {pickupSuggestions.map((a, index) => (
@@ -494,11 +826,11 @@ export default function RideEditTripModal({
                           ...prev,
                           diemXepHang: appendAddress(
                             prev.diemXepHang,
-                            a.diaChi
+                            a.diaChi,
                           ),
                           diemXepHangNew: appendAddress(
                             prev.diemXepHangNew,
-                            diaChiMoi
+                            diaChiMoi,
                           ),
                         }));
                         setPickupSuggestions([]);
@@ -530,14 +862,14 @@ export default function RideEditTripModal({
                   if (e.key === "ArrowDown") {
                     e.preventDefault();
                     setDropIndex((i) =>
-                      i < dropSuggestions.length - 1 ? i + 1 : 0
+                      i < dropSuggestions.length - 1 ? i + 1 : 0,
                     );
                   }
 
                   if (e.key === "ArrowUp") {
                     e.preventDefault();
                     setDropIndex((i) =>
-                      i > 0 ? i - 1 : dropSuggestions.length - 1
+                      i > 0 ? i - 1 : dropSuggestions.length - 1,
                     );
                   }
 
@@ -551,7 +883,7 @@ export default function RideEditTripModal({
                       diemDoHang: appendAddress(prev.diemDoHang, a.diaChi),
                       diemDoHangNew: appendAddress(
                         prev.diemDoHangNew,
-                        diaChiMoi
+                        diaChiMoi,
                       ),
                     }));
                     setDropSuggestions([]);
@@ -563,6 +895,7 @@ export default function RideEditTripModal({
                 className="border p-2 w-full rounded mt-1"
                 autoComplete="off"
               />
+              <CompareHint result={compareResult.diemDoHang} />
 
               {isDropFocused && dropSuggestions.length > 0 && (
                 <ul className="absolute w-full top-full left-0 z-50 bg-white border max-h-48 overflow-y-auto mt-1 rounded shadow">
@@ -582,7 +915,7 @@ export default function RideEditTripModal({
                           diemDoHang: appendAddress(prev.diemDoHang, a.diaChi),
                           diemDoHangNew: appendAddress(
                             prev.diemDoHangNew,
-                            diaChiMoi
+                            diaChiMoi,
                           ),
                         }));
                         setDropSuggestions([]);
@@ -618,14 +951,14 @@ export default function RideEditTripModal({
                   if (e.key === "ArrowDown") {
                     e.preventDefault();
                     setCustomer2Index((i) =>
-                      i < customer2Suggestions.length - 1 ? i + 1 : 0
+                      i < customer2Suggestions.length - 1 ? i + 1 : 0,
                     );
                   }
 
                   if (e.key === "ArrowUp") {
                     e.preventDefault();
                     setCustomer2Index((i) =>
-                      i > 0 ? i - 1 : customer2Suggestions.length - 1
+                      i > 0 ? i - 1 : customer2Suggestions.length - 1,
                     );
                   }
 
@@ -686,6 +1019,7 @@ export default function RideEditTripModal({
                   name="soDiem"
                   onChange={handleChange}
                 />
+                <CompareHint result={compareResult.soDiem} />
               </div>
               <div>
                 <label className="font-semibold block mb-1">Trọng lượng</label>
@@ -696,6 +1030,7 @@ export default function RideEditTripModal({
                   name="trongLuong"
                   onChange={handleChange}
                 />
+                <CompareHint result={compareResult.trongLuong} />
               </div>
             </div>
 
@@ -711,7 +1046,9 @@ export default function RideEditTripModal({
                 />
               </div>
               <div>
-                <label className="font-semibold block mb-1">Đã thanh toán</label>
+                <label className="font-semibold block mb-1">
+                  Đã thanh toán
+                </label>
                 <input
                   className="border rounded p-2 w-full"
                   placeholder="Đã thanh toán"
@@ -740,14 +1077,14 @@ export default function RideEditTripModal({
                     if (e.key === "ArrowDown") {
                       e.preventDefault();
                       setVehicleIndex((i) =>
-                        i < vehicleSuggestions.length - 1 ? i + 1 : 0
+                        i < vehicleSuggestions.length - 1 ? i + 1 : 0,
                       );
                     }
 
                     if (e.key === "ArrowUp") {
                       e.preventDefault();
                       setVehicleIndex((i) =>
-                        i > 0 ? i - 1 : vehicleSuggestions.length - 1
+                        i > 0 ? i - 1 : vehicleSuggestions.length - 1,
                       );
                     }
 
@@ -767,6 +1104,8 @@ export default function RideEditTripModal({
                   className="border p-2 w-full rounded"
                   autoComplete="off"
                 />
+
+                <CompareHint result={compareResult.bienSoXe} />
 
                 {isVehicleFocused && vehicleSuggestions.length > 0 && (
                   <ul className="absolute w-full top-full left-0 z-50 bg-white border max-h-40 overflow-y-auto mt-1 rounded shadow">
@@ -807,14 +1146,14 @@ export default function RideEditTripModal({
                     if (e.key === "ArrowDown") {
                       e.preventDefault();
                       setDriverIndex((i) =>
-                        i < driverSuggestions.length - 1 ? i + 1 : 0
+                        i < driverSuggestions.length - 1 ? i + 1 : 0,
                       );
                     }
 
                     if (e.key === "ArrowUp") {
                       e.preventDefault();
                       setDriverIndex((i) =>
-                        i > 0 ? i - 1 : driverSuggestions.length - 1
+                        i > 0 ? i - 1 : driverSuggestions.length - 1,
                       );
                     }
 
@@ -834,6 +1173,8 @@ export default function RideEditTripModal({
                   className="border p-2 w-full rounded"
                   autoComplete="off"
                 />
+
+                <CompareHint result={compareResult.tenLaiXe} />
 
                 {isDriverFocused && driverSuggestions.length > 0 && (
                   <ul className="absolute w-full top-full left-0 z-50 bg-white border max-h-40 overflow-y-auto mt-1 rounded shadow">
@@ -882,6 +1223,10 @@ export default function RideEditTripModal({
                   onChange={handleChange}
                   onClick={(e) => e.target.showPicker()}
                 />
+                <CompareHint
+                  result={compareResult.ngayBocHang}
+                  fieldKey="ngayBocHang"
+                />
               </div>
               <div className="flex flex-col">
                 <label className="font-semibold mb-1">Ngày giao hàng</label>
@@ -892,6 +1237,10 @@ export default function RideEditTripModal({
                   name="ngayGiaoHang"
                   onChange={handleChange}
                   onClick={(e) => e.target.showPicker()}
+                />
+                <CompareHint
+                  result={compareResult.ngayGiaoHang}
+                  fieldKey="ngayGiaoHang"
                 />
               </div>
             </div>
@@ -910,6 +1259,7 @@ export default function RideEditTripModal({
                     name="bocXep"
                     onChange={handleChange}
                   />
+                  <CompareHint result={compareResult.bocXep} />
                 </div>
 
                 <div>
@@ -920,6 +1270,7 @@ export default function RideEditTripModal({
                     name="hangVe"
                     onChange={handleChange}
                   />
+                  <CompareHint result={compareResult.hangVe} />
                 </div>
               </div>
 
@@ -933,6 +1284,7 @@ export default function RideEditTripModal({
                     name="ve"
                     onChange={handleChange}
                   />
+                  <CompareHint result={compareResult.ve} />
                 </div>
 
                 <div>
@@ -943,6 +1295,7 @@ export default function RideEditTripModal({
                     name="luuCa"
                     onChange={handleChange}
                   />
+                  <CompareHint result={compareResult.luuCa} />
                 </div>
               </div>
 
@@ -955,8 +1308,38 @@ export default function RideEditTripModal({
                   name="luatChiPhiKhac"
                   onChange={handleChange}
                 />
+                <CompareHint result={compareResult.luatChiPhiKhac} />
               </div>
             </div>
+
+            {compareData && (
+              <div className="border rounded p-4 mt-4 bg-gray-50">
+                <h3 className="font-semibold mb-3 text-sm text-gray-700">
+                  Thông tin chỉ có ở lịch trình:
+                </h3>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {LT_ONLY_FIELDS.map(({ key, label }) => {
+                    const value = compareData[key];
+
+                    if (value === null || value === undefined || value === "") {
+                      return null; // không có thì khỏi hiện
+                    }
+
+                    return (
+                      <div key={key} className="text-sm">
+                        <div className="text-gray-500">{label}</div>
+                        <div className="font-medium">
+                          {typeof value === "number"
+                            ? formatMoney(value)
+                            : String(value)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

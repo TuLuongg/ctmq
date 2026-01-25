@@ -233,6 +233,7 @@ export default function ManageTrip({ user, onLogout }) {
     { key: "cpKhacBS", label: "CP KHÁC" },
     { key: "maChuyen", label: "MÃ CHUYẾN" },
     { key: "debtCode", label: "MÃ CN" },
+    { key: "maLichTrinh", label: "MÃ LT" },
     { key: "accountUsername", label: "KẾ TOÁN PHỤ TRÁCH" },
     { key: "maHoaDon", label: "MÃ HOÁ ĐƠN" },
 

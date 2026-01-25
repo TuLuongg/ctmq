@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import maQR from "../images/maQR.jpg";
 import { useNavigate } from "react-router-dom";
@@ -20,6 +20,77 @@ const columns = [
   "Tiền chuyến (2+3+4+5 nếu có)",
   "Chi phí khác (Ghi rõ)",
 ];
+
+const normalize = (str = "") =>
+  str
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+const scoreMatch = (input, target) => {
+  input = normalize(input);
+  target = normalize(target);
+
+  if (!input) return 0;
+  if (target.includes(input)) return 100 - (target.length - input.length);
+
+  // fuzzy: kiểm tra thứ tự ký tự
+  let score = 0;
+  let ti = 0;
+  for (let i = 0; i < input.length; i++) {
+    const idx = target.indexOf(input[i], ti);
+    if (idx === -1) return 0;
+    score += 5;
+    ti = idx + 1;
+  }
+  return score;
+};
+
+function AutoCompleteInput({ value, onChange, options, placeholder = "" }) {
+  const [show, setShow] = useState(false);
+
+  const filtered = options
+    .map((opt) => ({
+      text: opt,
+      score: scoreMatch(value, opt),
+    }))
+    .filter((o) => o.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 8);
+
+  return (
+    <div className="relative w-full">
+      <input
+        type="text"
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => {
+          onChange(e.target.value);
+          setShow(true);
+        }}
+        onBlur={() => setTimeout(() => setShow(false), 150)}
+        className="border rounded px-2 py-1 w-full"
+      />
+
+      {show && filtered.length > 0 && (
+        <div className="absolute z-20 bg-white border w-full rounded shadow max-h-48 overflow-auto">
+          {filtered.map((o, i) => (
+            <div
+              key={i}
+              className="px-2 py-1 hover:bg-blue-100 cursor-pointer text-sm"
+              onClick={() => {
+                onChange(o.text);
+                setShow(false);
+              }}
+            >
+              {o.text}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function DriverPage() {
   const navigate = useNavigate();
@@ -46,6 +117,40 @@ function DriverPage() {
   const [laiXeThuKhachList, setLaiXeThuKhachList] = useState([""]);
   const [phuongAnList, setPhuongAnList] = useState([""]);
 
+  // 🔹 4 danh sách gợi ý
+  const [drivers, setDrivers] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
+  const [addressSuggestions, setAddressSuggestions] = useState([]);
+
+  // 🔹 Lấy danh sách gợi ý
+  useEffect(() => {
+    const fetchData = async () => {
+      const [driverRes, customerRes, vehicleRes, addressRes] =
+        await Promise.all([
+          axios.get(`${API}/drivers/names/list`),
+          axios.get(`${API}/customers`),
+          axios.get(`${API}/vehicles/names/list`),
+          axios.get(`${API}/address/all`),
+        ]);
+      setDrivers(driverRes.data);
+      setCustomers(customerRes.data);
+      setVehicles(vehicleRes.data);
+      setAddressSuggestions(addressRes.data.data || []);
+    };
+    fetchData();
+  }, []);
+
+  const driverNames = drivers.map((d) => d.name);
+  const customerNames = customers.map((c) => c.name);
+  const vehiclePlates = vehicles.map((v) => v.plateNumber);
+  const addressList = addressSuggestions.map((a) => a.diaChi);
+
+  console.log(drivers);
+  console.log(customers);
+  console.log(vehicles);
+  console.log(addressSuggestions);
+
   const handleDriverInfoChange = (field, value) => {
     setDriverInfo((prev) => ({ ...prev, [field]: value }));
   };
@@ -58,8 +163,8 @@ function DriverPage() {
               ...row,
               values: row.values.map((v, i) => (i === colIndex ? value : v)),
             }
-          : row
-      )
+          : row,
+      ),
     );
   };
 
@@ -144,14 +249,11 @@ function DriverPage() {
       <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <div>
           <label className="block mb-1 font-semibold">Tên lái xe:</label>
-          <input
-            type="text"
-            placeholder="Bắt buộc điền"
-            className={`border rounded px-2 py-1 w-full ${
-              errors.tenLaiXe ? "border-red-500" : "border-gray-400"
-            }`}
+          <AutoCompleteInput
             value={driverInfo.tenLaiXe}
-            onChange={(e) => handleDriverInfoChange("tenLaiXe", e.target.value)}
+            options={driverNames}
+            placeholder="Bắt buộc điền"
+            onChange={(val) => handleDriverInfoChange("tenLaiXe", val)}
           />
         </div>
       </div>
@@ -167,6 +269,7 @@ function DriverPage() {
             }`}
             value={driverInfo.ngayDi}
             onChange={(e) => handleDriverInfoChange("ngayDi", e.target.value)}
+            onClick={(e) => e.target.showPicker()}
           />
         </div>
 
@@ -180,6 +283,7 @@ function DriverPage() {
             }`}
             value={driverInfo.ngayVe}
             onChange={(e) => handleDriverInfoChange("ngayVe", e.target.value)}
+            onClick={(e) => e.target.showPicker()}
           />
         </div>
       </div>
@@ -206,21 +310,38 @@ function DriverPage() {
                   <label className="text-sm font-medium w-[160px] shrink-0">
                     {col}:
                   </label>
-                  <input
-                    type="text"
-                    placeholder={
-                      [0, 1, 2, 3, 4, 5, 6, 7].includes(i)
-                        ? "Bắt buộc điền"
-                        : ""
-                    }
-                    value={row.values[i]}
-                    onChange={(e) =>
-                      handleInputChange(row.id, i, e.target.value)
-                    }
-                    className={`border rounded px-2 py-1 w-full ${
-                      hasError ? "border-red-500" : "border-gray-300"
-                    }`}
-                  />
+                  {[0, 1, 3, 4].includes(i) ? (
+                    <AutoCompleteInput
+                      value={row.values[i]}
+                      options={
+                        i === 0
+                          ? vehiclePlates
+                          : i === 1
+                            ? customerNames
+                            : addressList
+                      }
+                      placeholder={
+                        [0, 1, 3, 4].includes(i) ? "Bắt buộc điền" : ""
+                      }
+                      onChange={(val) => handleInputChange(row.id, i, val)}
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      placeholder={
+                        [0, 1, 2, 3, 4, 5, 6, 7].includes(i)
+                          ? "Bắt buộc điền"
+                          : ""
+                      }
+                      value={row.values[i]}
+                      onChange={(e) =>
+                        handleInputChange(row.id, i, e.target.value)
+                      }
+                      className={`border rounded px-2 py-1 w-full ${
+                        hasError ? "border-red-500" : "border-gray-300"
+                      }`}
+                    />
+                  )}
                 </div>
               );
             })}

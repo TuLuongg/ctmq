@@ -4,6 +4,16 @@ import { useNavigate, useLocation } from "react-router-dom";
 import ProfileModal from "../components/ProfileModal";
 import API from "../api";
 
+const normalizeText = (str = "") =>
+  str
+    .toString()
+    .normalize("NFD") // tách dấu
+    .replace(/[\u0300-\u036f]/g, "") // xoá dấu
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLowerCase()
+    .trim();
+
 const KeToanPage = () => {
   const [filterType, setFilterType] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
@@ -11,6 +21,8 @@ const KeToanPage = () => {
   const [endDate, setEndDate] = useState("");
   const [filteredData, setFilteredData] = useState([]);
   const [user, setUser] = useState(null);
+  const [activeRows, setActiveRows] = useState([]);
+  const [searchDriver, setSearchDriver] = useState("");
 
   const navigate = useNavigate(); // 👈 khởi tạo navigate
 
@@ -114,7 +126,7 @@ const KeToanPage = () => {
     try {
       const formattedDate = new Date(selectedDate).toISOString().split("T")[0];
       const response = await axios.get(
-        `${API}/schedules?ngay=${formattedDate}`
+        `${API}/schedules?ngay=${formattedDate}`,
       );
       setFilteredData(response.data);
     } catch (err) {
@@ -148,7 +160,7 @@ const KeToanPage = () => {
       const from = new Date(startDate).toISOString().split("T")[0];
       const to = new Date(endDate).toISOString().split("T")[0];
       const response = await axios.get(
-        `${API}/schedules/range?from=${from}&to=${to}`
+        `${API}/schedules/range?from=${from}&to=${to}`,
       );
       setFilteredData(response.data);
     } catch (err) {
@@ -161,7 +173,7 @@ const KeToanPage = () => {
     if (!startDate || !endDate) return alert("Vui lòng chọn đủ ngày.");
     if (
       !window.confirm(
-        "Bạn có chắc chắn muốn xóa toàn bộ lịch trình trong khoảng ngày này?"
+        "Bạn có chắc chắn muốn xóa toàn bộ lịch trình trong khoảng ngày này?",
       )
     )
       return;
@@ -183,13 +195,10 @@ const KeToanPage = () => {
     try {
       const from = new Date(startDate).toISOString().split("T")[0];
       const to = new Date(endDate).toISOString().split("T")[0];
-      const response = await axios.get(
-        `${API}/schedules/export-range`,
-        {
-          params: { from, to },
-          responseType: "blob",
-        }
-      );
+      const response = await axios.get(`${API}/schedules/export-range`, {
+        params: { from, to },
+        responseType: "blob",
+      });
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = url;
@@ -203,6 +212,18 @@ const KeToanPage = () => {
       alert("Không thể tải file Excel.");
     }
   };
+
+  const isActiveRow = (scheduleId, rowIndex) =>
+    activeRows.some(
+      (r) => r.scheduleId === scheduleId && r.rowIndex === rowIndex,
+    );
+
+  const isActiveSchedule = (scheduleId) =>
+    activeRows.some((r) => r.scheduleId === scheduleId);
+
+  const displayedData = filteredData.filter((s) =>
+    normalizeText(s.tenLaiXe).includes(normalizeText(searchDriver)),
+  );
 
   return (
     <div className="p-4 text-xs">
@@ -371,6 +392,7 @@ const KeToanPage = () => {
             className="border px-2 py-1 rounded"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
+            onClick={(e) => e.target.showPicker()}
           />
           <button
             onClick={handleFilterByDate}
@@ -402,6 +424,7 @@ const KeToanPage = () => {
               className="border px-2 py-1 rounded"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
+              onClick={(e) => e.target.showPicker()}
             />
           </div>
           <div>
@@ -411,6 +434,7 @@ const KeToanPage = () => {
               className="border px-2 py-1 rounded"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
+              onClick={(e) => e.target.showPicker()}
             />
           </div>
           <button
@@ -434,33 +458,185 @@ const KeToanPage = () => {
         </div>
       )}
 
+      <div className="mb-3 flex items-center gap-2">
+        <span className="font-semibold">Tìm lái xe:</span>
+        <input
+          type="text"
+          value={searchDriver}
+          onChange={(e) => setSearchDriver(e.target.value)}
+          placeholder="Nhập tên lái xe..."
+          className="border px-2 py-1 rounded w-64"
+        />
+      </div>
+
       {/* Hiển thị dữ liệu */}
       {filteredData.length > 0 && (
-        <table className="w-full border text-sm mt-4">
-          <thead className="bg-gray-200">
-            <tr>
-              <th className="border p-1">STT</th>
-              <th className="border p-1">Tên lái xe</th>
-              <th className="border p-1">Ngày đi</th>
-              <th className="border p-1">Tổng tiền lịch trình</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredData.map((item, index) => (
-              <tr key={item._id}>
-                <td className="border p-1 text-center">{index + 1}</td>
-                <td className="border p-1">{item.tenLaiXe}</td>
-                <td className="border p-1">
-                  {new Date(item.ngayDi).toLocaleDateString("vi-VN")}
-                </td>
-                <td className="border p-1 text-right">
-                  {item.tongTienLichTrinh || ""}
-                </td>
+        <div className="max-h-[700px] overflow-y-auto border">
+          <table className="w-full border text-xs border-separate border-spacing-0">
+            <thead className="bg-gray-200">
+              <tr>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">STT</th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Tên lái xe</th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Ngày đi</th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Ngày về</th>
+
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Mã LT</th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Biển số</th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Khách hàng</th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Giấy tờ</th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Nơi đi</th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Nơi đến</th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">TL hàng</th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Số điểm</th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">2 chiều + lưu ca</th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Ăn</th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Tăng ca</th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Bốc xếp</th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Vé</th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Tiền chuyến</th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Chi phí khác</th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">LX thu KH</th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Phương án</th>
+
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Tổng tiền LT</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+
+            <tbody>
+              {displayedData.map((schedule, scheduleIndex) =>
+                schedule.rows.map((row, rowIndex) => (
+                  <tr
+                    key={`${schedule._id}-${rowIndex}`}
+                    onClick={() =>
+                      setActiveRows((prev) => {
+                        const existed = prev.some(
+                          (r) =>
+                            r.scheduleId === schedule._id &&
+                            r.rowIndex === rowIndex,
+                        );
+
+                        if (existed) {
+                          // ❌ đã tồn tại → bỏ highlight
+                          return prev.filter(
+                            (r) =>
+                              !(
+                                r.scheduleId === schedule._id &&
+                                r.rowIndex === rowIndex
+                              ),
+                          );
+                        }
+
+                        // ✅ chưa có → thêm
+                        return [
+                          ...prev,
+                          { scheduleId: schedule._id, rowIndex },
+                        ];
+                      })
+                    }
+                    className={`cursor-pointer ${
+                      isActiveRow(schedule._id, rowIndex)
+                        ? "bg-yellow-100"
+                        : "hover:bg-gray-100"
+                    }`}
+                  >
+                    {/* STT + field chung – chỉ render 1 lần */}
+                    {rowIndex === 0 && (
+                      <>
+                        <td
+                          className={`border p-1 text-center ${
+                            isActiveSchedule(schedule._id)
+                              ? "bg-yellow-100"
+                              : ""
+                          }`}
+                          rowSpan={schedule.rows.length}
+                        >
+                          {scheduleIndex + 1}
+                        </td>
+                        <td
+                          className={`border p-1 ${
+                            isActiveSchedule(schedule._id)
+                              ? "bg-yellow-100"
+                              : ""
+                          }`}
+                          rowSpan={schedule.rows.length}
+                        >
+                          {schedule.tenLaiXe}
+                        </td>
+
+                        <td
+                          className={`border p-1 ${
+                            isActiveSchedule(schedule._id)
+                              ? "bg-yellow-100"
+                              : ""
+                          }`}
+                          rowSpan={schedule.rows.length}
+                        >
+                          {new Date(schedule.ngayDi).toLocaleDateString(
+                            "vi-VN",
+                          )}
+                        </td>
+
+                        <td
+                          className={`border p-1 ${
+                            isActiveSchedule(schedule._id)
+                              ? "bg-yellow-100"
+                              : ""
+                          }`}
+                          rowSpan={schedule.rows.length}
+                        >
+                          {new Date(schedule.ngayVe).toLocaleDateString(
+                            "vi-VN",
+                          )}
+                        </td>
+                      </>
+                    )}
+
+                    {/* FIELD THEO ROW */}
+                    <td className="border p-1">{row.maLichTrinh}</td>
+                    <td className="border p-1">{row.bienSoXe}</td>
+                    <td className="border p-1">{row.tenKhachHang}</td>
+                    <td className="border p-1">{row.giayTo}</td>
+                    <td className="border p-1">{row.noiDi}</td>
+                    <td className="border p-1">{row.noiDen}</td>
+                    <td className="border p-1 text-right">
+                      {row.trongLuongHang}
+                    </td>
+                    <td className="border p-1 text-center">{row.soDiem}</td>
+                    <td className="border p-1">{row.haiChieuVaLuuCa}</td>
+                    <td className="border p-1 text-right">{row.an}</td>
+                    <td className="border p-1 text-right">{row.tangCa}</td>
+                    <td className="border p-1 text-right">{row.bocXep}</td>
+                    <td className="border p-1 text-right">{row.ve}</td>
+                    <td className="border p-1 text-right">{row.tienChuyen}</td>
+                    <td className="border p-1 text-right">{row.chiPhiKhac}</td>
+                    <td className="border p-1">{row.laiXeThuKhach}</td>
+                    <td className="border p-1">
+                      {row.phuongAn === "daChuyenKhoan"
+                        ? "Đã CK"
+                        : row.phuongAn === "truVaoTongLichTrinh"
+                          ? "Trừ tổng"
+                          : ""}
+                    </td>
+
+                    {/* Tổng tiền – chỉ 1 lần */}
+                    {rowIndex === 0 && (
+                      <td
+                        className={`border p-1 text-right text-blue-600 font-bold ${
+                          isActiveSchedule(schedule._id) ? "bg-yellow-100" : ""
+                        }`}
+                        rowSpan={schedule.rows.length}
+                      >
+                        {schedule.tongTienLichTrinh} k
+                      </td>
+                    )}
+                  </tr>
+                )),
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
+
       {showProfileModal && (
         <ProfileModal
           user={currentUserState}
