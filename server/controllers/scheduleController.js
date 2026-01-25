@@ -1,4 +1,5 @@
 const Schedule = require("../models/Schedule");
+const ScheduleCounter = require("../models/ScheduleCounter");
 const XLSX = require("xlsx");
 const fs = require("fs");
 const path = require("path");
@@ -26,11 +27,28 @@ const mapFieldsToRow = (rowObj) => {
   };
 };
 
+const generateMaLichTrinhForRows = async (ngayVe, rowCount) => {
+  const month = String(ngayVe.getMonth() + 1).padStart(2, "0");
+  const year = String(ngayVe.getFullYear()).slice(-2);
+  const counterKey = `LT${month}.${year}`; // VD: LT01.26
+
+  const counter = await ScheduleCounter.findOneAndUpdate(
+    { key: counterKey },
+    { $inc: { seq: rowCount } },
+    { new: true, upsert: true },
+  );
+
+  const startSeq = counter.seq - rowCount + 1;
+
+  return Array.from({ length: rowCount }).map((_, i) => {
+    return `${counterKey}.${String(startSeq + i).padStart(4, "0")}`;
+  });
+};
+
 // Tạo lịch trình mới
 const createSchedule = async (req, res) => {
   try {
     const { tenLaiXe, ngayDi, ngayVe, tongTienLichTrinh, rows } = req.body;
-    const processedRows = rows.map(mapFieldsToRow);
 
     const parseLocalDateTime = (str) => {
       const [datePart, timePart] = str.split("T");
@@ -39,10 +57,28 @@ const createSchedule = async (req, res) => {
       return new Date(year, month - 1, day, hour, minute);
     };
 
+    const parsedNgayVe = parseLocalDateTime(ngayVe);
+
+    const processedRows = rows.map(mapFieldsToRow);
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return res.status(400).json({ error: "Danh sách row không hợp lệ" });
+    }
+
+    // 🔥 TẠO MÃ LỊCH TRÌNH CHO TỪNG ROW
+    const maLichTrinhArr = await generateMaLichTrinhForRows(
+      parsedNgayVe,
+      processedRows.length,
+    );
+
+    processedRows.forEach((row, i) => {
+      row.maLichTrinh = maLichTrinhArr[i];
+    });
+
     const schedule = new Schedule({
       tenLaiXe: String(tenLaiXe || ""),
       ngayDi: parseLocalDateTime(ngayDi),
-      ngayVe: parseLocalDateTime(ngayVe),
+      ngayVe: parsedNgayVe,
       tongTienLichTrinh: String(tongTienLichTrinh || ""),
       rows: processedRows,
     });
@@ -133,14 +169,31 @@ const deleteSchedulesByRange = async (req, res) => {
   }
 };
 
+// Hàm định dạng UTC ngày giờ thành chuỗi DD/MM/YYYY HH:mm
+const formatUTCDateTime = (date) => {
+  if (!(date instanceof Date) || isNaN(date)) return "";
+
+  // ✅ cộng +7h (VN)
+  const d = new Date(date.getTime() + 7 * 60 * 60 * 1000);
+
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const year = d.getUTCFullYear();
+  const hour = String(d.getUTCHours()).padStart(2, "0");
+  const minute = String(d.getUTCMinutes()).padStart(2, "0");
+
+  return `${day}/${month}/${year} ${hour}:${minute}`;
+};
+
 // Xuất Excel theo ngày
 const exportSchedule = async (req, res) => {
   try {
     let query = {};
     if (req.query.ngay) {
-      const start = new Date(req.query.ngay);
+      const ngayInput = req.query.ngay;
+      const start = new Date(ngayInput);
       start.setHours(0, 0, 0, 0);
-      const end = new Date(req.query.ngay);
+      const end = new Date(ngayInput);
       end.setHours(23, 59, 59, 999);
       query.ngayDi = { $gte: start, $lt: end };
     }
@@ -149,20 +202,12 @@ const exportSchedule = async (req, res) => {
     if (!schedules.length)
       return res.status(404).json({ error: "Không có lịch trình để xuất" });
 
-    const formatUTCDateTime = (date) => {
-      if (!(date instanceof Date) || isNaN(date)) return "";
-      return `${String(date.getUTCDate()).padStart(2, "0")}/${String(
-        date.getUTCMonth() + 1
-      ).padStart(2, "0")}/${date.getUTCFullYear()} ${String(
-        date.getUTCHours()
-      ).padStart(2, "0")}:${String(date.getUTCMinutes()).padStart(2, "0")}`;
-    };
-
     const data = [];
     const header = {
       "Ngày đi": "Ngày đi",
       "Ngày về": "Ngày về",
       "Tên lái xe": "Tên lái xe",
+      "Mã lịch trình": "Mã lịch trình",
       "Biển số xe": "Biển số xe",
       "Tên khách hàng": "Tên khách hàng",
       "Giấy tờ": "Giấy tờ",
@@ -191,6 +236,7 @@ const exportSchedule = async (req, res) => {
           "Ngày đi": formattedNgayDi,
           "Ngày về": formattedNgayVe,
           "Tên lái xe": s.tenLaiXe,
+          "Mã lịch trình": row.maLichTrinh,
           "Biển số xe": row.bienSoXe,
           "Tên khách hàng": row.tenKhachHang,
           "Giấy tờ": row.giayTo,
@@ -211,14 +257,15 @@ const exportSchedule = async (req, res) => {
             row.phuongAn === "daChuyenKhoan"
               ? "Đã chuyển khoản"
               : row.phuongAn === "truVaoTongLichTrinh"
-              ? "Trừ vào tiền tổng"
-              : "",
+                ? "Trừ vào tiền tổng"
+                : "",
         });
       });
       data.push({
         "Ngày đi": formattedNgayDi,
         "Ngày về": formattedNgayVe,
         "Tên lái xe": s.tenLaiXe,
+        "Mã lịch trình": "",
         "Chi phí khác": "Tổng",
         "Tổng tiền lịch trình": s.tongTienLichTrinh || "",
       });
@@ -244,7 +291,7 @@ const exportSchedule = async (req, res) => {
 
 // Xuất Excel theo khoảng ngày
 const exportScheduleRange = async (req, res) => {
-    try {
+  try {
     const { from, to } = req.query;
 
     if (!from || !to) {
@@ -264,21 +311,12 @@ const exportScheduleRange = async (req, res) => {
       return res.status(404).json({ error: "Không có lịch trình để xuất" });
     }
 
-    const formatUTCDateTime = (date) => {
-      if (!(date instanceof Date) || isNaN(date)) return "";
-      const day = String(date.getUTCDate()).padStart(2, "0");
-      const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-      const year = date.getUTCFullYear();
-      const hour = String(date.getUTCHours()).padStart(2, "0");
-      const minute = String(date.getUTCMinutes()).padStart(2, "0");
-      return `${day}/${month}/${year} ${hour}:${minute}`;
-    };
-
     const data = [];
     const header = {
       "Ngày đi": "Ngày đi",
       "Ngày về": "Ngày về",
       "Tên lái xe": "Tên lái xe",
+      "Mã lịch trình": "Mã lịch trình",
       "Biển số xe": "Biển số xe",
       "Tên khách hàng": "Tên khách hàng",
       "Giấy tờ": "Giấy tờ",
@@ -309,6 +347,7 @@ const exportScheduleRange = async (req, res) => {
           "Ngày đi": formattedNgayDi,
           "Ngày về": formattedNgayVe,
           "Tên lái xe": s.tenLaiXe,
+          "Mã lịch trình": row.maLichTrinh,
           "Biển số xe": row.bienSoXe,
           "Tên khách hàng": row.tenKhachHang,
           "Giấy tờ": row.giayTo,
@@ -329,8 +368,8 @@ const exportScheduleRange = async (req, res) => {
             row.phuongAn === "daChuyenKhoan"
               ? "Đã chuyển khoản"
               : row.phuongAn === "truVaoTongLichTrinh"
-              ? "Trừ vào tiền tổng"
-              : "",
+                ? "Trừ vào tiền tổng"
+                : "",
         });
       });
 
@@ -338,6 +377,7 @@ const exportScheduleRange = async (req, res) => {
         "Ngày đi": formattedNgayDi,
         "Ngày về": formattedNgayVe,
         "Tên lái xe": s.tenLaiXe,
+        "Mã lịch trình": "",
         "Chi phí khác": "Tổng",
         "Tổng tiền lịch trình": s.tongTienLichTrinh || "",
       });

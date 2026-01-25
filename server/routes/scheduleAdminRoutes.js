@@ -33,50 +33,50 @@ const rideEditRequestController = require("../controllers/rideEditRequestControl
 router.post(
   "/",
   authMiddleware(["admin", "dieuVan", "keToan"]),
-  createScheduleAdmin
+  createScheduleAdmin,
 );
 router.get(
   "/all",
   authMiddleware(["admin", "dieuVan", "keToan"]),
-  getAllSchedulesAdmin
+  getAllSchedulesAdmin,
 );
 router.put(
   "/:id",
   authMiddleware(["admin", "dieuVan", "keToan"]),
-  updateScheduleAdmin
+  updateScheduleAdmin,
 );
 
 //xoá chuyến
 router.delete(
   "/:id",
   authMiddleware(["admin", "dieuVan"]),
-  deleteScheduleAdmin
+  deleteScheduleAdmin,
 );
 router.post(
   "/delete-by-date-range",
   authMiddleware(["admin", "dieuVan"]),
-  deleteSchedulesByDateRange
+  deleteSchedulesByDateRange,
 );
 
 // Lấy danh sách thùng rác
 router.get(
   "/trash/list",
   authMiddleware(["admin", "dieuVan"]),
-  getTrashSchedules
+  getTrashSchedules,
 );
 
 // Khôi phục chuyến
 router.post(
   "/trash/restore",
   authMiddleware(["admin", "dieuVan"]),
-  restoreSchedule
+  restoreSchedule,
 );
 
 // Xóa vĩnh viễn
 router.delete(
   "/trash/force",
   authMiddleware(["admin", "dieuVan"]),
-  forceDeleteSchedule
+  forceDeleteSchedule,
 );
 
 // Dọn sạch toàn bộ thùng rác
@@ -85,73 +85,88 @@ router.delete("/trash/empty", authMiddleware(["admin", "dieuVan"]), emptyTrash);
 router.get(
   "/dieuvan",
   authMiddleware(["admin", "dieuVan"]),
-  getSchedulesByDieuVan
+  getSchedulesByDieuVan,
 );
 
 //chỉnh sửa + lưu lại lịch sử chuyến
 router.post(
   "/edit-request",
   authMiddleware(["dieuVan"]),
-  rideEditRequestController.editRide
+  rideEditRequestController.editRide,
 );
 
 // Lấy lịch sử chuyến
 router.get(
   "/history/:rideID",
   authMiddleware(["admin", "dieuVan", "keToan"]),
-  rideEditRequestController.getRideHistory
+  rideEditRequestController.getRideHistory,
 );
 
 // Lấy số lần chỉnh sửa
 router.get(
   "/history-count/:rideID",
   authMiddleware(["admin", "dieuVan", "keToan"]),
-  rideEditRequestController.getRideEditCount
+  rideEditRequestController.getRideEditCount,
 );
 
 // Gửi yêu cầu chỉnh sửa chuyến
 router.post(
   "/edit-request-ke-toan",
   authMiddleware(["dieuVan", "keToan", "admin"]),
-  rideEditRequestController.requestEditRide
+  rideEditRequestController.requestEditRide,
 );
 
 // Huỷ yêu cầu chỉnh sửa (chỉ pending)
 router.delete(
   "/delete-edit-request/:requestID",
   authMiddleware(["dieuVan", "keToan", "admin"]),
-  rideEditRequestController.deleteEditRideRequest
+  rideEditRequestController.deleteEditRideRequest,
 );
 
 // Phê duyệt hoặc từ chối yêu cầu chỉnh sửa
 router.post(
   "/edit-process",
   authMiddleware(["admin", "dieuVan", "keToan"]),
-  rideEditRequestController.processEditRideRequest
+  rideEditRequestController.processEditRideRequest,
 );
 
 router.get(
   "/all-requests",
   authMiddleware(["admin", "keToan"]),
-  rideEditRequestController.getEditRequests
+  rideEditRequestController.getEditRequests,
 );
 
 router.get(
   "/count-pending",
-  rideEditRequestController.getPendingEditRequestCount
+  rideEditRequestController.getPendingEditRequestCount,
 );
 
 router.get(
   "/my-requests",
   authMiddleware(["keToan"]),
-  rideEditRequestController.getMyEditRequests
+  rideEditRequestController.getMyEditRequests,
 );
+
+// GET /schedules/row/:maLichTrinh
+router.get(
+  "/schedules/row/:maLichTrinh",
+  authMiddleware(["keToan"]),
+  rideEditRequestController.getRowByMaLichTrinh,
+);
+
+// routes/scheduleAdmin.js
+router.post(
+  "/assign-ma-lich-trinh",
+  authMiddleware(["keToan"]),
+  rideEditRequestController.assignMaLichTrinh
+);
+
 
 // Lấy chuyến từ excel
 router.post(
   "/import-excel",
   authMiddleware(["admin", "dieuVan"]),
-  importSchedulesFromExcel
+  importSchedulesFromExcel,
 );
 
 // Lấy danh sách chuyến theo kế toán phụ trách
@@ -160,13 +175,13 @@ router.get("/accountant", authMiddleware(["keToan"]), getSchedulesByAccountant);
 router.get(
   "/accountant/filter-all",
   authMiddleware(["admin", "dieuVan", "keToan"]),
-  getAllScheduleFilterOptions
+  getAllScheduleFilterOptions,
 );
 
 router.get(
   "/accountant/filter-options",
   authMiddleware(["keToan"]),
-  getScheduleFilterOptions
+  getScheduleFilterOptions,
 );
 
 // Thêm mã hoá đơn cho chuyến
@@ -176,21 +191,17 @@ router.post("/add-hoa-don", authMiddleware(["keToan"]), addHoaDonToSchedules);
 router.post(
   "/import-hoa-don",
   authMiddleware(["keToan"]),
-  importHoaDonFromExcel
+  importHoaDonFromExcel,
 );
 
 // 🆕 Import cước trả xe ngoài từ Excel (check theo maChuyen)
-router.post(
-  "/import-ctxn",
-  authMiddleware(["keToan"]),
-  importCTXNFromExcel
-);
+router.post("/import-ctxn", authMiddleware(["keToan"]), importCTXNFromExcel);
 
 // 🆕 Xoá mã hoá đơn theo danh sách chuyến
 router.post(
   "/remove-hoa-don",
   authMiddleware(["keToan"]),
-  removeHoaDonFromSchedules
+  removeHoaDonFromSchedules,
 );
 
 // Thêm cước phí bổ sung cho chuyến
@@ -200,19 +211,19 @@ router.put("/bo-sung/:id", authMiddleware(["keToan"]), addBoSungSingle);
 router.put(
   "/warning/:id",
   authMiddleware(["admin", "dieuVan", "keToan"]),
-  toggleWarning
+  toggleWarning,
 );
 
 //xuất file excel
 router.post(
   "/export-excel-by-range",
   authMiddleware(["admin", "dieuVan", "keToan"]),
-  exportTripsByDateRange
+  exportTripsByDateRange,
 );
 router.post(
   "/export-excel-by-range-bs",
   authMiddleware(["admin", "dieuVan", "keToan"]),
-  exportTripsByDateRangeBS
+  exportTripsByDateRangeBS,
 );
 
 module.exports = router;

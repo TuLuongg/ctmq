@@ -1,6 +1,7 @@
 const RideHistory = require("../models/RideHistory");
 const User = require("../models/User");
 const ScheduleAdmin = require("../models/ScheduleAdmin");
+const Schedule = require("../models/Schedule"); 
 const RideEditRequest = require("../models/RideEditRequest");
 
 // Chỉnh sửa chuyến và lưu lịch sử
@@ -327,6 +328,100 @@ exports.getMyEditRequests = async (req, res) => {
     });
   } catch (err) {
     console.error("Lỗi lấy yêu cầu của user:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Lấy lịch trình tương ứng
+exports.getRowByMaLichTrinh = async (req, res) => {
+  try {
+    const { maLichTrinh } = req.params;
+
+    if (!maLichTrinh) {
+      return res.status(400).json({ error: "Thiếu mã lịch trình" });
+    }
+
+    const schedule = await Schedule.findOne(
+      { "rows.maLichTrinh": maLichTrinh },
+      {
+        tenLaiXe: 1,
+        ngayDi: 1,
+        ngayVe: 1,
+        tongTienLichTrinh: 1,
+        rows: { $elemMatch: { maLichTrinh } },
+      }
+    ).lean();
+
+    if (!schedule || !schedule.rows || schedule.rows.length === 0) {
+      return res.status(404).json({ error: "Không tìm thấy lịch trình" });
+    }
+
+    res.json({
+      tenLaiXe: schedule.tenLaiXe,
+      ngayDi: schedule.ngayDi,
+      ngayVe: schedule.ngayVe,
+      tongTienLichTrinh: schedule.tongTienLichTrinh,
+      row: schedule.rows[0],
+    });
+  } catch (err) {
+    console.error("Lỗi lấy row theo maLichTrinh:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+// ===============================
+// GÁN MÃ LỊCH TRÌNH VÀO CHUYẾN
+// ===============================
+exports.assignMaLichTrinh = async (req, res) => {
+  try {
+    const { maChuyen, maLichTrinh } = req.body;
+
+    if (!maChuyen || !maLichTrinh) {
+      return res.status(400).json({
+        error: "Thiếu mã chuyến hoặc mã lịch trình",
+      });
+    }
+
+    // 1️⃣ Tìm chuyến theo mã
+    const ride = await ScheduleAdmin.findOne({ maChuyen });
+    if (!ride) {
+      return res.status(404).json({
+        error: "Không tìm thấy chuyến",
+      });
+    }
+
+    // ❌ Không cho gán lại
+    if (ride.maLichTrinh) {
+      return res.status(400).json({
+        error: "Chuyến đã được gán mã lịch trình",
+      });
+    }
+
+    // 2️⃣ Kiểm tra lịch trình tồn tại
+    const schedule = await Schedule.findOne(
+      { "rows.maLichTrinh": maLichTrinh },
+      { rows: { $elemMatch: { maLichTrinh } } }
+    ).lean();
+
+    if (!schedule) {
+      return res.status(404).json({
+        error: "Mã lịch trình không tồn tại",
+      });
+    }
+
+    // 3️⃣ Update chuyến
+    ride.maLichTrinh = maLichTrinh;
+    await ride.save();
+
+    res.json({
+      success: true,
+      message: "Đã gán mã lịch trình cho chuyến",
+      maChuyen,
+      maLichTrinh,
+    });
+  } catch (err) {
+    console.error("Lỗi gán mã lịch trình:", err);
     res.status(500).json({ error: err.message });
   }
 };

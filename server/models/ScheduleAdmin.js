@@ -52,6 +52,8 @@ const scheduleAdminSchema = new mongoose.Schema(
     diemDoHangNew: { type: String, default: "" }, // ĐIỂM DỠ HÀNG MỚI
     KHdiemGiaoHang: { type: String, default: "" }, // KH ĐIỂM GIAO HÀNG
 
+    maLichTrinh: { type: String, default: "" }, // MÃ LỊCH TRÌNH
+
     percentHH: { type: Number, default: 0 }, //%HH
     moneyHH: { type: Number, default: 0 }, //Tiền HH
     moneyConLai: { type: Number, default: 0 }, //Tiền còn lại

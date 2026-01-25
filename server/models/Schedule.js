@@ -1,6 +1,11 @@
 const mongoose = require("mongoose");
 
 const rowSchema = new mongoose.Schema({
+  maLichTrinh: {
+    type: String,
+    unique: true,
+    index: true,
+  },
   bienSoXe: String,
   tenKhachHang: String,
   giayTo: String,
