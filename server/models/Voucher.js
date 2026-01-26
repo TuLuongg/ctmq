@@ -1,5 +1,16 @@
 const mongoose = require("mongoose");
 
+const attachmentSchema = new mongoose.Schema(
+  {
+    url: { type: String, required: true }, // link file
+    originalName: { type: String }, // tên gốc
+    mimeType: { type: String }, // application/pdf, image/png...
+    size: { type: Number }, // dung lượng (byte)
+    uploadedAt: { type: Date, default: Date.now }, // ngày upload
+  },
+  { _id: false }, // ❗ không tạo _id cho từng file
+);
+
 const voucherSchema = new mongoose.Schema(
   {
     // ====== MÃ PHIẾU ======
@@ -40,7 +51,10 @@ const voucherSchema = new mongoose.Schema(
     amount: { type: Number, required: true }, // Số tiền
     amountInWords: { type: String, default: "" }, // Số tiền bằng chữ (auto)
 
-    attachments: { type: [String], default: [] },
+    attachments: {
+      type: [attachmentSchema],
+      default: [],
+    },
 
     // ====== TRẠNG THÁI DUYỆT ======
     status: {
@@ -57,7 +71,7 @@ const voucherSchema = new mongoose.Schema(
     },
     origVoucherCode: { type: String, default: "" },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("Voucher", voucherSchema);

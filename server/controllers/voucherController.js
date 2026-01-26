@@ -41,7 +41,7 @@ exports.createVoucher = async (req, res) => {
 
       voucherCode = `PC.${monthStr}.${yearStr}.${String(nextNum).padStart(
         3,
-        "0"
+        "0",
       )}`;
 
       try {
@@ -102,7 +102,7 @@ exports.getAllVouchers = async (req, res) => {
           if (orig) v.origVoucherCode = orig.voucherCode;
         }
         return v;
-      })
+      }),
     );
 
     res.json(listWithOrig);
@@ -157,14 +157,11 @@ exports.updateVoucher = async (req, res) => {
       }
     });
 
-    // ====== XỬ LÝ ẢNH ======
+    // ====== XỬ LÝ FILE ĐÍNH KÈM ======
+    const oldAttachments = Array.isArray(req.body.oldAttachments)
+      ? req.body.oldAttachments
+      : [];
 
-    // ảnh cũ (string | string[])
-    const oldAttachments = []
-      .concat(req.body.oldAttachments || [])
-      .filter((x) => typeof x === "string" && x.trim() !== "");
-
-    // ảnh mới (URL sau cloudinary)
     const newAttachments = Array.isArray(req.body.attachments)
       ? req.body.attachments
       : [];
@@ -248,7 +245,7 @@ exports.adjustVoucher = async (req, res) => {
 
     const voucherCode = `${orig.voucherCode}.${String(nextIndex).padStart(
       2,
-      "0"
+      "0",
     )}`;
 
     const newVoucher = new Voucher({
@@ -287,7 +284,7 @@ exports.printVoucher = async (req, res) => {
       },
       {
         new: true, // ✅ trả về bản đã update
-      }
+      },
     );
 
     // nếu không update được (đã approved từ trước)
@@ -345,7 +342,7 @@ exports.approveAdjustedVoucher = async (req, res) => {
     // 2️⃣ ĐÁNH DẤU PHIẾU GỐC ĐÃ ĐIỀU CHỈNH (QUAN TRỌNG)
     const result = await Voucher.updateOne(
       { _id: adj.adjustedFrom },
-      { $set: { status: "adjusted" } }
+      { $set: { status: "adjusted" } },
     );
 
     // debug chắc chắn
@@ -391,7 +388,7 @@ exports.updateTransferDateBulk = async (req, res) => {
         $set: {
           transferDate: new Date(transferDate),
         },
-      }
+      },
     );
 
     return res.json({
@@ -482,11 +479,11 @@ exports.exportVouchers = async (req, res) => {
 
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename=PHIEU_${fromMonth}_to_${toMonth}.xlsx`
+      `attachment; filename=PHIEU_${fromMonth}_to_${toMonth}.xlsx`,
     );
     res.setHeader(
       "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     );
 
     await workbook.xlsx.write(res);
@@ -577,5 +574,61 @@ exports.getUniqueReceivers = async (req, res) => {
   } catch (err) {
     console.error("getUniqueReceivers error:", err);
     res.status(500).json({ error: err.message });
+  }
+};
+
+const https = require("https");
+const http = require("http");
+
+// =========================
+//  TẢI FILE ĐÍNH KÈM (CLOUDINARY - NO AXIOS)
+// =========================
+exports.downloadVoucherAttachment = async (req, res) => {
+  try {
+    const { id, index } = req.params;
+
+    const voucher = await Voucher.findById(id).lean();
+    if (!voucher)
+      return res.status(404).json({ error: "Không tìm thấy phiếu" });
+
+    const attachment = voucher.attachments?.[index];
+    if (!attachment)
+      return res.status(404).json({ error: "Không tìm thấy file đính kèm" });
+
+    const fileName = attachment.originalName; // 🔥 đã có .xlsx / .jpg
+
+    const client = attachment.url.startsWith("https") ? https : http;
+
+    client
+      .get(attachment.url, (cloudRes) => {
+        // lỗi cloudinary
+        if (cloudRes.statusCode !== 200) {
+          console.error("Cloudinary error:", cloudRes.statusCode);
+          return res
+            .status(502)
+            .json({ error: "Không tải được file từ cloud" });
+        }
+
+        // MIME chuẩn
+        res.setHeader(
+          "Content-Type",
+          attachment.mimeType || cloudRes.headers["content-type"],
+        );
+
+        // ⚠️ filename* để không lỗi tiếng Việt + giữ đuôi
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`,
+        );
+
+        cloudRes.pipe(res);
+      })
+      .on("error", (err) => {
+        console.error("Download cloud file error:", err);
+        res.status(500).json({ error: "Lỗi tải file" });
+      });
+  } catch (err) {
+    console.error("downloadVoucherAttachment error:", err);
+    res.status(500).json({ error: "Lỗi server" });
   }
 };

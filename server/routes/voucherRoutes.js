@@ -5,61 +5,70 @@ const { Readable } = require("stream");
 
 const voucherController = require("../controllers/voucherController");
 const cloudinary = require("../config/cloudinary");
+const path = require("path");
 
-// ==========================
-// Multer memory (upload ảnh)
-// ==========================
-const imageUpload = multer({ storage: multer.memoryStorage() });
 
-// ==========================
-// Upload buffer lên Cloudinary
-// ==========================
-async function uploadToCloudinary(buffer, folder = "vouchers") {
+// Multer memory (upload file)
+const fileUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 20 * 1024 * 1024, // 20MB (tuỳ mày)
+  },
+});
+
+
+async function uploadToCloudinary(file, folder = "vouchers/attachments") {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
-      { folder },
+      {
+        folder,
+        resource_type: "raw", // ✅ CHÌA KHOÁ
+        public_id: path.parse(file.originalname).name,
+      },
       (error, result) => {
         if (error) reject(error);
-        else resolve(result.secure_url);
+        else resolve(result);
       }
     );
 
     const readable = new Readable();
     readable._read = () => {};
-    readable.push(buffer);
+    readable.push(file.buffer);
     readable.push(null);
     readable.pipe(stream);
   });
 }
 
-// ==========================
-// Middleware upload ảnh minh chứng
-// ==========================
-async function handleVoucherImageUpload(req, res, next) {
+
+async function handleVoucherFileUpload(req, res, next) {
   try {
     if (Array.isArray(req.files?.attachments)) {
-      const urls = [];
+      const files = [];
 
       for (const file of req.files.attachments) {
-        const url = await uploadToCloudinary(
-          file.buffer,
-          "vouchers/attachments"
-        );
-        urls.push(url);
+        const result = await uploadToCloudinary(file);
+
+        files.push({
+          url: result.secure_url,
+          originalName: file.originalname,
+          mimeType: file.mimetype,
+          size: file.size,
+        });
       }
 
-      req.body.attachments = urls;
+      req.body.attachments = files;
     }
 
     next();
   } catch (err) {
     console.error("Voucher upload error:", err);
     return res.status(500).json({
-      message: "Upload voucher images failed",
+      message: "Upload voucher files failed",
       error: err.message,
     });
   }
 }
+
 
 /* =========================
    ROUTES
@@ -68,8 +77,8 @@ async function handleVoucherImageUpload(req, res, next) {
 // CREATE (có upload ảnh)
 router.post(
   "/",
-  imageUpload.fields([{ name: "attachments", maxCount: 10 }]),
-  handleVoucherImageUpload,
+  fileUpload.fields([{ name: "attachments", maxCount: 10 }]),
+  handleVoucherFileUpload,
   voucherController.createVoucher
 );
 
@@ -83,6 +92,8 @@ router.get("/export", voucherController.exportVouchers);
 router.get("/expense-types", voucherController.getUniqueExpenseTypes);
 router.get("/receiver-companies", voucherController.getUniqueReceiverCompanies);
 router.get("/unique-receivers", voucherController.getUniqueReceivers);
+router.get("/download/:id/attachments/:index", voucherController.downloadVoucherAttachment);
+
 
 // GET BY ID
 router.get("/:id", voucherController.getVoucherById);
@@ -90,8 +101,8 @@ router.get("/:id", voucherController.getVoucherById);
 // UPDATE (có upload ảnh)
 router.put(
   "/:id",
-  imageUpload.fields([{ name: "attachments", maxCount: 10 }]),
-  handleVoucherImageUpload,
+  fileUpload.fields([{ name: "attachments", maxCount: 10 }]),
+  handleVoucherFileUpload,
   voucherController.updateVoucher
 );
 
@@ -104,8 +115,8 @@ router.post("/:id/approve", voucherController.approveVoucher);
 // ADJUST (có upload ảnh)
 router.post(
   "/:id/adjust",
-  imageUpload.fields([{ name: "attachments", maxCount: 10 }]),
-  handleVoucherImageUpload,
+  fileUpload.fields([{ name: "attachments", maxCount: 10 }]),
+  handleVoucherFileUpload,
   voucherController.adjustVoucher
 );
 
