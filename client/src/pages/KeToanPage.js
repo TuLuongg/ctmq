@@ -480,7 +480,6 @@ const KeToanPage = () => {
                 <th className="border p-1 sticky top-0 bg-gray-200 z-20">Ngày đi</th>
                 <th className="border p-1 sticky top-0 bg-gray-200 z-20">Ngày về</th>
 
-                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Mã LT</th>
                 <th className="border p-1 sticky top-0 bg-gray-200 z-20">Biển số</th>
                 <th className="border p-1 sticky top-0 bg-gray-200 z-20">Khách hàng</th>
                 <th className="border p-1 sticky top-0 bg-gray-200 z-20">Giấy tờ</th>
@@ -499,6 +498,8 @@ const KeToanPage = () => {
                 <th className="border p-1 sticky top-0 bg-gray-200 z-20">Phương án</th>
 
                 <th className="border p-1 sticky top-0 bg-gray-200 z-20">Tổng tiền LT</th>
+
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Mã LT</th>
               </tr>
             </thead>
 
@@ -592,7 +593,6 @@ const KeToanPage = () => {
                     )}
 
                     {/* FIELD THEO ROW */}
-                    <td className="border p-1">{row.maLichTrinh}</td>
                     <td className="border p-1">{row.bienSoXe}</td>
                     <td className="border p-1">{row.tenKhachHang}</td>
                     <td className="border p-1">{row.giayTo}</td>
@@ -629,6 +629,7 @@ const KeToanPage = () => {
                         {schedule.tongTienLichTrinh} k
                       </td>
                     )}
+                    <td className="border p-1">{row.maLichTrinh}</td> 
                   </tr>
                 )),
               )}

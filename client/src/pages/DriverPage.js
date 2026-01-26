@@ -146,14 +146,11 @@ function DriverPage() {
   const vehiclePlates = vehicles.map((v) => v.plateNumber);
   const addressList = addressSuggestions.map((a) => a.diaChi);
 
-  console.log(drivers);
-  console.log(customers);
-  console.log(vehicles);
-  console.log(addressSuggestions);
-
   const handleDriverInfoChange = (field, value) => {
     setDriverInfo((prev) => ({ ...prev, [field]: value }));
   };
+
+  console.log(driverInfo)
 
   const handleInputChange = (rowId, colIndex, value) => {
     setRows((prev) =>
