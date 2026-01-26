@@ -471,12 +471,12 @@ const KeToanPage = () => {
       )}
 
       <div className="mb-3 flex items-center gap-2">
-        <span className="font-semibold">Tìm lái xe:</span>
+        <span className="font-semibold">Lọc:</span>
         <input
           type="text"
           value={searchDriver}
           onChange={(e) => setSearchDriver(e.target.value)}
-          placeholder="Nhập tên lái xe..."
+          placeholder="Nhập tên lái xe hoặc mã lịch trình..."
           className="border px-2 py-1 rounded w-64"
         />
       </div>
