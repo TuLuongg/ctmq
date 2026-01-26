@@ -221,9 +221,21 @@ const KeToanPage = () => {
   const isActiveSchedule = (scheduleId) =>
     activeRows.some((r) => r.scheduleId === scheduleId);
 
-  const displayedData = filteredData.filter((s) =>
-    normalizeText(s.tenLaiXe).includes(normalizeText(searchDriver)),
-  );
+  const keyword = normalizeText(searchDriver);
+
+  const displayedData = filteredData.filter((schedule) => {
+    if (!keyword) return true;
+
+    // 1️⃣ match theo tên lái xe
+    const matchDriver = normalizeText(schedule.tenLaiXe).includes(keyword);
+
+    // 2️⃣ match theo mã lịch trình (duyệt từng row)
+    const matchMaLT = schedule.rows?.some((row) =>
+      normalizeText(row.maLichTrinh).includes(keyword),
+    );
+
+    return matchDriver || matchMaLT;
+  });
 
   return (
     <div className="p-4 text-xs">
@@ -475,31 +487,71 @@ const KeToanPage = () => {
           <table className="w-full border text-xs border-separate border-spacing-0">
             <thead className="bg-gray-200">
               <tr>
-                <th className="border p-1 sticky top-0 bg-gray-200 z-20">STT</th>
-                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Tên lái xe</th>
-                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Ngày đi</th>
-                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Ngày về</th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">
+                  STT
+                </th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">
+                  Tên lái xe
+                </th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">
+                  Ngày đi
+                </th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">
+                  Ngày về
+                </th>
 
-                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Biển số</th>
-                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Khách hàng</th>
-                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Giấy tờ</th>
-                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Nơi đi</th>
-                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Nơi đến</th>
-                <th className="border p-1 sticky top-0 bg-gray-200 z-20">TL hàng</th>
-                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Số điểm</th>
-                <th className="border p-1 sticky top-0 bg-gray-200 z-20">2 chiều + lưu ca</th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">
+                  Biển số
+                </th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">
+                  Khách hàng
+                </th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">
+                  Giấy tờ
+                </th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">
+                  Nơi đi
+                </th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">
+                  Nơi đến
+                </th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">
+                  TL hàng
+                </th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">
+                  Số điểm
+                </th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">
+                  2 chiều + lưu ca
+                </th>
                 <th className="border p-1 sticky top-0 bg-gray-200 z-20">Ăn</th>
-                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Tăng ca</th>
-                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Bốc xếp</th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">
+                  Tăng ca
+                </th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">
+                  Bốc xếp
+                </th>
                 <th className="border p-1 sticky top-0 bg-gray-200 z-20">Vé</th>
-                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Tiền chuyến</th>
-                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Chi phí khác</th>
-                <th className="border p-1 sticky top-0 bg-gray-200 z-20">LX thu KH</th>
-                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Phương án</th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">
+                  Tiền chuyến
+                </th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">
+                  Chi phí khác
+                </th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">
+                  LX thu KH
+                </th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">
+                  Phương án
+                </th>
 
-                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Tổng tiền LT</th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">
+                  Tổng tiền LT
+                </th>
 
-                <th className="border p-1 sticky top-0 bg-gray-200 z-20">Mã LT</th>
+                <th className="border p-1 sticky top-0 bg-gray-200 z-20">
+                  Mã LT
+                </th>
               </tr>
             </thead>
 
@@ -629,7 +681,7 @@ const KeToanPage = () => {
                         {schedule.tongTienLichTrinh} k
                       </td>
                     )}
-                    <td className="border p-1">{row.maLichTrinh}</td> 
+                    <td className="border p-1">{row.maLichTrinh}</td>
                   </tr>
                 )),
               )}

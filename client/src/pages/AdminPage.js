@@ -258,6 +258,9 @@ export default function AdminPage({ onLogout }) {
                   Quản lý chuyến gốc
                 </th>
                 <th className="px-4 py-2 border-b text-center">
+                  Duyệt YC sửa chuyến
+                </th>
+                <th className="px-4 py-2 border-b text-center">
                   Quản lý toàn bộ cước phí BS
                 </th>
                 <th className="px-4 py-2 border-b text-center">
@@ -303,6 +306,7 @@ export default function AdminPage({ onLogout }) {
                     "edit_customer",
                     "edit_vehicle",
                     "edit_trip",
+                    "duyet_yc",
                     "edit_trip_full",
                     "edit_voucher",
                     "approve_voucher",

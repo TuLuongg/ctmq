@@ -1576,28 +1576,45 @@ export default function VoucherListPage() {
                               case "reason":
                                 return v.reason;
 
-                              case "attachment":
-                                return Array.isArray(v.attachments) &&
-                                  v.attachments.length > 0 ? (
-                                  <div className="flex gap-1 overflow-x-auto max-w-full">
-                                    {v.attachments.map((url, i) => (
-                                      <img
-                                        key={i}
-                                        src={url}
-                                        alt={`att-${i}`}
-                                        className="h-5 w-auto border cursor-pointer shrink-0"
-                                        title="Click xem ảnh"
-                                        onClick={() =>
-                                          window.open(url, "_blank")
-                                        }
-                                      />
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <span className="text-gray-400 italic">
-                                    —
-                                  </span>
-                                );
+case "attachment":
+                              return Array.isArray(v.attachments) &&
+                                v.attachments.length > 0 ? (
+                                <div className="flex gap-2 overflow-x-auto max-w-full">
+                                  {v.attachments.map((file, i) => (
+                                    <div
+                                      key={i}
+                                      className="flex items-center gap-1 border rounded px-1 py-[2px]
+                     cursor-pointer hover:bg-gray-100 shrink-0"
+                                      title={file.originalName}
+                                      onClick={() =>
+                                        window.open(
+                                          `${API}/vouchers/download/${v._id}/attachments/${i}`,
+                                          "_blank",
+                                        )
+                                      }
+                                    >
+                                      {isImageFile(file) ? (
+                                        <img
+                                          src={file.url}
+                                          alt={file.originalName}
+                                          className="h-4 w-auto object-cover rounded"
+                                        />
+                                      ) : (
+                                        <span className="text-xs">
+                                          {getFileIcon(file)}
+                                        </span>
+                                      )}
+
+                                      <span className="text-xs max-w-[120px] truncate">
+                                        {file.originalName}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-gray-400 italic">—</span>
+                              );
+
                               case "expenseType":
                                 return v.expenseType;
 

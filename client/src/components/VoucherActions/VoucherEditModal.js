@@ -268,42 +268,28 @@ export default function VoucherEditModal({ id, customers, voucher, onClose }) {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
-    setNewAttachmentFiles((prev) => [...prev, ...files]);
-
-    setPreviewNewAttachments((prev) => [
-      ...prev,
-      ...files.map((f) => ({
-        name: f.name,
-        type: f.type,
-        isImage: f.type.startsWith("image/"),
-        previewUrl: f.type.startsWith("image/") ? URL.createObjectURL(f) : null,
-      })),
-    ]);
-  }
-  function handleAttachmentFiles(e) {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
+    const previews = files.map((file) => ({
+      file,
+      name: file.name,
+      isImage: file.type.startsWith("image/"),
+      previewUrl: file.type.startsWith("image/")
+        ? URL.createObjectURL(file)
+        : null,
+    }));
 
     setNewAttachmentFiles((prev) => [...prev, ...files]);
+    setPreviewNewAttachments((prev) => [...prev, ...previews]);
 
-    setPreviewNewAttachments((prev) => [
-      ...prev,
-      ...files.map((f) => ({
-        name: f.name,
-        type: f.type,
-        isImage: f.type.startsWith("image/"),
-        previewUrl: f.type.startsWith("image/") ? URL.createObjectURL(f) : null,
-      })),
-    ]);
-  }
-
-  function removeOldAttachment(idx) {
-    setOldAttachments((prev) => prev.filter((_, i) => i !== idx));
+    e.target.value = ""; // 🔴 quan trọng: cho phép chọn lại cùng file
   }
 
   function removeNewAttachment(idx) {
     setNewAttachmentFiles((prev) => prev.filter((_, i) => i !== idx));
     setPreviewNewAttachments((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  function removeOldAttachment(idx) {
+    setOldAttachments((prev) => prev.filter((_, i) => i !== idx));
   }
 
   async function submit() {
@@ -324,12 +310,10 @@ export default function VoucherEditModal({ id, customers, voucher, onClose }) {
         fd.set(key, val ?? "");
       });
 
-      /// ảnh cũ
-      oldAttachments.forEach((url) => {
-        fd.append("oldAttachments", url);
+      oldAttachments.forEach((att) => {
+        fd.append("oldAttachments", JSON.stringify(att));
       });
 
-      // ảnh mới
       newAttachmentFiles.forEach((file) => {
         fd.append("attachments", file);
       });

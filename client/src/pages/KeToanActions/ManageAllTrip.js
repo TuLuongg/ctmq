@@ -119,6 +119,7 @@ export default function ManageTrip({ user, onLogout }) {
   const userId = currentUser?._id || "guest";
   const canEditTripFull = currentUser?.permissions?.includes("edit_trip_full");
   const canImportCTXN = currentUser?.permissions?.includes("cuoc_tra_xe_ngoai");
+  const canDYC = currentUser?.permissions?.includes("duyet_yc");
 
   const location = useLocation();
   const isActive = (path) => location.pathname === path;
@@ -1742,14 +1743,15 @@ export default function ManageTrip({ user, onLogout }) {
       <div className="flex flex-wrap gap-2 mb-3 items-center">
         <button
           onClick={openAllRequests}
-          disabled={openingRequests}
+          disabled={openingRequests || !canDYC}
           className={`px-4 py-2 rounded-lg text-white transition
     ${
-      openingRequests
+      openingRequests || !canDYC
         ? "bg-gray-400 cursor-not-allowed"
         : "bg-purple-600 hover:bg-purple-700"
     }
   `}
+          title={!canDYC ? "Bạn không có quyền duyệt yêu cầu" : ""}
         >
           {openingRequests ? "Đang tải..." : "Yêu cầu cần duyệt"}
         </button>

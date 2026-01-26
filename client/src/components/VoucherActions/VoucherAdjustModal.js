@@ -188,20 +188,15 @@ export default function VoucherAdjustModal({
     setForm((s) => ({ ...s, [name]: value }));
   }
 
-  function handleSelectImages(e) {
+  function handleSelectFiles(e) {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
     setAttachmentFiles((prev) => [...prev, ...files]);
-    setAttachmentPreview((prev) => [
-      ...prev,
-      ...files.map((f) => URL.createObjectURL(f)),
-    ]);
   }
 
-  function removeImage(index) {
+  function removeFile(index) {
     setAttachmentFiles((prev) => prev.filter((_, i) => i !== index));
-    setAttachmentPreview((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function submit() {
@@ -382,21 +377,32 @@ export default function VoucherAdjustModal({
 
           <input
             type="file"
-            accept="image/*"
             multiple
-            onChange={handleSelectImages}
+            onChange={handleSelectFiles}
             className="mb-3"
           />
 
-          {attachmentPreview.length > 0 && (
-            <div className="flex gap-2 flex-wrap">
-              {attachmentPreview.map((img, idx) => (
-                <div key={idx} className="relative">
-                  <img src={img} className="h-32 rounded border object-cover" />
+          {attachmentFiles.length > 0 && (
+            <div className="space-y-2">
+              {attachmentFiles.map((file, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between border p-2 rounded"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-blue-600">📎</span>
+                    <span className="text-sm truncate max-w-[400px]">
+                      {file.name}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      ({Math.round(file.size / 1024)} KB)
+                    </span>
+                  </div>
+
                   <button
                     type="button"
-                    onClick={() => removeImage(idx)}
-                    className="absolute top-0 right-0 bg-red-600 text-white text-xs px-1 rounded"
+                    onClick={() => removeFile(idx)}
+                    className="text-red-600 text-xs font-bold"
                   >
                     ✕
                   </button>
