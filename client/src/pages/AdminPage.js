@@ -267,6 +267,9 @@ export default function AdminPage({ onLogout }) {
                   Duyệt phiếu chi
                 </th>
                 <th className="px-4 py-2 border-b text-center">
+                  Xem CN chung
+                </th>
+                <th className="px-4 py-2 border-b text-center">
                   Công nợ KH 26
                 </th>
                 <th className="px-4 py-2 border-b text-center">
@@ -303,6 +306,7 @@ export default function AdminPage({ onLogout }) {
                     "edit_trip_full",
                     "edit_voucher",
                     "approve_voucher",
+                    "view_all_customer_debt",
                     "cong_no_26",
                     "edit_tcb",
                     "edit_contract",

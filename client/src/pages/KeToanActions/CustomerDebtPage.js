@@ -72,6 +72,8 @@ export default function CustomerDebtPage() {
     JSON.parse(localStorage.getItem("user") || "null") || location.state?.user;
   const permissions = user?.permissions || [];
   const canLockKCN = permissions.includes("lock_kcn");
+  const canViewAllDebt = user?.permissions?.includes("view_all_customer_debt");
+  const currentUsername = user?.username;
 
   const isActive = (path) => location.pathname === path;
 
@@ -102,7 +104,7 @@ export default function CustomerDebtPage() {
 
   const [searchText, setSearchText] = useState("");
   const [autoManageMonth, setAutoManageMonth] = useState(
-    `${year}-${String(month).padStart(2, "0")}`
+    `${year}-${String(month).padStart(2, "0")}`,
   );
   useEffect(() => {
     if (!autoManageMonth) return;
@@ -142,14 +144,14 @@ export default function CustomerDebtPage() {
       const manageMonth = `${String(month).padStart(2, "0")}/${year}`;
       const res = await axios.get(
         `${API}/payment-history/debt?manageMonth=${manageMonth}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       const periods = res.data || [];
 
       const mapped = customers.flatMap((c) => {
         const customerPeriods = periods.filter(
-          (p) => p.customerCode === c.code
+          (p) => p.customerCode === c.code,
         );
 
         // ❌ KHÔNG CÓ KỲ NÀO → vẫn tạo 1 dòng rỗng
@@ -229,7 +231,7 @@ export default function CustomerDebtPage() {
       await axios.post(
         `${API}/payment-history/debt-period/${debtCode}/lock`,
         { lockedBy: user?.name },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       loadData();
     } catch (err) {
@@ -243,7 +245,7 @@ export default function CustomerDebtPage() {
       await axios.post(
         `${API}/payment-history/debt-period/${debtCode}/unlock`,
         { unlockedBy: user?.name },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       loadData();
     } catch (err) {
@@ -280,7 +282,7 @@ export default function CustomerDebtPage() {
             note: autoDebtData.note || "",
             vatPercent: autoDebtData.vatPercent,
           },
-          { headers: { Authorization: `Bearer ${token}` } }
+          { headers: { Authorization: `Bearer ${token}` } },
         );
       }
 
@@ -296,7 +298,7 @@ export default function CustomerDebtPage() {
   };
 
   const selectedCustomerList = customers.filter((c) =>
-    selectedCustomers.includes(c.code)
+    selectedCustomers.includes(c.code),
   );
 
   //update khoảng của kỳ công nợ
@@ -324,7 +326,7 @@ export default function CustomerDebtPage() {
           note: editNote,
           updatedBy: user?.name,
         },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       alert("Đã cập nhật kỳ công nợ");
@@ -340,7 +342,7 @@ export default function CustomerDebtPage() {
     if (!debtCode) return;
 
     const ok = window.confirm(
-      "Bạn chắc chắn muốn XOÁ kỳ công nợ này?\nThao tác này KHÔNG THỂ hoàn tác."
+      "Bạn chắc chắn muốn XOÁ kỳ công nợ này?\nThao tác này KHÔNG THỂ hoàn tác.",
     );
     if (!ok) return;
 
@@ -349,7 +351,7 @@ export default function CustomerDebtPage() {
         `${API}/payment-history/delete/debt-period/${debtCode}`,
         {
           headers: { Authorization: `Bearer ${token}` },
-        }
+        },
       );
 
       alert("Đã xoá kỳ công nợ");
@@ -360,18 +362,27 @@ export default function CustomerDebtPage() {
     }
   };
 
-  const filteredDebtList = debtList.filter((c) => {
-    const normSearch = normalizeString(searchText);
-    const normCode = normalizeString(c.maKH);
-    const normName = normalizeString(c.tenKH);
-    const normAssigned = normalizeString(c.userAssigned);
+  const filteredDebtList = debtList
+    // 🔐 FILTER THEO QUYỀN
+    .filter((c) => {
+      if (canViewAllDebt) return true;
+      return (
+        normalizeString(c.userAssigned) === normalizeString(currentUsername)
+      );
+    })
+    // 🔍 FILTER SEARCH
+    .filter((c) => {
+      const normSearch = normalizeString(searchText);
+      const normCode = normalizeString(c.maKH);
+      const normName = normalizeString(c.tenKH);
+      const normAssigned = normalizeString(c.userAssigned);
 
-    return (
-      normCode.includes(normSearch) ||
-      normName.includes(normSearch) ||
-      normAssigned.includes(normSearch)
-    );
-  });
+      return (
+        normCode.includes(normSearch) ||
+        normName.includes(normSearch) ||
+        normAssigned.includes(normSearch)
+      );
+    });
 
   const visibleCustomerCodes = filteredDebtList.map((c) => c.maKH);
   const [showDebtYearModal, setShowDebtYearModal] = useState(false);
@@ -621,7 +632,7 @@ export default function CustomerDebtPage() {
                   checked={
                     visibleCustomerCodes.length > 0 &&
                     visibleCustomerCodes.every((code) =>
-                      selectedCustomers.includes(code)
+                      selectedCustomers.includes(code),
                     )
                   }
                   onChange={(e) => {
@@ -632,8 +643,8 @@ export default function CustomerDebtPage() {
                     } else {
                       setSelectedCustomers((prev) =>
                         prev.filter(
-                          (code) => !visibleCustomerCodes.includes(code)
-                        )
+                          (code) => !visibleCustomerCodes.includes(code),
+                        ),
                       );
                     }
                   }}
@@ -704,7 +715,7 @@ export default function CustomerDebtPage() {
                             setSelectedCustomers((prev) =>
                               e.target.checked
                                 ? [...new Set([...prev, customer.maKH])]
-                                : prev.filter((x) => x !== customer.maKH)
+                                : prev.filter((x) => x !== customer.maKH),
                             )
                           }
                         />
@@ -797,16 +808,16 @@ export default function CustomerDebtPage() {
                             c.trangThai === "green"
                               ? "#00cc44"
                               : c.trangThai === "yellow"
-                              ? "#ffcc00"
-                              : "#ff3333",
+                                ? "#ffcc00"
+                                : "#ff3333",
                         }}
                       />
                       <span>
                         {c.trangThai === "green"
                           ? "Hoàn tất"
                           : c.trangThai === "yellow"
-                          ? "Còn ít"
-                          : "Chưa trả"}
+                            ? "Còn ít"
+                            : "Chưa trả"}
                       </span>
                     </div>
                   </td>
@@ -858,12 +869,12 @@ export default function CustomerDebtPage() {
                             setEditFromDate(
                               c.fromDate
                                 ? c.fromDate.toISOString().slice(0, 10)
-                                : ""
+                                : "",
                             );
                             setEditToDate(
                               c.toDate
                                 ? c.toDate.toISOString().slice(0, 10)
-                                : ""
+                                : "",
                             );
                             setEditVatPercent(c.thueVAT || 0);
                             setShowEditDebtModal(true);
@@ -888,7 +899,7 @@ export default function CustomerDebtPage() {
                     )}
                   </td>
                 </tr>
-              ))
+              )),
             )}
           </tbody>
         </table>

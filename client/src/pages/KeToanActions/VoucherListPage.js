@@ -202,13 +202,13 @@ export default function VoucherListPage() {
   const startResizeOrigin = makeStartResize(
     () => originColWidth,
     setOriginColWidth,
-    LS_ORIGIN_COL_WIDTH
+    LS_ORIGIN_COL_WIDTH,
   );
 
   const startResizeAdjust = makeStartResize(
     () => adjustColWidth,
     setAdjustColWidth,
-    LS_ADJUST_COL_WIDTH
+    LS_ADJUST_COL_WIDTH,
   );
 
   // Load danh sách phiếu
@@ -250,7 +250,7 @@ export default function VoucherListPage() {
       await axios.post(
         `${API}/vouchers/${id}/approve-adjust`,
         {},
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       alert("Đã duyệt phiếu điều chỉnh");
@@ -263,10 +263,10 @@ export default function VoucherListPage() {
   // State khoảng tháng xuất excel
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportFromMonth, setExportFromMonth] = useState(
-    `${year}-${month < 10 ? "0" + month : month}`
+    `${year}-${month < 10 ? "0" + month : month}`,
   );
   const [exportToMonth, setExportToMonth] = useState(
-    `${year}-${month < 10 ? "0" + month : month}`
+    `${year}-${month < 10 ? "0" + month : month}`,
   );
 
   const [exporting, setExporting] = useState(false);
@@ -410,7 +410,7 @@ export default function VoucherListPage() {
 
   const toggleSelectOne = (id) => {
     setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
   };
 
@@ -430,7 +430,7 @@ export default function VoucherListPage() {
 
     if (
       !window.confirm(
-        `Cập nhật ngày chuyển tiền cho ${selectedIds.length} phiếu?`
+        `Cập nhật ngày chuyển tiền cho ${selectedIds.length} phiếu?`,
       )
     )
       return;
@@ -446,7 +446,7 @@ export default function VoucherListPage() {
         },
         {
           headers: { Authorization: `Bearer ${token}` },
-        }
+        },
       );
 
       alert("Cập nhật ngày chuyển tiền thành công");
@@ -548,7 +548,7 @@ export default function VoucherListPage() {
     const [keyword, setKeyword] = useState("");
 
     const filteredOptions = options.filter((o) =>
-      removeVietnameseTones(o).includes(removeVietnameseTones(keyword))
+      removeVietnameseTones(o).includes(removeVietnameseTones(keyword)),
     );
 
     const isAllChecked =
@@ -737,7 +737,7 @@ export default function VoucherListPage() {
       if (
         filters.code &&
         !removeVietnameseTones(v.voucherCode).includes(
-          removeVietnameseTones(filters.code)
+          removeVietnameseTones(filters.code),
         )
       )
         return false;
@@ -745,7 +745,7 @@ export default function VoucherListPage() {
       if (
         filters.receiver &&
         !removeVietnameseTones(v.receiverName).includes(
-          removeVietnameseTones(filters.receiver)
+          removeVietnameseTones(filters.receiver),
         )
       )
         return false;
@@ -753,14 +753,14 @@ export default function VoucherListPage() {
       if (
         filters.reason &&
         !removeVietnameseTones(v.reason).includes(
-          removeVietnameseTones(filters.reason)
+          removeVietnameseTones(filters.reason),
         )
       )
         return false;
       if (
         filters.content &&
         !removeVietnameseTones(v.transferContent).includes(
-          removeVietnameseTones(filters.content)
+          removeVietnameseTones(filters.content),
         )
       )
         return false;
@@ -792,7 +792,7 @@ export default function VoucherListPage() {
             col,
             x: rect.left,
             y: rect.bottom + 4,
-          }
+          },
     );
   };
 
@@ -820,6 +820,41 @@ export default function VoucherListPage() {
 
     setCopyData(data);
     setShowCreate(true);
+  };
+
+  function isImageFile(file) {
+    return file.mimeType?.startsWith("image/");
+  }
+
+  function getFileIcon(file) {
+    const type = file.mimeType || "";
+
+    if (type.startsWith("image/")) return "🖼️";
+    if (type === "application/pdf") return "📄";
+    if (type.includes("excel") || type.includes("spreadsheet")) return "📊";
+    if (type.includes("word")) return "📝";
+    if (type.includes("zip") || type.includes("rar")) return "🗜️";
+
+    return "📎";
+  }
+
+  const downloadFile = async (file) => {
+    try {
+      const res = await fetch(file.url);
+      const blob = await res.blob();
+
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = file.originalName; // ✅ TÊN FILE GỐC
+      document.body.appendChild(link);
+      link.click();
+
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+    } catch (err) {
+      console.error("Download failed:", err);
+      alert("Không tải được file");
+    }
   };
 
   return (
@@ -1157,10 +1192,10 @@ export default function VoucherListPage() {
                             col === "select" || col === "stt"
                               ? "center"
                               : col === "amount"
-                              ? "right"
-                              : col === "transferDate" || col === "status"
-                              ? "center"
-                              : "left",
+                                ? "right"
+                                : col === "transferDate" || col === "status"
+                                  ? "center"
+                                  : "left",
                         }}
                       >
                         {(() => {
@@ -1177,7 +1212,7 @@ export default function VoucherListPage() {
                               return idx + 1;
                             case "date":
                               return new Date(v.dateCreated).toLocaleDateString(
-                                "vi-VN"
+                                "vi-VN",
                               );
                             case "userCreate":
                               return v.createByName;
@@ -1206,16 +1241,36 @@ export default function VoucherListPage() {
                             case "attachment":
                               return Array.isArray(v.attachments) &&
                                 v.attachments.length > 0 ? (
-                                <div className="flex gap-1 overflow-x-auto max-w-full">
-                                  {v.attachments.map((url, i) => (
-                                    <img
+                                <div className="flex gap-2 overflow-x-auto max-w-full">
+                                  {v.attachments.map((file, i) => (
+                                    <div
                                       key={i}
-                                      src={url}
-                                      alt={`att-${i}`}
-                                      className="h-5 w-auto border cursor-pointer shrink-0"
-                                      title="Click xem ảnh"
-                                      onClick={() => window.open(url, "_blank")}
-                                    />
+                                      className="flex items-center gap-1 border rounded px-1 py-[2px]
+                     cursor-pointer hover:bg-gray-100 shrink-0"
+                                      title={file.originalName}
+                                      onClick={() =>
+                                        window.open(
+                                          `${API}/vouchers/download/${v._id}/attachments/${i}`,
+                                          "_blank",
+                                        )
+                                      }
+                                    >
+                                      {isImageFile(file) ? (
+                                        <img
+                                          src={file.url}
+                                          alt={file.originalName}
+                                          className="h-4 w-auto object-cover rounded"
+                                        />
+                                      ) : (
+                                        <span className="text-xs">
+                                          {getFileIcon(file)}
+                                        </span>
+                                      )}
+
+                                      <span className="text-xs max-w-[120px] truncate">
+                                        {file.originalName}
+                                      </span>
+                                    </div>
                                   ))}
                                 </div>
                               ) : (
@@ -1227,7 +1282,7 @@ export default function VoucherListPage() {
                             case "transferDate":
                               return v.transferDate
                                 ? new Date(v.transferDate).toLocaleDateString(
-                                    "vi-VN"
+                                    "vi-VN",
                                   )
                                 : "-";
                             case "amount":
@@ -1239,15 +1294,15 @@ export default function VoucherListPage() {
                                     v.status === "waiting_check"
                                       ? "text-yellow-600 font-semibold"
                                       : v.status === "approved"
-                                      ? "text-green-600 font-semibold"
-                                      : "text-purple-600 font-semibold"
+                                        ? "text-green-600 font-semibold"
+                                        : "text-purple-600 font-semibold"
                                   }
                                 >
                                   {v.status === "waiting_check"
                                     ? "Đang chờ duyệt"
                                     : v.status === "approved"
-                                    ? "Đã duyệt"
-                                    : "Đã điều chỉnh"}
+                                      ? "Đã duyệt"
+                                      : "Đã điều chỉnh"}
                                 </span>
                               );
 
@@ -1266,20 +1321,20 @@ export default function VoucherListPage() {
                                       try {
                                         // 1️⃣ GỌI API IN → AUTO APPROVE NẾU waiting_check
                                         await axios.post(
-                                          `${API}/vouchers/${v._id}/print`
+                                          `${API}/vouchers/${v._id}/print`,
                                         );
 
                                         // 2️⃣ MỞ TRANG IN (GET – KHÔNG SIDE EFFECT)
                                         window.open(
                                           `/voucher/${v._id}/print`,
-                                          "_blank"
+                                          "_blank",
                                         );
 
                                         load();
                                       } catch (err) {
                                         alert(
                                           err.response?.data?.error ||
-                                            "Không in được phiếu"
+                                            "Không in được phiếu",
                                         );
                                       }
                                     }}
@@ -1446,10 +1501,10 @@ export default function VoucherListPage() {
                               col === "select" || col === "stt"
                                 ? "center"
                                 : col === "amount"
-                                ? "right"
-                                : col === "transferDate" || col === "status"
-                                ? "center"
-                                : "left",
+                                  ? "right"
+                                  : col === "transferDate" || col === "status"
+                                    ? "center"
+                                    : "left",
                           }}
                           className={
                             // highlight khác phiếu gốc
@@ -1488,7 +1543,7 @@ export default function VoucherListPage() {
 
                               case "date":
                                 return new Date(
-                                  v.dateCreated
+                                  v.dateCreated,
                                 ).toLocaleDateString("vi-VN");
 
                               case "userCreate":
@@ -1549,7 +1604,7 @@ export default function VoucherListPage() {
                               case "transferDate":
                                 return v.transferDate
                                   ? new Date(v.transferDate).toLocaleDateString(
-                                      "vi-VN"
+                                      "vi-VN",
                                     )
                                   : "-";
 
@@ -1577,15 +1632,15 @@ export default function VoucherListPage() {
                                       v.status === "waiting_check"
                                         ? "text-yellow-600 font-semibold"
                                         : v.status === "approved"
-                                        ? "text-green-600 font-semibold"
-                                        : "text-purple-600 font-semibold"
+                                          ? "text-green-600 font-semibold"
+                                          : "text-purple-600 font-semibold"
                                     }
                                   >
                                     {v.status === "waiting_check"
                                       ? "Đang chờ duyệt"
                                       : v.status === "approved"
-                                      ? "Đã duyệt"
-                                      : "Đã điều chỉnh"}
+                                        ? "Đã duyệt"
+                                        : "Đã điều chỉnh"}
                                   </span>
                                 );
 
@@ -1601,7 +1656,7 @@ export default function VoucherListPage() {
 
                                     {v.status === "waiting_check" &&
                                       user?.permissions?.includes(
-                                        "approve_voucher"
+                                        "approve_voucher",
                                       ) && (
                                         <button
                                           className="text-green-600"

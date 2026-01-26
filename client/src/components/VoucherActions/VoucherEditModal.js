@@ -157,7 +157,7 @@ export default function VoucherEditModal({ id, customers, voucher, onClose }) {
     new Set([
       ...receiverCompanyList.map((e) => e.name),
       ...(customers || []).map((c) => c.nameHoaDon),
-    ])
+    ]),
   ).filter(Boolean);
 
   async function loadExpenseTypes() {
@@ -189,7 +189,7 @@ export default function VoucherEditModal({ id, customers, voucher, onClose }) {
       const res = await axios.post(
         `${API}/expense/expense-types`,
         { name: newExpenseName.trim() },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       setExpenseList((s) => [...s, res.data]);
@@ -209,7 +209,7 @@ export default function VoucherEditModal({ id, customers, voucher, onClose }) {
       const res = await axios.post(
         `${API}/expense/receiver-names`,
         { name: newReceiverName.trim() },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       setReceiverNameList((s) => [...s, res.data]);
@@ -229,7 +229,7 @@ export default function VoucherEditModal({ id, customers, voucher, onClose }) {
       const res = await axios.post(
         `${API}/expense/receiver-companies`,
         { name: newReceiverCompany.trim() },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       setReceiverCompanyList((s) => [...s, res.data]);
@@ -259,7 +259,7 @@ export default function VoucherEditModal({ id, customers, voucher, onClose }) {
 
   // ===== ẢNH MINH CHỨNG =====
   const [oldAttachments, setOldAttachments] = useState(
-    Array.isArray(voucher.attachments) ? voucher.attachments : []
+    Array.isArray(voucher.attachments) ? voucher.attachments : [],
   );
   const [newAttachmentFiles, setNewAttachmentFiles] = useState([]); // File[]
   const [previewNewAttachments, setPreviewNewAttachments] = useState([]); // blob url
@@ -269,9 +269,31 @@ export default function VoucherEditModal({ id, customers, voucher, onClose }) {
     if (!files.length) return;
 
     setNewAttachmentFiles((prev) => [...prev, ...files]);
+
     setPreviewNewAttachments((prev) => [
       ...prev,
-      ...files.map((f) => URL.createObjectURL(f)),
+      ...files.map((f) => ({
+        name: f.name,
+        type: f.type,
+        isImage: f.type.startsWith("image/"),
+        previewUrl: f.type.startsWith("image/") ? URL.createObjectURL(f) : null,
+      })),
+    ]);
+  }
+  function handleAttachmentFiles(e) {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    setNewAttachmentFiles((prev) => [...prev, ...files]);
+
+    setPreviewNewAttachments((prev) => [
+      ...prev,
+      ...files.map((f) => ({
+        name: f.name,
+        type: f.type,
+        isImage: f.type.startsWith("image/"),
+        previewUrl: f.type.startsWith("image/") ? URL.createObjectURL(f) : null,
+      })),
     ]);
   }
 
@@ -574,44 +596,79 @@ export default function VoucherEditModal({ id, customers, voucher, onClose }) {
 
         {/* ẢNH MINH CHỨNG */}
         <div className="mt-4">
-          <label className="font-semibold mb-2 block">Ảnh minh chứng</label>
+          <label className="font-semibold mb-2 block">
+            ẢNH / CHỨNG TỪ ĐÍNH KÈM
+          </label>
 
           <input
             type="file"
-            accept="image/*"
             multiple
+            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
             onChange={handleAttachmentFiles}
           />
 
-          {/* ẢNH CŨ */}
+          {/* FILE CŨ */}
           {oldAttachments.length > 0 && (
             <>
-              <div className="text-xs mt-2 text-gray-500">Ảnh đã lưu</div>
-              <div className="flex gap-2 flex-wrap mt-1">
-                {oldAttachments.map((url, idx) => (
-                  <div key={idx} className="relative">
-                    <img src={url} className="h-28 rounded border" />
-                    <button
-                      type="button"
-                      onClick={() => removeOldAttachment(idx)}
-                      className="absolute top-0 right-0 bg-red-600 text-white text-xs px-1 rounded"
+              <div className="text-xs mt-2 text-gray-500">File đã lưu</div>
+              <div className="flex gap-3 flex-wrap mt-1">
+                {oldAttachments.map((att, idx) => {
+                  const isImage = att.mimeType?.startsWith("image/");
+                  return (
+                    <div
+                      key={idx}
+                      className="relative border rounded p-2 w-32 text-center text-xs"
                     >
-                      ✕
-                    </button>
-                  </div>
-                ))}
+                      {isImage ? (
+                        <img
+                          src={att.url}
+                          className="h-20 mx-auto rounded object-cover"
+                        />
+                      ) : (
+                        <>
+                          <div className="text-3xl">📄</div>
+                          <div className="truncate mt-1">
+                            {att.originalName}
+                          </div>
+                        </>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => removeOldAttachment(idx)}
+                        className="absolute top-0 right-0 bg-red-600 text-white text-xs px-1 rounded"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </>
           )}
 
-          {/* ẢNH MỚI */}
+          {/* FILE MỚI */}
           {previewNewAttachments.length > 0 && (
             <>
-              <div className="text-xs mt-3 text-gray-500">Ảnh mới</div>
-              <div className="flex gap-2 flex-wrap mt-1">
-                {previewNewAttachments.map((url, idx) => (
-                  <div key={idx} className="relative">
-                    <img src={url} className="h-28 rounded border" />
+              <div className="text-xs mt-3 text-gray-500">File mới</div>
+              <div className="flex gap-3 flex-wrap mt-1">
+                {previewNewAttachments.map((f, idx) => (
+                  <div
+                    key={idx}
+                    className="relative border rounded p-2 w-32 text-center text-xs"
+                  >
+                    {f.isImage ? (
+                      <img
+                        src={f.previewUrl}
+                        className="h-20 mx-auto rounded object-cover"
+                      />
+                    ) : (
+                      <>
+                        <div className="text-3xl">📎</div>
+                        <div className="truncate mt-1">{f.name}</div>
+                      </>
+                    )}
+
                     <button
                       type="button"
                       onClick={() => removeNewAttachment(idx)}

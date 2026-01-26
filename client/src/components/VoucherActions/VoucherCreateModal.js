@@ -170,7 +170,6 @@ export default function VoucherCreateModal({
 
   // ===== ẢNH ĐÍNH KÈM =====
   const [attachmentFiles, setAttachmentFiles] = useState([]); // File[]
-  const [attachmentPreview, setAttachmentPreview] = useState([]); // string[]
 
   const [saving, setSaving] = useState(false);
 
@@ -232,7 +231,7 @@ export default function VoucherCreateModal({
     new Set([
       ...receiverCompanyList.map((e) => e.name),
       ...(customers || []).map((c) => c.nameHoaDon),
-    ])
+    ]),
   ).filter(Boolean);
 
   async function loadExpenseTypes() {
@@ -255,7 +254,7 @@ export default function VoucherCreateModal({
       const res = await axios.post(
         `${API}/expense/expense-types`,
         { name: newExpenseName.trim() },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       // thêm vào list & chọn luôn
@@ -302,7 +301,7 @@ export default function VoucherCreateModal({
       const res = await axios.post(
         `${API}/expense/receiver-names`,
         { name: newReceiverName.trim() },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       setReceiverNameList((s) => [...s, res.data]);
@@ -325,7 +324,7 @@ export default function VoucherCreateModal({
       const res = await axios.post(
         `${API}/expense/receiver-companies`,
         { name: newReceiverCompany.trim() },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       setReceiverCompanyList((s) => [...s, res.data]);
@@ -367,20 +366,15 @@ export default function VoucherCreateModal({
     setForm((s) => ({ ...s, [name]: value }));
   }
 
-  function handleSelectImages(e) {
+  function handleSelectFiles(e) {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
     setAttachmentFiles((prev) => [...prev, ...files]);
-    setAttachmentPreview((prev) => [
-      ...prev,
-      ...files.map((f) => URL.createObjectURL(f)),
-    ]);
   }
 
-  function removeImage(index) {
+  function removeFile(index) {
     setAttachmentFiles((prev) => prev.filter((_, i) => i !== index));
-    setAttachmentPreview((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function submit() {
@@ -400,7 +394,7 @@ export default function VoucherCreateModal({
 
       fd.append(
         "amountInWords",
-        numberToVietnameseWords(Number(form.amount || 0))
+        numberToVietnameseWords(Number(form.amount || 0)),
       );
 
       // 🔥 append FILE – GIỐNG 100% DriverModal
@@ -429,11 +423,12 @@ export default function VoucherCreateModal({
 
   const receiverNameExists = receiverNameList.some(
     (e) =>
-      e.name.trim().toLowerCase() === form.receiverName.trim().toLowerCase()
+      e.name.trim().toLowerCase() === form.receiverName.trim().toLowerCase(),
   );
 
   const expenseExists = expenseList.some(
-    (e) => e.name.trim().toLowerCase() === form.expenseType.trim().toLowerCase()
+    (e) =>
+      e.name.trim().toLowerCase() === form.expenseType.trim().toLowerCase(),
   );
 
   function autoFillBankAccount(nextForm) {
@@ -465,7 +460,7 @@ export default function VoucherCreateModal({
   const hasExactMatch = receivers.some(
     (r) =>
       normalizeVN(r.receiverName) === normalizeVN(form.receiverName) &&
-      normalizeVN(r.receiverCompany) === normalizeVN(form.receiverCompany)
+      normalizeVN(r.receiverCompany) === normalizeVN(form.receiverCompany),
   );
 
   return (
@@ -696,21 +691,32 @@ export default function VoucherCreateModal({
 
           <input
             type="file"
-            accept="image/*"
             multiple
-            onChange={handleSelectImages}
+            onChange={handleSelectFiles}
             className="mb-3"
           />
 
-          {attachmentPreview.length > 0 && (
-            <div className="flex gap-2 flex-wrap">
-              {attachmentPreview.map((img, idx) => (
-                <div key={idx} className="relative">
-                  <img src={img} className="h-32 rounded border object-cover" />
+          {attachmentFiles.length > 0 && (
+            <div className="space-y-2">
+              {attachmentFiles.map((file, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between border p-2 rounded"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-blue-600">📎</span>
+                    <span className="text-sm truncate max-w-[400px]">
+                      {file.name}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      ({Math.round(file.size / 1024)} KB)
+                    </span>
+                  </div>
+
                   <button
                     type="button"
-                    onClick={() => removeImage(idx)}
-                    className="absolute top-0 right-0 bg-red-600 text-white text-xs px-1 rounded"
+                    onClick={() => removeFile(idx)}
+                    className="text-red-600 text-xs font-bold"
                   >
                     ✕
                   </button>
