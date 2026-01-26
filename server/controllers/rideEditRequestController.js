@@ -1,7 +1,7 @@
 const RideHistory = require("../models/RideHistory");
 const User = require("../models/User");
 const ScheduleAdmin = require("../models/ScheduleAdmin");
-const Schedule = require("../models/Schedule"); 
+const Schedule = require("../models/Schedule");
 const RideEditRequest = require("../models/RideEditRequest");
 
 // Chỉnh sửa chuyến và lưu lịch sử
@@ -136,9 +136,8 @@ exports.processEditRideRequest = async (req, res) => {
     const approverID = req.user.id;
 
     // 🔥 LẤY FULL USER
-    const approver = await User.findById(approverID).select(
-      "fullname username"
-    );
+    const approver =
+      await User.findById(approverID).select("fullname username");
 
     const approverName = approver?.fullname || approver?.username || "Unknown";
 
@@ -349,7 +348,7 @@ exports.getRowByMaLichTrinh = async (req, res) => {
         ngayVe: 1,
         tongTienLichTrinh: 1,
         rows: { $elemMatch: { maLichTrinh } },
-      }
+      },
     ).lean();
 
     if (!schedule || !schedule.rows || schedule.rows.length === 0) {
@@ -369,7 +368,6 @@ exports.getRowByMaLichTrinh = async (req, res) => {
   }
 };
 
-
 // ===============================
 // GÁN MÃ LỊCH TRÌNH VÀO CHUYẾN
 // ===============================
@@ -377,32 +375,30 @@ exports.assignMaLichTrinh = async (req, res) => {
   try {
     const { maChuyen, maLichTrinh } = req.body;
 
-    if (!maChuyen || !maLichTrinh) {
-      return res.status(400).json({
-        error: "Thiếu mã chuyến hoặc mã lịch trình",
-      });
+    if (!maChuyen) {
+      return res.status(400).json({ error: "Thiếu mã chuyến" });
     }
 
-    // 1️⃣ Tìm chuyến theo mã
     const ride = await ScheduleAdmin.findOne({ maChuyen });
     if (!ride) {
-      return res.status(404).json({
-        error: "Không tìm thấy chuyến",
+      return res.status(404).json({ error: "Không tìm thấy chuyến" });
+    }
+
+    // ✅ Cho phép bỏ mã
+    if (!maLichTrinh) {
+      ride.maLichTrinh = null;
+      await ride.save();
+      return res.json({
+        success: true,
+        message: "Đã bỏ mã lịch trình",
+        maChuyen,
       });
     }
 
-    // ❌ Không cho gán lại
-    if (ride.maLichTrinh) {
-      return res.status(400).json({
-        error: "Chuyến đã được gán mã lịch trình",
-      });
-    }
-
-    // 2️⃣ Kiểm tra lịch trình tồn tại
-    const schedule = await Schedule.findOne(
-      { "rows.maLichTrinh": maLichTrinh },
-      { rows: { $elemMatch: { maLichTrinh } } }
-    ).lean();
+    // ✅ Chỉ check khi có mã
+    const schedule = await Schedule.findOne({
+      "rows.maLichTrinh": maLichTrinh,
+    }).lean();
 
     if (!schedule) {
       return res.status(404).json({
@@ -410,7 +406,6 @@ exports.assignMaLichTrinh = async (req, res) => {
       });
     }
 
-    // 3️⃣ Update chuyến
     ride.maLichTrinh = maLichTrinh;
     await ride.save();
 

@@ -207,7 +207,6 @@ const exportSchedule = async (req, res) => {
       "Ngày đi": "Ngày đi",
       "Ngày về": "Ngày về",
       "Tên lái xe": "Tên lái xe",
-      "Mã lịch trình": "Mã lịch trình",
       "Biển số xe": "Biển số xe",
       "Tên khách hàng": "Tên khách hàng",
       "Giấy tờ": "Giấy tờ",
@@ -225,6 +224,7 @@ const exportSchedule = async (req, res) => {
       "Tổng tiền lịch trình": "Tổng tiền lịch trình",
       "Lái xe thu khách": "Lái xe thu khách",
       "Phương án": "Phương án",
+      "Mã lịch trình": "Mã lịch trình",
     };
 
     schedules.forEach((s) => {
@@ -236,7 +236,6 @@ const exportSchedule = async (req, res) => {
           "Ngày đi": formattedNgayDi,
           "Ngày về": formattedNgayVe,
           "Tên lái xe": s.tenLaiXe,
-          "Mã lịch trình": row.maLichTrinh,
           "Biển số xe": row.bienSoXe,
           "Tên khách hàng": row.tenKhachHang,
           "Giấy tờ": row.giayTo,
@@ -259,13 +258,13 @@ const exportSchedule = async (req, res) => {
               : row.phuongAn === "truVaoTongLichTrinh"
                 ? "Trừ vào tiền tổng"
                 : "",
+          "Mã lịch trình": row.maLichTrinh,
         });
       });
       data.push({
         "Ngày đi": formattedNgayDi,
         "Ngày về": formattedNgayVe,
         "Tên lái xe": s.tenLaiXe,
-        "Mã lịch trình": "",
         "Chi phí khác": "Tổng",
         "Tổng tiền lịch trình": s.tongTienLichTrinh || "",
       });
@@ -316,7 +315,6 @@ const exportScheduleRange = async (req, res) => {
       "Ngày đi": "Ngày đi",
       "Ngày về": "Ngày về",
       "Tên lái xe": "Tên lái xe",
-      "Mã lịch trình": "Mã lịch trình",
       "Biển số xe": "Biển số xe",
       "Tên khách hàng": "Tên khách hàng",
       "Giấy tờ": "Giấy tờ",
@@ -334,6 +332,7 @@ const exportScheduleRange = async (req, res) => {
       "Tổng tiền lịch trình": "Tổng tiền lịch trình",
       "Lái xe thu khách": "Lái xe thu khách",
       "Phương án": "Phương án",
+      "Mã lịch trình": "Mã lịch trình",
     };
 
     schedules.forEach((s) => {
@@ -347,7 +346,6 @@ const exportScheduleRange = async (req, res) => {
           "Ngày đi": formattedNgayDi,
           "Ngày về": formattedNgayVe,
           "Tên lái xe": s.tenLaiXe,
-          "Mã lịch trình": row.maLichTrinh,
           "Biển số xe": row.bienSoXe,
           "Tên khách hàng": row.tenKhachHang,
           "Giấy tờ": row.giayTo,
@@ -370,6 +368,7 @@ const exportScheduleRange = async (req, res) => {
               : row.phuongAn === "truVaoTongLichTrinh"
                 ? "Trừ vào tiền tổng"
                 : "",
+          "Mã lịch trình": row.maLichTrinh,
         });
       });
 
@@ -377,7 +376,6 @@ const exportScheduleRange = async (req, res) => {
         "Ngày đi": formattedNgayDi,
         "Ngày về": formattedNgayVe,
         "Tên lái xe": s.tenLaiXe,
-        "Mã lịch trình": "",
         "Chi phí khác": "Tổng",
         "Tổng tiền lịch trình": s.tongTienLichTrinh || "",
       });
