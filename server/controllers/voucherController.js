@@ -158,9 +158,15 @@ exports.updateVoucher = async (req, res) => {
     });
 
     // ====== XỬ LÝ FILE ĐÍNH KÈM ======
-    const oldAttachments = Array.isArray(req.body.oldAttachments)
-      ? req.body.oldAttachments
-      : [];
+    let oldAttachments = [];
+
+    if (req.body.oldAttachments) {
+      const raw = Array.isArray(req.body.oldAttachments)
+        ? req.body.oldAttachments
+        : [req.body.oldAttachments];
+
+      oldAttachments = raw.map((s) => JSON.parse(s));
+    }
 
     const newAttachments = Array.isArray(req.body.attachments)
       ? req.body.attachments
