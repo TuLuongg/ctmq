@@ -4,12 +4,16 @@ const AddressSchema = new mongoose.Schema({
   diaChi: {
     type: String,
     required: true,
-    unique: true,     // ❗ không trùng
-    trim: true        // loại bỏ khoảng trắng đầu/cuối
+    unique: true, // ❗ không trùng
+    trim: true, // loại bỏ khoảng trắng đầu/cuối
   },
-    diaChiMoi: {
+  diaChiMoi: {
     type: String,
-    default: ""
+    default: "",
+  },
+  ghiChu: {
+    type: String,
+    default: "",
   },
 });
 

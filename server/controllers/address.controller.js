@@ -7,16 +7,102 @@ const Address = require("../models/Address");
  * =========================
  * GET /api/addresses?page=1&limit=200
  */
+const normalizeKeywordToRegex = (keyword = "") => {
+  let k = keyword.toLowerCase();
+
+  // bỏ dấu câu & khoảng trắng
+  k = k.replace(/[^a-z0-9]/gi, "");
+
+  const map = {
+    a: "[aàáạảãâầấậẩẫăằắặẳẵ]",
+    e: "[eèéẹẻẽêềếệểễ]",
+    i: "[iìíịỉĩ]",
+    o: "[oòóọỏõôồốộổỗơờớợởỡ]",
+    u: "[uùúụủũưừứựửữ]",
+    y: "[yỳýỵỷỹ]",
+    d: "[dđ]",
+  };
+
+  let regex = "";
+  for (const char of k) {
+    regex += map[char] || char;
+    regex += "[^a-z0-9]*"; // cho phép chen dấu , . space -
+  }
+
+  return regex;
+};
+
 exports.getAddressesPaginated = async (req, res) => {
   try {
     const page = Math.max(parseInt(req.query.page) || 1, 1);
     const limit = Math.max(parseInt(req.query.limit) || 200, 1);
     const skip = (page - 1) * limit;
 
-    const [data, total] = await Promise.all([
-      Address.find().sort({ diaChi: 1 }).skip(skip).limit(limit).lean(),
-      Address.countDocuments(),
-    ]);
+    const keyword = (req.query.keyword || "").trim();
+
+    // Không search → sort bình thường
+    if (!keyword) {
+      const [data, total] = await Promise.all([
+        Address.find().sort({ diaChi: 1 }).skip(skip).limit(limit).lean(),
+        Address.countDocuments(),
+      ]);
+
+      return res.json({
+        data,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      });
+    }
+
+    const regexStr = normalizeKeywordToRegex(keyword);
+    const regex = new RegExp(regexStr, "i");
+
+    const pipeline = [
+      {
+        // lọc trước cho nhẹ
+        $match: {
+          $or: [{ diaChi: regex }, { diaChiMoi: regex }, { ghiChu: regex }],
+        },
+      },
+
+      {
+        // chấm điểm
+        $addFields: {
+          score: {
+            $add: [
+              {
+                $cond: [{ $regexMatch: { input: "$diaChi", regex } }, 5, 0],
+              },
+              {
+                $cond: [{ $regexMatch: { input: "$diaChiMoi", regex } }, 3, 0],
+              },
+              {
+                $cond: [{ $regexMatch: { input: "$ghiChu", regex } }, 1, 0],
+              },
+            ],
+          },
+        },
+      },
+
+      // sort theo độ khớp trước
+      { $sort: { score: -1, diaChi: 1 } },
+
+      {
+        $facet: {
+          data: [{ $skip: skip }, { $limit: limit }],
+          total: [{ $count: "count" }],
+        },
+      },
+    ];
+
+    const result = await Address.aggregate(pipeline);
+
+    const data = result[0]?.data || [];
+    const total = result[0]?.total[0]?.count || 0;
 
     res.json({
       data,
@@ -61,6 +147,8 @@ exports.getAllAddresses = async (req, res) => {
  */
 exports.importAddressExcel = async (req, res) => {
   try {
+    const mode = req.body.mode || "insert"; // insert | overwrite
+
     if (!req.file) {
       return res.status(400).json({ message: "Chưa upload file Excel" });
     }
@@ -73,57 +161,103 @@ exports.importAddressExcel = async (req, res) => {
       return res.status(400).json({ message: "File Excel không có sheet" });
     }
 
-    const addresses = [];
+    const rows = [];
 
-    // CỘT A (1): diaChi (bắt buộc)
-    // CỘT B (2): diaChiMoi (có thể rỗng, có thể trùng)
-    for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber++) {
-      const row = worksheet.getRow(rowNumber);
+    // A: diaChi | B: diaChiMoi | C: ghiChu
+    for (let i = 2; i <= worksheet.rowCount; i++) {
+      const row = worksheet.getRow(i);
 
       const rawDiaChi = row.getCell(1).value;
-      const rawDiaChiMoi = row.getCell(2).value;
-
-      // ❌ Không có diaChi thì bỏ dòng
       if (!rawDiaChi) continue;
 
-      const diaChi = String(rawDiaChi).trim();
-
-      // diaChiMoi cho phép rỗng
-      const diaChiMoi = rawDiaChiMoi ? String(rawDiaChiMoi).trim() : "";
-
-      addresses.push({
-        diaChi,
-        diaChiMoi,
+      rows.push({
+        diaChi: String(rawDiaChi).trim(),
+        diaChiMoi: row.getCell(2).value
+          ? String(row.getCell(2).value).trim()
+          : "",
+        ghiChu: row.getCell(3).value ? String(row.getCell(3).value).trim() : "",
       });
     }
 
-    if (!addresses.length) {
+    if (!rows.length) {
       return res.status(400).json({ message: "Không có dữ liệu hợp lệ" });
     }
 
-    // 👉 loại trùng theo diaChi (KHÔNG quan tâm diaChiMoi)
+    // ❗ loại trùng trong file
     const map = new Map();
-    addresses.forEach((item) => {
-      if (!map.has(item.diaChi)) {
-        map.set(item.diaChi, item);
-      }
+    rows.forEach((r) => {
+      if (!map.has(r.diaChi)) map.set(r.diaChi, r);
     });
 
-    const uniqueAddresses = Array.from(map.values());
+    const uniqueRows = Array.from(map.values());
 
-    await Address.insertMany(uniqueAddresses);
+    /**
+     * ======================
+     * INSERT MODE
+     * ======================
+     */
+    if (mode === "insert") {
+      let insertedCount = 0;
+      let skippedCount = 0;
+
+      try {
+        const result = await Address.insertMany(uniqueRows, {
+          ordered: false,
+        });
+
+        insertedCount = result.length;
+      } catch (err) {
+        if (err.code === 11000) {
+          // Mongo vẫn insert được các bản ghi hợp lệ
+          insertedCount = err.result?.nInserted || 0;
+          skippedCount = uniqueRows.length - insertedCount;
+        } else {
+          throw err;
+        }
+      }
+
+      return res.json({
+        message:
+          skippedCount > 0
+            ? "Import xong – một số địa chỉ bị trùng đã được bỏ qua"
+            : "Import thêm mới thành công",
+        inserted: insertedCount,
+        skipped: skippedCount,
+        total: uniqueRows.length,
+      });
+    }
+
+    /**
+     * ======================
+     * OVERWRITE MODE
+     * ======================
+     */
+    const bulkOps = uniqueRows.map((item) => ({
+      updateOne: {
+        filter: { diaChi: item.diaChi },
+        update: {
+          $set: {
+            diaChiMoi: item.diaChiMoi,
+            ghiChu: item.ghiChu,
+          },
+          $setOnInsert: {
+            diaChi: item.diaChi,
+          },
+        },
+        upsert: true,
+      },
+    }));
+
+    const result = await Address.bulkWrite(bulkOps);
 
     res.json({
-      message: "Import Excel thành công",
-      total: uniqueAddresses.length,
+      message: "Import ghi đè thành công",
+      inserted: result.upsertedCount,
+      updated: result.modifiedCount,
+      total: uniqueRows.length,
     });
   } catch (err) {
     console.error("IMPORT ADDRESS ERROR:", err);
-
-    if (err.code === 11000) {
-      return res.status(400).json({ message: "Dữ liệu bị trùng diaChi" });
-    }
-
     res.status(500).json({ message: "Lỗi import Excel" });
   }
 };
