@@ -15,15 +15,21 @@ export default function AddressPage() {
   const [importing, setImporting] = useState(false); // import excel
   const [file, setFile] = useState(null);
 
-  useEffect(() => {
-    fetchData(page);
-  }, [page]);
+  const [importMode, setImportMode] = useState("insert"); // insert | overwrite
+  const [importResult, setImportResult] = useState(null);
 
-  const fetchData = async (page) => {
+  const [keyword, setKeyword] = useState("");
+  const [typingTimeout, setTypingTimeout] = useState(null);
+
+  const fetchData = async (page, search = keyword) => {
     try {
       setLoading(true);
       const res = await axios.get(`${API}/address`, {
-        params: { page, limit: LIMIT },
+        params: {
+          page,
+          limit: LIMIT,
+          keyword: search || undefined,
+        },
       });
 
       setAddresses(res.data.data);
@@ -35,16 +41,24 @@ export default function AddressPage() {
     }
   };
 
+  useEffect(() => {
+    fetchData(page);
+  }, [page]);
+
   const handleImport = async () => {
     if (!file || importing) return;
 
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("mode", importMode);
 
     try {
       setImporting(true);
-      await axios.post(`${API}/address/import-excel`, formData);
-      alert("Import thành công");
+      setImportResult(null);
+
+      const res = await axios.post(`${API}/address/import-excel`, formData);
+
+      setImportResult(res.data);
 
       setFile(null);
       setPage(1);
@@ -87,12 +101,42 @@ export default function AddressPage() {
       {/* ACTION BAR */}
       <div className="flex flex-wrap items-center gap-3 mb-4 bg-white p-4 rounded shadow">
         <input
+          type="text"
+          placeholder="Tìm địa chỉ / ghi chú..."
+          value={keyword}
+          onChange={(e) => {
+            const value = e.target.value;
+            setKeyword(value);
+
+            if (typingTimeout) clearTimeout(typingTimeout);
+
+            const timeout = setTimeout(() => {
+              setPage(1);
+              fetchData(1, value);
+            }, 300);
+
+            setTypingTimeout(timeout);
+          }}
+          className="border rounded px-3 py-2 text-xs w-64"
+        />
+
+        <input
           type="file"
           accept=".xlsx,.xls"
           disabled={importing}
           onChange={(e) => setFile(e.target.files[0])}
           className="text-xs"
         />
+
+        <select
+          value={importMode}
+          onChange={(e) => setImportMode(e.target.value)}
+          disabled={importing}
+          className="border rounded px-2 py-1 text-xs"
+        >
+          <option value="insert">Thêm mới</option>
+          <option value="overwrite">Ghi đè</option>
+        </select>
 
         <button
           onClick={handleImport}
@@ -103,6 +147,28 @@ export default function AddressPage() {
         >
           {importing ? "Đang import..." : "Import Excel"}
         </button>
+        {importResult && (
+          <div className="text-xs bg-green-50 border border-green-200 rounded p-3">
+            <div className="font-semibold text-green-700">
+              {importResult.message}
+            </div>
+
+            <div className="mt-1 text-gray-700">
+              {importResult.inserted !== undefined && (
+                <div>✔ Thêm mới: {importResult.inserted}</div>
+              )}
+              {importResult.updated !== undefined && (
+                <div>♻ Ghi đè: {importResult.updated}</div>
+              )}
+              {importResult.skipped !== undefined && (
+                <div className="text-orange-600">
+                  ⚠ Bỏ qua (trùng): {importResult.skipped}
+                </div>
+              )}
+              <div>Tổng xử lý: {importResult.total}</div>
+            </div>
+          </div>
+        )}
 
         <button
           onClick={handleClear}
@@ -120,43 +186,43 @@ export default function AddressPage() {
       </div>
 
       {/* TABLE */}
-      <div className="bg-white rounded shadow overflow-auto">
-        <table className="w-full border-collapse text-xs">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="border px-3 py-2 text-center w-1/2">ĐỊA CHỈ CŨ</th>
-              <th className="border px-3 py-2 text-center w-1/2">ĐỊA CHỈ MỚI</th>
-            </tr>
-          </thead>
+      <table className="w-full border-collapse text-xs">
+        <thead className="bg-gray-100">
+          <tr>
+            <th className="border px-3 py-2 text-center w-1/6">ĐỊA CHỈ CŨ</th>
+            <th className="border px-3 py-2 text-center w-1/6">ĐỊA CHỈ MỚI</th>
+            <th className="border px-3 py-2 text-center w-4/6">GHI CHÚ</th>
+          </tr>
+        </thead>
 
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={2} className="text-center py-8 text-gray-500">
-                  Đang tải dữ liệu...
+        <tbody>
+          {loading ? (
+            <tr>
+              <td colSpan={3} className="text-center py-8 text-gray-500">
+                Đang tải dữ liệu...
+              </td>
+            </tr>
+          ) : addresses.length ? (
+            addresses.map((item) => (
+              <tr key={item._id} className="hover:bg-gray-50 align-top">
+                <td className="border px-3 py-2 break-words">{item.diaChi}</td>
+                <td className="border px-3 py-2 break-words text-blue-700">
+                  {item.diaChiMoi || ""}
+                </td>
+                <td className="border px-3 py-2 break-words text-gray-700">
+                  {item.ghiChu || ""}
                 </td>
               </tr>
-            ) : addresses.length ? (
-              addresses.map((item) => (
-                <tr key={item._id} className="hover:bg-gray-50">
-                  <td className="border px-3 py-2 break-words">
-                    {item.diaChi}
-                  </td>
-                  <td className="border px-3 py-2 break-words text-blue-700">
-                    {item.diaChiMoi || ""}
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={2} className="text-center py-8 text-gray-500">
-                  Không có dữ liệu
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            ))
+          ) : (
+            <tr>
+              <td colSpan={3} className="text-center py-8 text-gray-500">
+                Không có dữ liệu
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
 
       {/* PAGINATION */}
       <div className="flex justify-center items-center gap-3 mt-5">
