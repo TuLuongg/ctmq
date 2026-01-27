@@ -76,35 +76,31 @@ const getDiaChiMoiByDiaChi = (diaChi, addresses = []) => {
   return found ? getDiaChiMoi(found) : diaChi;
 };
 
-const formatDateVN = (v) => {
+const formatDateFromDB = (v) => {
   if (!v) return "";
 
-  const d = new Date(v);
-  if (isNaN(d.getTime())) return String(v);
+  // nếu BE trả Date object stringify
+  if (typeof v === "string" && v.includes("T")) {
+    const [y, m, d] = v.slice(0, 10).split("-");
+    return `${d}/${m}/${y}`;
+  }
 
-  const dd = String(d.getDate()).padStart(2, "0");
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const yyyy = d.getFullYear();
-
-  return `${dd}/${mm}/${yyyy}`;
+  // fallback
+  return String(v);
 };
 
 const normalizeDate = (v) => {
   if (!v) return "";
 
-  // nếu đã là yyyy-MM-dd thì dùng luôn
-  if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) {
-    return v;
+  // yyyy-MM-dd
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+
+  // ISO
+  if (typeof v === "string" && v.includes("T")) {
+    return v.slice(0, 10);
   }
 
-  const d = new Date(v);
-  if (isNaN(d.getTime())) return "";
-
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-
-  return `${yyyy}-${mm}-${dd}`;
+  return "";
 };
 
 const getByPath = (obj, path) => {
@@ -158,7 +154,7 @@ const renderLTValue = (value, fieldKey) => {
 
   // chỉ field ngày mới format
   if (DATE_FIELDS.includes(fieldKey)) {
-    return formatDateVN(value);
+    return formatDateFromDB(value);
   }
 
   // còn lại trả thẳng, đéo parse
@@ -399,7 +395,7 @@ export default function RideEditTripModal({
   const formatMoney = (value) =>
     value ? value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") : "";
 
-  const formatDate = (v) => (v ? v.split("T")[0] : "");
+  const formatDate = (v) => (typeof v === "string" ? v.slice(0, 10) : "");
 
   useEffect(() => {
     if (initialData) {
