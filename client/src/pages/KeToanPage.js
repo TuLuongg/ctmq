@@ -624,9 +624,11 @@ const KeToanPage = () => {
                           }`}
                           rowSpan={schedule.rows.length}
                         >
-                          {new Date(schedule.ngayDi).toLocaleDateString(
-                            "vi-VN",
-                          )}
+                          {schedule.ngayDi
+                            ?.slice(0, 10)
+                            .split("-")
+                            .reverse()
+                            .join("/")}
                         </td>
 
                         <td
@@ -637,9 +639,11 @@ const KeToanPage = () => {
                           }`}
                           rowSpan={schedule.rows.length}
                         >
-                          {new Date(schedule.ngayVe).toLocaleDateString(
-                            "vi-VN",
-                          )}
+                          {schedule.ngayVe
+                            ?.slice(0, 10)
+                            .split("-")
+                            .reverse()
+                            .join("/")}
                         </td>
                       </>
                     )}

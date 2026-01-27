@@ -91,20 +91,42 @@ const createSchedule = async (req, res) => {
   }
 };
 
+const buildUTCDateRange = (dateStr) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    throw new Error("Invalid date format, expected YYYY-MM-DD");
+  }
+
+  const [y, m, d] = dateStr.split("-").map(Number);
+
+  const start = new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0));
+  const end = new Date(Date.UTC(y, m - 1, d, 23, 59, 59, 999));
+
+  return { start, end };
+};
+
 // Lấy lịch trình theo ngày
 const getSchedulesByDate = async (req, res) => {
   try {
     let query = {};
+
     if (req.query.ngay) {
-      const start = new Date(req.query.ngay);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(req.query.ngay);
-      end.setHours(23, 59, 59, 999);
-      query.ngayDi = { $gte: start, $lt: end };
+      const ngayInput = req.query.ngay;
+
+      const { start, end } = buildUTCDateRange(ngayInput);
+
+      console.log("🔎 Filter ngayDi từ:", start.toISOString());
+      console.log("🔎 Filter ngayDi đến:", end.toISOString());
+
+      query.ngayDi = { $gte: start, $lte: end };
     }
+
     const schedules = await Schedule.find(query);
+
+    console.log("📦 Số lịch trình tìm được:", schedules.length);
+
     res.json(schedules);
   } catch (err) {
+    console.error("❌ getSchedulesByDate error:", err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -115,13 +137,17 @@ const getSchedulesByRange = async (req, res) => {
     const { from, to } = req.query;
     if (!from || !to)
       return res.status(400).json({ error: "Thiếu from hoặc to" });
-    const start = new Date(from);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(to);
-    end.setHours(23, 59, 59, 999);
+
+    const start = buildUTCDateRange(from).start;
+    const end = buildUTCDateRange(to).end;
+
+    console.log("🔎 Range từ:", start.toISOString());
+    console.log("🔎 Range đến:", end.toISOString());
+
     const schedules = await Schedule.find({
       ngayDi: { $gte: start, $lte: end },
     });
+
     res.json(schedules);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -133,13 +159,13 @@ const deleteSchedulesByDate = async (req, res) => {
   try {
     if (!req.query.ngay)
       return res.status(400).json({ error: "Thiếu tham số ngày" });
-    const start = new Date(req.query.ngay);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(req.query.ngay);
-    end.setHours(23, 59, 59, 999);
+
+    const { start, end } = buildUTCDateRange(req.query.ngay);
+
     const result = await Schedule.deleteMany({
-      ngayDi: { $gte: start, $lt: end },
+      ngayDi: { $gte: start, $lte: end },
     });
+
     res.json({
       message: `Đã xóa ${result.deletedCount} lịch trình cho ngày ${req.query.ngay}`,
     });
@@ -154,13 +180,14 @@ const deleteSchedulesByRange = async (req, res) => {
     const { from, to } = req.query;
     if (!from || !to)
       return res.status(400).json({ error: "Thiếu from hoặc to" });
-    const start = new Date(from);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(to);
-    end.setHours(23, 59, 59, 999);
+
+    const start = buildUTCDateRange(from).start;
+    const end = buildUTCDateRange(to).end;
+
     const result = await Schedule.deleteMany({
       ngayDi: { $gte: start, $lte: end },
     });
+
     res.json({
       message: `Đã xóa ${result.deletedCount} lịch trình từ ${from} đến ${to}`,
     });
@@ -172,16 +199,11 @@ const deleteSchedulesByRange = async (req, res) => {
 // Hàm định dạng UTC ngày giờ thành chuỗi DD/MM/YYYY HH:mm
 const formatUTCDateTime = (date) => {
   if (!(date instanceof Date) || isNaN(date)) return "";
-
-  // ✅ cộng +7h (VN)
-  const d = new Date(date.getTime() + 7 * 60 * 60 * 1000);
-
-  const day = String(d.getUTCDate()).padStart(2, "0");
-  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const year = d.getUTCFullYear();
-  const hour = String(d.getUTCHours()).padStart(2, "0");
-  const minute = String(d.getUTCMinutes()).padStart(2, "0");
-
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const year = date.getUTCFullYear();
+  const hour = String(date.getUTCHours()).padStart(2, "0");
+  const minute = String(date.getUTCMinutes()).padStart(2, "0");
   return `${day}/${month}/${year} ${hour}:${minute}`;
 };
 
@@ -190,12 +212,8 @@ const exportSchedule = async (req, res) => {
   try {
     let query = {};
     if (req.query.ngay) {
-      const ngayInput = req.query.ngay;
-      const start = new Date(ngayInput);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(ngayInput);
-      end.setHours(23, 59, 59, 999);
-      query.ngayDi = { $gte: start, $lt: end };
+      const { start, end } = buildUTCDateRange(req.query.ngay);
+      query.ngayDi = { $gte: start, $lte: end };
     }
 
     const schedules = await Schedule.find(query);
@@ -297,10 +315,8 @@ const exportScheduleRange = async (req, res) => {
       return res.status(400).json({ error: "Thiếu tham số from hoặc to" });
     }
 
-    const start = new Date(from);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(to);
-    end.setHours(23, 59, 59, 999);
+    const start = buildUTCDateRange(from).start;
+    const end = buildUTCDateRange(to).end;
 
     const schedules = await Schedule.find({
       ngayDi: { $gte: start, $lte: end },
