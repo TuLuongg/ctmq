@@ -46,6 +46,56 @@ const scoreMatch = (input, target) => {
   return score;
 };
 
+const numberToWordsVN = (num) => {
+  if (!num || num === 0) return "Không đồng";
+
+  const units = ["", "một", "hai", "ba", "bốn", "năm", "sáu", "bảy", "tám", "chín"];
+  const tens = ["", "mười", "hai mươi", "ba mươi", "bốn mươi", "năm mươi", "sáu mươi", "bảy mươi", "tám mươi", "chín mươi"];
+
+  const readTwoDigits = (n) => {
+    if (n < 10) return units[n];
+    if (n < 20) return "mười " + units[n % 10];
+    return tens[Math.floor(n / 10)] + (n % 10 ? " " + units[n % 10] : "");
+  };
+
+  const readThreeDigits = (n) => {
+    let str = "";
+    const h = Math.floor(n / 100);
+    const r = n % 100;
+
+    if (h > 0) str += units[h] + " trăm";
+    if (r > 0) str += (str ? " " : "") + readTwoDigits(r);
+
+    return str;
+  };
+
+  if (num < 1000) return readThreeDigits(num) + " đồng";
+
+  if (num < 1_000_000) {
+    const thousand = Math.floor(num / 1000);
+    const rest = num % 1000;
+    return (
+      readThreeDigits(thousand) +
+      " nghìn" +
+      (rest ? " " + readThreeDigits(rest) : "") +
+      " đồng"
+    );
+  }
+
+  // 🔥 TRIỆU
+  const million = Math.floor(num / 1_000_000);
+  const rest = num % 1_000_000;
+  const thousand = Math.floor(rest / 1000);
+  const remain = rest % 1000;
+
+  let result = readThreeDigits(million) + " triệu";
+  if (thousand) result += " " + readThreeDigits(thousand) + " nghìn";
+  if (remain) result += " " + readThreeDigits(remain);
+
+  return result + " đồng";
+};
+
+
 function AutoCompleteInput({ value, onChange, options, placeholder = "" }) {
   const [show, setShow] = useState(false);
 
@@ -150,7 +200,7 @@ function DriverPage() {
     setDriverInfo((prev) => ({ ...prev, [field]: value }));
   };
 
-  console.log(driverInfo)
+  console.log(driverInfo);
 
   const handleInputChange = (rowId, colIndex, value) => {
     setRows((prev) =>
@@ -439,14 +489,24 @@ function DriverPage() {
           (Lưu ý: chỉ ghi số, ví dụ 100.000 thì chỉ ghi 100)
         </p>
         <input
-          type="number"
-          placeholder="Bắt buộc điền"
+          type="text"
+          inputMode="numeric"
+          placeholder="Bắt buộc điền (tối đa 5 chữ số)"
           className={`border rounded px-2 py-1 w-full ${
             errors.tongTienLichTrinh ? "border-red-500" : "border-gray-400"
           }`}
           value={tongTienLichTrinh}
-          onChange={(e) => setTongTienLichTrinh(e.target.value)}
+          onChange={(e) => {
+            let val = e.target.value.replace(/\D/g, ""); // ❌ chỉ cho số
+            if (val.length > 5) val = val.slice(0, 5); // ❌ max 5 số
+            setTongTienLichTrinh(val);
+          }}
         />
+        {tongTienLichTrinh && (
+          <p className="text-red-600 font-semibold mt-1">
+            {numberToWordsVN(Number(tongTienLichTrinh) * 1000)}
+          </p>
+        )}
       </div>
 
       {/* Nút gửi */}

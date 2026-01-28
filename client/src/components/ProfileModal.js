@@ -12,18 +12,20 @@ export default function ProfileModal({ onClose, onUpdate }) {
     email: "",
   });
   const [preview, setPreview] = useState("");
+  const [showPasswordOld, setShowPasswordOld] = useState(false);
+  const [showPasswordNew, setShowPasswordNew] = useState(false);
 
   const token = localStorage.getItem("token");
 
   // Lấy thông tin user hiện tại từ localStorage
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
-    console.log(user)
+    console.log(user);
     setForm((f) => ({
       ...f,
       fullname: user.fullname || "",
       phone: user.phone || "",
-      email: user.email || ""
+      email: user.email || "",
     }));
     setPreview(user.avatar || "");
   }, []);
@@ -151,23 +153,41 @@ export default function ProfileModal({ onClose, onUpdate }) {
           </div>
           <div>
             <label className="block text-sm font-medium">Mật khẩu cũ</label>
-            <input
-              type="password"
-              name="passwordOld"
-              value={form.passwordOld}
-              onChange={handleChange}
-              className="border p-2 w-full rounded"
-            />
+            <div className="relative">
+              <input
+                type={showPasswordOld ? "text" : "password"}
+                name="passwordOld"
+                value={form.passwordOld}
+                onChange={handleChange}
+                className="border p-2 w-full rounded pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPasswordOld((v) => !v)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              >
+                {showPasswordOld ? "🙈" : "👁"}
+              </button>
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium">Mật khẩu mới</label>
-            <input
-              type="password"
-              name="passwordNew"
-              value={form.passwordNew}
-              onChange={handleChange}
-              className="border p-2 w-full rounded"
-            />
+            <div className="relative">
+              <input
+                type={showPasswordNew ? "text" : "password"}
+                name="passwordNew"
+                value={form.passwordNew}
+                onChange={handleChange}
+                className="border p-2 w-full rounded pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPasswordNew((v) => !v)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              >
+                {showPasswordNew ? "🙈" : "👁"}
+              </button>
+            </div>
           </div>
 
           <div className="flex justify-end gap-2 mt-4">

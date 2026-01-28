@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import ProfileModal from "../components/ProfileModal";
 import API from "../api";
 
 export default function AdminPage({ onLogout }) {
@@ -12,6 +13,12 @@ export default function AdminPage({ onLogout }) {
   const [role, setRole] = useState("dieuVan");
   const [resetUserId, setResetUserId] = useState(null);
   const [newPassword, setNewPassword] = useState("");
+  const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+
+  // State quản lý user hiện tại, để live update avatar/tên
+  const [user, setUser] = useState(null);
+  const [currentUserState, setCurrentUserState] = useState(user || storedUser);
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   const [loading, setLoading] = useState(false);
 
@@ -185,16 +192,44 @@ export default function AdminPage({ onLogout }) {
 
       {/* 🟦 Cột bên phải: Quản lý tài khoản */}
       <div className="flex-1 bg-white p-6 rounded-lg shadow-sm">
-        <div className="relative mb-10">
-          <h2 className="text-2xl font-semibold text-gray-700 text-center">
-            👑 Quản lý tài khoản
+        <div className="relative mb-10 flex items-center justify-center">
+          {/* Tiêu đề */}
+          <h2 className="text-2xl font-semibold text-gray-700">
+            Quản lý tài khoản
           </h2>
-          <button
-            onClick={onLogout || (() => navigate("/login"))}
-            className="absolute right-0 top-1/2 -translate-y-1/2 bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition"
-          >
-            Đăng xuất
-          </button>
+
+          {/* Cụm nút bên phải */}
+          <div className="absolute right-0 flex items-center gap-3">
+            {/* Nút mở profile */}
+            <button
+              onClick={() => setShowProfileModal(true)}
+              className="bg-yellow-400 rounded-full border p-1 hover:bg-yellow-500 transition"
+              title="Hồ sơ cá nhân"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+                className="size-5"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+                />
+              </svg>
+            </button>
+
+            {/* Nút đăng xuất */}
+            <button
+              onClick={onLogout || (() => navigate("/login"))}
+              className="bg-gray-500 text-white text-sm px-3 py-1 rounded-lg hover:bg-red-600 transition"
+            >
+              Đăng xuất
+            </button>
+          </div>
         </div>
 
         {/* Form tạo tài khoản */}
@@ -269,9 +304,7 @@ export default function AdminPage({ onLogout }) {
                 <th className="px-4 py-2 border-b text-center">
                   Duyệt phiếu chi
                 </th>
-                <th className="px-4 py-2 border-b text-center">
-                  Xem CN chung
-                </th>
+                <th className="px-4 py-2 border-b text-center">Xem CN chung</th>
                 <th className="px-4 py-2 border-b text-center">
                   Công nợ KH 26
                 </th>
@@ -283,7 +316,9 @@ export default function AdminPage({ onLogout }) {
                 </th>
                 <th className="px-4 py-2 border-b text-center">Khóa KCN</th>
                 <th className="px-4 py-2 border-b text-center">Khóa TCB</th>
-                <th className="px-4 py-2 border-b text-center">Cước trả xe ngoài</th>
+                <th className="px-4 py-2 border-b text-center">
+                  Cước trả xe ngoài
+                </th>
                 <th className="px-4 py-2 border-b text-center">Thao tác</th>
               </tr>
             </thead>
@@ -316,7 +351,7 @@ export default function AdminPage({ onLogout }) {
                     "edit_contract",
                     "lock_kcn",
                     "lock_tcb",
-                    "cuoc_tra_xe_ngoai"
+                    "cuoc_tra_xe_ngoai",
                   ].map((perm) => (
                     <td key={perm} className="px-4 py-2 border-b text-center">
                       <input
@@ -389,6 +424,17 @@ export default function AdminPage({ onLogout }) {
             </div>
           </div>
         </div>
+      )}
+
+      {showProfileModal && (
+        <ProfileModal
+          user={currentUserState}
+          onClose={() => setShowProfileModal(false)}
+          onUpdate={(updatedUser) => {
+            localStorage.setItem("user", JSON.stringify(updatedUser));
+            setCurrentUserState(updatedUser); // 🔄 live update avatar + tên
+          }}
+        />
       )}
     </div>
   );
