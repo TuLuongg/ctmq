@@ -1264,9 +1264,6 @@ const addBoSung = async (req, res) => {
     for (const u of updates) {
       const schedule = await ScheduleAdmin.findOne({ maChuyen: u.maChuyen });
       if (schedule) {
-        schedule.ltState = u.ltState?.toString() || "";
-        schedule.onlState = u.onlState?.toString() || "";
-        schedule.offState = u.offState?.toString() || "";
         schedule.cuocPhiBS = u.cuocPhiBS?.toString() || "";
         schedule.bocXepBS = u.bocXepBS?.toString() || "";
         schedule.veBS = u.veBS?.toString() || "";
