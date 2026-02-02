@@ -838,9 +838,6 @@ export default function ManageTrip({ user, onLogout }) {
 
       const r = {
         maChuyen: obj["MÃ CHUYẾN"] || obj["MA CHUYEN"] || "",
-        ltState: (obj["LT"] ?? "").toString(),
-        onlState: (obj["ONL"] ?? "").toString(),
-        offState: (obj["OFF"] ?? "").toString(),
         cuocPhiBS: parseExcelNumber(obj["CƯỚC PHÍ"] ?? obj["CUOC PHI"]),
         bocXepBS: parseExcelNumber(obj["BỐC XẾP"]),
         veBS: parseExcelNumber(obj["VÉ"]),
