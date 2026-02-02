@@ -90,8 +90,8 @@ exports.createOddDebtByDate = async (req, res) => {
           tongTien - daThanhToan <= 0
             ? "HOAN_TAT"
             : daThanhToan > 0
-            ? "TRA_MOT_PHAN"
-            : "CHUA_TRA",
+              ? "TRA_MOT_PHAN"
+              : "CHUA_TRA",
       });
 
       // ✅ GẮN MÃ CÔNG NỢ CHO CHUYẾN GỐC
@@ -224,8 +224,8 @@ exports.syncOddDebtByDate = async (req, res) => {
                 conLai <= 0
                   ? "HOAN_TAT"
                   : daThanhToan > 0
-                  ? "TRA_MOT_PHAN"
-                  : "CHUA_TRA",
+                    ? "TRA_MOT_PHAN"
+                    : "CHUA_TRA",
             },
           },
         },
@@ -430,7 +430,7 @@ exports.getOddCustomerDebt = async (req, res) => {
           taiKhoanCK: latestPayment?.method || "",
           noiDungCK: latestPayment?.note || "",
         };
-      })
+      }),
     );
 
     res.json({
@@ -514,7 +514,7 @@ exports.getAllOddDebtFilterOptions = async (req, res) => {
         if (hasEmpty) cleaned.unshift("__EMPTY__");
 
         result[field] = cleaned;
-      })
+      }),
     );
 
     res.json(result);
@@ -601,8 +601,8 @@ exports.addTripPayment = async (req, res) => {
       oddTrip.conLai <= 0
         ? "HOAN_TAT"
         : oddTrip.daThanhToan > 0
-        ? "TRA_MOT_PHAN"
-        : "CHUA_TRA";
+          ? "TRA_MOT_PHAN"
+          : "CHUA_TRA";
 
     await oddTrip.save();
 
@@ -663,8 +663,8 @@ exports.deleteTripPayment = async (req, res) => {
       oddTrip.conLai <= 0
         ? "HOAN_TAT"
         : oddTrip.daThanhToan > 0
-        ? "TRA_MOT_PHAN"
-        : "CHUA_TRA";
+          ? "TRA_MOT_PHAN"
+          : "CHUA_TRA";
 
     await oddTrip.save();
 
@@ -701,7 +701,7 @@ exports.updateTripNameCustomer = async (req, res) => {
         maChuyen: { $in: maChuyenList },
         isLocked: { $ne: true },
       },
-      { $set: { nameCustomer } }
+      { $set: { nameCustomer } },
     );
 
     res.json({
@@ -736,7 +736,7 @@ exports.updateTripNoteOdd = async (req, res) => {
         maChuyen: { $in: maChuyenList },
         isLocked: { $ne: true },
       },
-      { $set: { noteOdd } }
+      { $set: { noteOdd } },
     );
 
     res.json({
@@ -933,7 +933,7 @@ exports.lockOddTripsByDate = async (req, res) => {
       {
         ngayGiaoHang: { $gte: start, $lt: end },
       },
-      { $set: { isLocked: true } }
+      { $set: { isLocked: true } },
     );
 
     res.json({
@@ -993,6 +993,35 @@ const METHOD_VI = {
   OTHER: "Khác",
 };
 
+const HIGHLIGHT_COLORS = {
+  yellow: "#EEEE00",
+  green: "#00EE00",
+  blue: "#436EEE",
+  pink: "#FF69B4",
+  purple: "#FF83FA",
+  orange: "#FFE4B5",
+  red: "#FA8072",
+  cyan: "#98F5FF",
+  gray: "#9C9C9C",
+  lime: "#54FF9F",
+};
+
+const getExcelARGBFromKey = (colorKey) => {
+  if (!colorKey) return null;
+
+  const key = String(colorKey).trim().toLowerCase();
+
+  // nếu lưu thẳng hex trong DB
+  if (key.startsWith("#")) {
+    return "FF" + key.replace("#", "").toUpperCase();
+  }
+
+  const hex = HIGHLIGHT_COLORS[key];
+  if (!hex) return null;
+
+  return "FF" + hex.replace("#", "").toUpperCase();
+};
+
 exports.exportOddDebtByDateRange = async (req, res) => {
   try {
     const { from, to } = req.body;
@@ -1016,7 +1045,7 @@ exports.exportOddDebtByDateRange = async (req, res) => {
 
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(
-      path.join(__dirname, "../templates/DSC_KL.xlsx")
+      path.join(__dirname, "../templates/DSC_KL.xlsx"),
     );
 
     const sheet = workbook.getWorksheet("Sheet1");
@@ -1036,6 +1065,26 @@ exports.exportOddDebtByDateRange = async (req, res) => {
       })
         .sort({ createdAt: -1 })
         .lean();
+
+      const startCol = 1; // A
+      const endCol = 28; // AB
+
+      const argb = getExcelARGBFromKey(t.highlightColor);
+
+      if (argb) {
+        for (let col = startCol; col <= endCol; col++) {
+          const cell = row.getCell(col);
+
+          cell.style = {
+            ...cell.style,
+            fill: {
+              type: "pattern",
+              pattern: "solid",
+              fgColor: { argb },
+            },
+          };
+        }
+      }
 
       row.getCell("A").value = t.maKH || "";
       row.getCell("B").value = t.maChuyen || "";
@@ -1061,10 +1110,19 @@ exports.exportOddDebtByDateRange = async (req, res) => {
       row.getCell("R").value = parseMoneyStr(t.luuCa);
       row.getCell("S").value = parseMoneyStr(t.luatChiPhiKhac);
       row.getCell("T").value = t.ghiChu || "";
-      row.getCell("U").value = parseMoneyStr(t.tongTien);
+      row.getCell("U").value = t.tongTien;
       row.getCell("V").value = parseMoneyStr(t.daThanhToan);
-      row.getCell("W").value = parseMoneyStr(t.conLai);
-      row.getCell("X").value = STATUS_VI[t.status] || "";
+      row.getCell("W").value = t.conLai;
+      let statusText = "";
+
+      // Ưu tiên logic tiền
+      if (Number(t.tongTien) === 0) {
+        statusText = STATUS_VI.CHUA_TRA;
+      } else {
+        statusText = STATUS_VI[t.status] || "";
+      }
+
+      row.getCell("X").value = statusText;
 
       // ===== THANH TOÁN (CÙNG DÒNG) =====
       row.getCell("Y").value = payment?.createdDay
@@ -1083,11 +1141,11 @@ exports.exportOddDebtByDateRange = async (req, res) => {
 
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename=CONG_NO_KH_LE_${from}_DEN_${to}.xlsx`
+      `attachment; filename=CONG_NO_KH_LE_${from}_DEN_${to}.xlsx`,
     );
     res.setHeader(
       "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     );
 
     await workbook.xlsx.write(res);
