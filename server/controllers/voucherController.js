@@ -5,10 +5,20 @@ const path = require("path");
 // =========================
 //  TẠO PHIẾU
 // =========================
+const getVoucherPrefix = (paymentSource) => {
+  if (paymentSource?.startsWith("PERSONAL_")) return "PCCN";
+  if (paymentSource?.startsWith("COMPANY_")) return "PCCT";
+  return "PC"; // CASH, OTHER
+};
+
 exports.createVoucher = async (req, res) => {
   try {
     const data = req.body;
     const attachments = req.body.attachments || [];
+
+    if (!data.paymentSource) {
+      return res.status(400).json({ error: "Thiếu paymentSource" });
+    }
 
     const dateCreated = data.dateCreated
       ? new Date(data.dateCreated)
@@ -21,15 +31,22 @@ exports.createVoucher = async (req, res) => {
     const monthStr = String(dateCreated.getMonth() + 1).padStart(2, "0");
     const yearStr = String(dateCreated.getFullYear()).slice(-2);
 
-    // ✅ REGEX đúng format PC.mm.yy.000
-    const regex = new RegExp(`^PC\\.${monthStr}\\.${yearStr}\\.\\d{3}$`);
+    // 🔥 prefix theo nguồn tiền
+    const prefix = getVoucherPrefix(data.paymentSource);
+
+    // ví dụ: ^PCCN\.09\.26\.\d{3}$
+    const regex = new RegExp(
+      `^${prefix}\\.${monthStr}\\.${yearStr}\\.\\d{3}$`,
+    );
 
     let voucherCode;
     let retry = 0;
     const MAX_RETRY = 5;
 
     while (retry < MAX_RETRY) {
-      const lastVoucher = await Voucher.findOne({ voucherCode: regex })
+      const lastVoucher = await Voucher.findOne({
+        voucherCode: regex,
+      })
         .sort({ voucherCode: -1 })
         .lean();
 
@@ -39,10 +56,9 @@ exports.createVoucher = async (req, res) => {
         nextNum = parseInt(parts[parts.length - 1], 10) + 1;
       }
 
-      voucherCode = `PC.${monthStr}.${yearStr}.${String(nextNum).padStart(
-        3,
-        "0",
-      )}`;
+      voucherCode = `${prefix}.${monthStr}.${yearStr}.${String(
+        nextNum,
+      ).padStart(3, "0")}`;
 
       try {
         const v = new Voucher({
@@ -57,7 +73,6 @@ exports.createVoucher = async (req, res) => {
         return res.status(201).json(v);
       } catch (err) {
         if (err.code === 11000) {
-          // 🔁 trùng mã → thử lại
           retry++;
           continue;
         }
