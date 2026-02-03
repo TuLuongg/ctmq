@@ -56,7 +56,7 @@ export default function VoucherPrintPage() {
       .print-only-holes {
         position: absolute;
         top: 76mm;
-        left: 5mm;   /* NẰM TRONG VIỀN */
+        left: 1mm;   /* NẰM TRONG VIỀN */
         height: 100%;
         width: 10mm;
         pointer-events: none;
@@ -74,7 +74,7 @@ export default function VoucherPrintPage() {
       }
 
       .print-only-holes .hole.bottom {
-        margin-top: 72mm;   /* khoảng cách chuẩn 2 lỗ */
+        margin-top: 80mm;   /* khoảng cách chuẩn 2 lỗ */
       }
     }
 
