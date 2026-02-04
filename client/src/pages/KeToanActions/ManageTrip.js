@@ -673,9 +673,13 @@ export default function ManageTrip({ user, onLogout }) {
   };
 
   // 🔹 Checkbox chọn chuyến
-  const toggleSelectTrip = (id) => {
+  const toggleSelectTrip = (ride) => {
+    const maChuyen = ride.maChuyen;
+
     setSelectedTrips((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+      prev.includes(maChuyen)
+        ? prev.filter((x) => x !== maChuyen)
+        : [...prev, maChuyen],
     );
   };
 
@@ -689,9 +693,7 @@ export default function ManageTrip({ user, onLogout }) {
         `${API_URL}/add-hoa-don`,
         {
           maHoaDon: maHoaDonInput.trim(),
-          maChuyenList: selectedTrips
-            .map((id) => rides.find((r) => r._id === id)?.maChuyen)
-            .filter(Boolean),
+          maChuyenList: selectedTrips,
         },
         { headers: { Authorization: `Bearer ${token}` } },
       );
@@ -1032,9 +1034,7 @@ export default function ManageTrip({ user, onLogout }) {
       const res = await axios.post(
         `${API_URL}/remove-hoa-don`,
         {
-          maChuyenList: selectedTrips
-            .map((id) => rides.find((r) => r._id === id)?.maChuyen)
-            .filter(Boolean),
+          maChuyenList: selectedTrips,
         },
         { headers: { Authorization: `Bearer ${token}` } },
       );
@@ -1902,11 +1902,7 @@ export default function ManageTrip({ user, onLogout }) {
         </button>
         <span className="text-sm text-gray-600">
           Đã chọn {selectedTrips.length} chuyến
-          {selectedTrips.length > 0 &&
-            `: ${selectedTrips
-              .map((id) => rides.find((r) => r._id === id)?.maChuyen)
-              .filter(Boolean)
-              .join(", ")}`}
+          {selectedTrips.length > 0 && `: ${selectedTrips.join(", ")}`}
         </span>
       </div>
 
@@ -2020,7 +2016,7 @@ export default function ManageTrip({ user, onLogout }) {
                 cuocPhi: [],
                 maHoaDon: [],
                 debtCode: [],
-                ngayGiaoHang: []
+                ngayGiaoHang: [],
               });
               setSearchKH("");
               setSearchCuocPhiBD("");
@@ -2091,7 +2087,7 @@ export default function ManageTrip({ user, onLogout }) {
                   }
                   onChange={(e) =>
                     setSelectedTrips(
-                      e.target.checked ? rides.map((r) => r._id) : [],
+                      e.target.checked ? rides.map((r) => r.maChuyen) : [],
                     )
                   }
                 />
@@ -3326,8 +3322,8 @@ export default function ManageTrip({ user, onLogout }) {
                 >
                   <input
                     type="checkbox"
-                    checked={selectedTrips.includes(r._id)}
-                    onChange={() => toggleSelectTrip(r._id)}
+                    checked={selectedTrips.includes(r.maChuyen)}
+                    onChange={() => toggleSelectTrip(r)}
                     onClick={(e) => e.stopPropagation()}
                   />
                 </td>
