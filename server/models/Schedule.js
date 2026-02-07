@@ -24,13 +24,16 @@ const rowSchema = new mongoose.Schema({
   phuongAn: String,
 });
 
-const scheduleSchema = new mongoose.Schema({
-  tenLaiXe: String,
-  ngayDi: Date,
-  ngayVe: Date,
-  tongTienLichTrinh: String,
-  rows: [rowSchema], // Mảng các row, mỗi row chứa thông tin của một chuyến
-});
+const scheduleSchema = new mongoose.Schema(
+  {
+    tenLaiXe: String,
+    ngayDi: Date,
+    ngayVe: Date,
+    tongTienLichTrinh: String,
+    rows: [rowSchema], // Mảng các row, mỗi row chứa thông tin của một chuyến
+  },
+  { timestamps: true },
+);
 
 const Schedule = mongoose.model("Schedule", scheduleSchema);
 
