@@ -42,7 +42,7 @@ const SchCustomerOddSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["CHUA_TRA", "TRA_MOT_PHAN", "HOAN_TAT"],
+      enum: ["CHUA_TRA", "TRA_MOT_PHAN", "HOAN_TAT", "TRA_THUA"],
       default: "CHUA_TRA",
     },
 

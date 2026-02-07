@@ -87,11 +87,13 @@ exports.createOddDebtByDate = async (req, res) => {
         tongTien,
         conLai: tongTien - daThanhToan,
         status:
-          tongTien - daThanhToan <= 0
-            ? "HOAN_TAT"
-            : daThanhToan > 0
-              ? "TRA_MOT_PHAN"
-              : "CHUA_TRA",
+          tongTien - daThanhToan < 0
+            ? "TRA_THUA"
+            : tongTien - daThanhToan === 0
+              ? "HOAN_TAT"
+              : daThanhToan > 0
+                ? "TRA_MOT_PHAN"
+                : "CHUA_TRA",
       });
 
       // ✅ GẮN MÃ CÔNG NỢ CHO CHUYẾN GỐC
@@ -221,11 +223,13 @@ exports.syncOddDebtByDate = async (req, res) => {
               conLai,
 
               status:
-                conLai <= 0
-                  ? "HOAN_TAT"
-                  : daThanhToan > 0
-                    ? "TRA_MOT_PHAN"
-                    : "CHUA_TRA",
+                conLai < 0
+                  ? "TRA_THUA"
+                  : conLai === 0
+                    ? "HOAN_TAT"
+                    : daThanhToan > 0
+                      ? "TRA_MOT_PHAN"
+                      : "CHUA_TRA",
             },
           },
         },
@@ -426,7 +430,7 @@ exports.getOddCustomerDebt = async (req, res) => {
 
         return {
           ...t,
-          ngayCK: latestPayment?.createdAt || null,
+          ngayCK: latestPayment?.createdDay || null,
           taiKhoanCK: latestPayment?.method || "",
           noiDungCK: latestPayment?.note || "",
         };
@@ -598,11 +602,13 @@ exports.addTripPayment = async (req, res) => {
     oddTrip.conLai = Number(oddTrip.tongTien) - newPaid;
 
     oddTrip.status =
-      oddTrip.conLai <= 0
-        ? "HOAN_TAT"
-        : oddTrip.daThanhToan > 0
-          ? "TRA_MOT_PHAN"
-          : "CHUA_TRA";
+      oddTrip.conLai < 0
+        ? "TRA_THUA"
+        : oddTrip.conLai === 0
+          ? "HOAN_TAT"
+          : oddTrip.daThanhToan > 0
+            ? "TRA_MOT_PHAN"
+            : "CHUA_TRA";
 
     await oddTrip.save();
 
@@ -660,11 +666,13 @@ exports.deleteTripPayment = async (req, res) => {
 
     oddTrip.conLai = oddTrip.tongTien - oddTrip.daThanhToan;
     oddTrip.status =
-      oddTrip.conLai <= 0
-        ? "HOAN_TAT"
-        : oddTrip.daThanhToan > 0
-          ? "TRA_MOT_PHAN"
-          : "CHUA_TRA";
+      oddTrip.conLai < 0
+        ? "TRA_THUA"
+        : oddTrip.conLai === 0
+          ? "HOAN_TAT"
+          : oddTrip.daThanhToan > 0
+            ? "TRA_MOT_PHAN"
+            : "CHUA_TRA";
 
     await oddTrip.save();
 
@@ -815,7 +823,9 @@ exports.updateOddTripMoney = async (req, res) => {
     // ✅ STATUS (LOGIC MÀY ĐANG DÙNG)
     if (tongTien === 0) {
       trip.status = "CHUA_TRA";
-    } else if (conLai <= 0) {
+    } else if (conLai < 0) {
+      trip.status = "TRA_THUA";
+    } else if (conLai === 0) {
       trip.status = "HOAN_TAT";
     } else if (daTT !== 0) {
       trip.status = "TRA_MOT_PHAN";
@@ -982,6 +992,7 @@ const STATUS_VI = {
   CHUA_TRA: "Chưa trả",
   TRA_MOT_PHAN: "Trả một phần",
   HOAN_TAT: "Hoàn tất",
+  TRA_THUA: "Trả thừa",
 };
 
 const METHOD_VI = {
