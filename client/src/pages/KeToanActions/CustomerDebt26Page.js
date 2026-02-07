@@ -565,17 +565,22 @@ export default function CustomerDebt26Page() {
     const tongTien = t.tongTien || 0;
     const conLai = t.conLai || 0;
 
-    // ✅ Nếu tổng tiền = 0 → luôn là Chưa trả
-    if (tongTien === 0) {
+    // 🟢 TRẢ THỪA (ưu tiên cao nhất)
+    if (conLai < 0) {
+      color = "#0066ff"; // xanh dương
+      label = "Trả thừa";
+    }
+    // 🔴 Tổng tiền = 0 → Chưa trả
+    else if (tongTien === 0) {
       color = "#ff3333";
       label = "Chưa trả";
     }
-    // ✅ Tổng tiền > 0 và còn lại = 0 → Hoàn tất
+    // 🟢 Hoàn tất
     else if (conLai === 0) {
       color = "#00cc44";
       label = "Hoàn tất";
     }
-    // ✅ Còn lại > 0
+    // 🟡 / 🔴 Còn lại > 0
     else {
       const tiLe = conLai / tongTien;
       if (tiLe <= 0.2) {
