@@ -154,6 +154,71 @@ const getSchedulesByRange = async (req, res) => {
   }
 };
 
+// YYYY-MM-DD (theo giờ VN) → range UTC đúng để query createdAt
+const buildCreatedAtRangeVN = (dateStr) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    throw new Error("Invalid date format, expected YYYY-MM-DD");
+  }
+
+  const [y, m, d] = dateStr.split("-").map(Number);
+
+  // 00:00 VN = hôm trước 17:00 UTC
+  const start = new Date(Date.UTC(y, m - 1, d, -7, 0, 0, 0));
+  // 23:59:59 VN = 16:59:59 UTC
+  const end = new Date(Date.UTC(y, m - 1, d, 16, 59, 59, 999));
+
+  return { start, end };
+};
+
+// Lấy lịch trình theo ngày tạo (createdAt)
+const getSchedulesByCreatedDate = async (req, res) => {
+  try {
+    const { ngay } = req.query;
+    if (!ngay) {
+      return res.status(400).json({ error: "Thiếu tham số ngay (YYYY-MM-DD)" });
+    }
+
+    const { start, end } = buildCreatedAtRangeVN(ngay);
+
+    console.log("🔎 createdAt (UTC) từ:", start.toISOString());
+    console.log("🔎 createdAt (UTC) đến:", end.toISOString());
+
+    const schedules = await Schedule.find({
+      createdAt: { $gte: start, $lte: end },
+    }).sort({ createdAt: -1 });
+
+    res.json(schedules);
+  } catch (err) {
+    console.error("❌ getSchedulesByCreatedDate error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Lấy lịch trình theo khoảng ngày tạo (createdAt)
+const getSchedulesByCreatedRange = async (req, res) => {
+  try {
+    const { from, to } = req.query;
+    if (!from || !to) {
+      return res.status(400).json({ error: "Thiếu from hoặc to" });
+    }
+
+    const start = buildCreatedAtRangeVN(from).start;
+    const end = buildCreatedAtRangeVN(to).end;
+
+    console.log("🔎 createdAt (UTC) từ:", start.toISOString());
+    console.log("🔎 createdAt (UTC) đến:", end.toISOString());
+
+    const schedules = await Schedule.find({
+      createdAt: { $gte: start, $lte: end },
+    }).sort({ createdAt: -1 });
+
+    res.json(schedules);
+  } catch (err) {
+    console.error("❌ getSchedulesByCreatedRange error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // Xóa lịch trình theo ngày
 const deleteSchedulesByDate = async (req, res) => {
   try {
@@ -425,12 +490,237 @@ const exportScheduleRange = async (req, res) => {
   }
 };
 
+// Xuất Excel theo ngày tạo (createdAt)
+const exportScheduleByCreatedDate = async (req, res) => {
+  try {
+    const { ngay } = req.query;
+    if (!ngay) {
+      return res.status(400).json({ error: "Thiếu tham số ngay (YYYY-MM-DD)" });
+    }
+
+    const { start, end } = buildCreatedAtRangeVN(ngay);
+
+    console.log("📤 Export createdAt (UTC) từ:", start.toISOString());
+    console.log("📤 Export createdAt (UTC) đến:", end.toISOString());
+
+    const schedules = await Schedule.find({
+      createdAt: { $gte: start, $lte: end },
+    }).sort({ createdAt: -1 });
+
+    if (!schedules.length) {
+      return res.status(404).json({ error: "Không có lịch trình để xuất" });
+    }
+
+    const data = [];
+    const header = {
+      "Ngày đi": "Ngày đi",
+      "Ngày về": "Ngày về",
+      "Tên lái xe": "Tên lái xe",
+      "Biển số xe": "Biển số xe",
+      "Tên khách hàng": "Tên khách hàng",
+      "Giấy tờ": "Giấy tờ",
+      "Nơi đi": "Nơi đi",
+      "Nơi đến": "Nơi đến",
+      "Trọng lượng hàng": "Trọng lượng hàng",
+      "Số điểm": "Số điểm",
+      "2 chiều & Lưu ca": "2 chiều & Lưu ca",
+      Ăn: "Ăn",
+      "Tăng ca": "Tăng ca",
+      "Bốc xếp": "Bốc xếp",
+      Vé: "Vé",
+      "Tiền chuyến": "Tiền chuyến",
+      "Chi phí khác": "Chi phí khác",
+      "Tổng tiền lịch trình": "Tổng tiền lịch trình",
+      "Lái xe thu khách": "Lái xe thu khách",
+      "Phương án": "Phương án",
+      "Mã lịch trình": "Mã lịch trình",
+    };
+
+    schedules.forEach((s) => {
+      const formattedNgayDi = formatUTCDateTime(s.ngayDi);
+      const formattedNgayVe = formatUTCDateTime(s.ngayVe);
+
+      data.push(header);
+
+      s.rows.forEach((row) => {
+        data.push({
+          "Ngày đi": formattedNgayDi,
+          "Ngày về": formattedNgayVe,
+          "Tên lái xe": s.tenLaiXe,
+          "Biển số xe": row.bienSoXe,
+          "Tên khách hàng": row.tenKhachHang,
+          "Giấy tờ": row.giayTo,
+          "Nơi đi": row.noiDi,
+          "Nơi đến": row.noiDen,
+          "Trọng lượng hàng": row.trongLuongHang,
+          "Số điểm": row.soDiem,
+          "2 chiều & Lưu ca": row.haiChieuVaLuuCa,
+          Ăn: row.an,
+          "Tăng ca": row.tangCa,
+          "Bốc xếp": row.bocXep,
+          Vé: row.ve,
+          "Tiền chuyến": row.tienChuyen,
+          "Chi phí khác": row.chiPhiKhac,
+          "Tổng tiền lịch trình": "",
+          "Lái xe thu khách": row.laiXeThuKhach,
+          "Phương án":
+            row.phuongAn === "daChuyenKhoan"
+              ? "Đã chuyển khoản"
+              : row.phuongAn === "truVaoTongLichTrinh"
+                ? "Trừ vào tiền tổng"
+                : "",
+          "Mã lịch trình": row.maLichTrinh,
+        });
+      });
+
+      data.push({
+        "Ngày đi": formattedNgayDi,
+        "Ngày về": formattedNgayVe,
+        "Tên lái xe": s.tenLaiXe,
+        "Chi phí khác": "Tổng",
+        "Tổng tiền lịch trình": s.tongTienLichTrinh || "",
+      });
+
+      data.push({});
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(data, { skipHeader: true });
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Lịch Trình");
+
+    const fileName = `lichtrinh_createdAt_${ngay.replace(/-/g, "_")}.xlsx`;
+    const filePath = path.join(__dirname, "../", fileName);
+
+    XLSX.writeFile(workbook, filePath);
+    res.download(filePath, fileName, () => fs.unlinkSync(filePath));
+  } catch (err) {
+    console.error("❌ exportScheduleByCreatedDate error:", err);
+    res.status(500).json({ error: "Xuất file thất bại" });
+  }
+};
+
+
+// Xuất Excel theo khoảng ngày tạo (createdAt)
+const exportScheduleByCreatedRange = async (req, res) => {
+  try {
+    const { from, to } = req.query;
+    if (!from || !to) {
+      return res.status(400).json({ error: "Thiếu from hoặc to" });
+    }
+
+    const start = buildCreatedAtRangeVN(from).start;
+    const end = buildCreatedAtRangeVN(to).end;
+
+    console.log("📤 Export createdAt (UTC) từ:", start.toISOString());
+    console.log("📤 Export createdAt (UTC) đến:", end.toISOString());
+
+    const schedules = await Schedule.find({
+      createdAt: { $gte: start, $lte: end },
+    }).sort({ createdAt: -1 });
+
+    if (!schedules.length) {
+      return res.status(404).json({ error: "Không có lịch trình để xuất" });
+    }
+
+    const data = [];
+    const header = {
+      "Ngày đi": "Ngày đi",
+      "Ngày về": "Ngày về",
+      "Tên lái xe": "Tên lái xe",
+      "Biển số xe": "Biển số xe",
+      "Tên khách hàng": "Tên khách hàng",
+      "Giấy tờ": "Giấy tờ",
+      "Nơi đi": "Nơi đi",
+      "Nơi đến": "Nơi đến",
+      "Trọng lượng hàng": "Trọng lượng hàng",
+      "Số điểm": "Số điểm",
+      "2 chiều & Lưu ca": "2 chiều & Lưu ca",
+      Ăn: "Ăn",
+      "Tăng ca": "Tăng ca",
+      "Bốc xếp": "Bốc xếp",
+      Vé: "Vé",
+      "Tiền chuyến": "Tiền chuyến",
+      "Chi phí khác": "Chi phí khác",
+      "Tổng tiền lịch trình": "Tổng tiền lịch trình",
+      "Lái xe thu khách": "Lái xe thu khách",
+      "Phương án": "Phương án",
+      "Mã lịch trình": "Mã lịch trình",
+    };
+
+    schedules.forEach((s) => {
+      const formattedNgayDi = formatUTCDateTime(s.ngayDi);
+      const formattedNgayVe = formatUTCDateTime(s.ngayVe);
+
+      data.push(header);
+
+      s.rows.forEach((row) => {
+        data.push({
+          "Ngày đi": formattedNgayDi,
+          "Ngày về": formattedNgayVe,
+          "Tên lái xe": s.tenLaiXe,
+          "Biển số xe": row.bienSoXe,
+          "Tên khách hàng": row.tenKhachHang,
+          "Giấy tờ": row.giayTo,
+          "Nơi đi": row.noiDi,
+          "Nơi đến": row.noiDen,
+          "Trọng lượng hàng": row.trongLuongHang,
+          "Số điểm": row.soDiem,
+          "2 chiều & Lưu ca": row.haiChieuVaLuuCa,
+          Ăn: row.an,
+          "Tăng ca": row.tangCa,
+          "Bốc xếp": row.bocXep,
+          Vé: row.ve,
+          "Tiền chuyến": row.tienChuyen,
+          "Chi phí khác": row.chiPhiKhac,
+          "Tổng tiền lịch trình": "",
+          "Lái xe thu khách": row.laiXeThuKhach,
+          "Phương án":
+            row.phuongAn === "daChuyenKhoan"
+              ? "Đã chuyển khoản"
+              : row.phuongAn === "truVaoTongLichTrinh"
+                ? "Trừ vào tiền tổng"
+                : "",
+          "Mã lịch trình": row.maLichTrinh,
+        });
+      });
+
+      data.push({
+        "Ngày đi": formattedNgayDi,
+        "Ngày về": formattedNgayVe,
+        "Tên lái xe": s.tenLaiXe,
+        "Chi phí khác": "Tổng",
+        "Tổng tiền lịch trình": s.tongTienLichTrinh || "",
+      });
+
+      data.push({});
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(data, { skipHeader: true });
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Lịch Trình");
+
+    const fileName = `lichtrinh_createdAt_${from.replace(/-/g, "_")}_den_${to.replace(/-/g, "_")}.xlsx`;
+    const filePath = path.join(__dirname, "../", fileName);
+
+    XLSX.writeFile(workbook, filePath);
+    res.download(filePath, fileName, () => fs.unlinkSync(filePath));
+  } catch (err) {
+    console.error("❌ exportScheduleByCreatedRange error:", err);
+    res.status(500).json({ error: "Xuất file thất bại" });
+  }
+};
+
+
 module.exports = {
   createSchedule,
   getSchedulesByDate,
   getSchedulesByRange,
+  getSchedulesByCreatedDate,
+  getSchedulesByCreatedRange,
   deleteSchedulesByDate,
   deleteSchedulesByRange,
   exportSchedule,
   exportScheduleRange,
+  exportScheduleByCreatedRange,
+  exportScheduleByCreatedDate,
 };
