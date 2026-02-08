@@ -23,6 +23,8 @@ const KeToanPage = () => {
   const [user, setUser] = useState(null);
   const [activeRows, setActiveRows] = useState([]);
   const [searchDriver, setSearchDriver] = useState("");
+  const [dateMode, setDateMode] = useState("ngayDi");
+  // "ngayDi" | "createdAt"
 
   const navigate = useNavigate(); // 👈 khởi tạo navigate
 
@@ -100,38 +102,59 @@ const KeToanPage = () => {
 
   const handleExport = async () => {
     if (!selectedDate) return alert("Vui lòng chọn ngày.");
+
     try {
       const formattedDate = new Date(selectedDate).toISOString().split("T")[0];
-      const response = await axios.get(`${API}/schedules/export`, {
+
+      const url =
+        dateMode === "createdAt"
+          ? `${API}/schedules/export-by-created-date`
+          : `${API}/schedules/export`;
+
+      const response = await axios.get(url, {
         params: { ngay: formattedDate },
         responseType: "blob",
       });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+
+      const urlBlob = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
-      link.href = url;
+      link.href = urlBlob;
+
       const [year, month, day] = formattedDate.split("-");
-      const fileName = `lichtrinh_${day}_${month}_${year}.xlsx`;
+      const fileName =
+        dateMode === "createdAt"
+          ? `lichtrinh_ngaytao_${day}_${month}_${year}.xlsx`
+          : `lichtrinh_${day}_${month}_${year}.xlsx`;
+
       link.setAttribute("download", fileName);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     } catch (error) {
-      console.error("Lỗi khi tải file Excel:", error);
+      console.error("Lỗi khi tải Excel:", error);
       alert("Không thể tải file Excel.");
     }
   };
 
   const handleFilterByDate = async () => {
     if (!selectedDate) return alert("Vui lòng chọn ngày.");
+
     try {
       const formattedDate = new Date(selectedDate).toISOString().split("T")[0];
-      const response = await axios.get(
-        `${API}/schedules?ngay=${formattedDate}`,
-      );
+
+      const url =
+        dateMode === "createdAt"
+          ? `${API}/schedules/by-created-date`
+          : `${API}/schedules`;
+
+      const response = await axios.get(url, {
+        params: { ngay: formattedDate },
+      });
+
       setFilteredData(response.data);
     } catch (err) {
       console.error("Lỗi khi lọc dữ liệu:", err);
-      alert("Không thể lấy dữ liệu theo ngày.");
+      alert("Không thể lấy dữ liệu.");
     }
   };
 
@@ -154,18 +177,25 @@ const KeToanPage = () => {
   };
 
   const handleFilterByRange = async () => {
-    if (!startDate || !endDate)
-      return alert("Vui lòng chọn đủ ngày bắt đầu và kết thúc.");
+    if (!startDate || !endDate) return alert("Vui lòng chọn đủ ngày.");
+
     try {
       const from = new Date(startDate).toISOString().split("T")[0];
       const to = new Date(endDate).toISOString().split("T")[0];
-      const response = await axios.get(
-        `${API}/schedules/range?from=${from}&to=${to}`,
-      );
+
+      const url =
+        dateMode === "createdAt"
+          ? `${API}/schedules/by-created-range`
+          : `${API}/schedules/range`;
+
+      const response = await axios.get(url, {
+        params: { from, to },
+      });
+
       setFilteredData(response.data);
     } catch (err) {
       console.error("Lỗi khi lọc theo khoảng ngày:", err);
-      alert("Không thể lấy dữ liệu theo khoảng ngày.");
+      alert("Không thể lấy dữ liệu.");
     }
   };
 
@@ -192,23 +222,36 @@ const KeToanPage = () => {
 
   const handleExportByRange = async () => {
     if (!startDate || !endDate) return alert("Vui lòng chọn đủ ngày.");
+
     try {
       const from = new Date(startDate).toISOString().split("T")[0];
       const to = new Date(endDate).toISOString().split("T")[0];
-      const response = await axios.get(`${API}/schedules/export-range`, {
+
+      const url =
+        dateMode === "createdAt"
+          ? `${API}/schedules/export-by-created-range`
+          : `${API}/schedules/export-range`;
+
+      const response = await axios.get(url, {
         params: { from, to },
         responseType: "blob",
       });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+
+      const urlBlob = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
-      link.href = url;
-      const fileName = `lichtrinh_tu_${from}_den_${to}.xlsx`;
+      link.href = urlBlob;
+
+      const fileName =
+        dateMode === "createdAt"
+          ? `lichtrinh_ngaytao_tu_${from}_den_${to}.xlsx`
+          : `lichtrinh_tu_${from}_den_${to}.xlsx`;
+
       link.setAttribute("download", fileName);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     } catch (error) {
-      console.error("Lỗi khi tải file Excel theo khoảng ngày:", error);
+      console.error("Lỗi khi tải Excel theo khoảng ngày:", error);
       alert("Không thể tải file Excel.");
     }
   };
@@ -372,28 +415,46 @@ const KeToanPage = () => {
       </div>
 
       {/* Bộ lọc ngày */}
-      <div className="mb-4 mt-2">
-        <span className="font-semibold mr-4">Chọn kiểu lọc:</span>
-        <label className="mr-4">
-          <input
-            type="radio"
-            name="filter"
-            value="single"
-            checked={filterType === "single"}
-            onChange={() => setFilterType("single")}
-          />{" "}
-          Theo ngày
-        </label>
-        <label>
-          <input
-            type="radio"
-            name="filter"
-            value="range"
-            checked={filterType === "range"}
-            onChange={() => setFilterType("range")}
-          />{" "}
-          Theo khoảng ngày
-        </label>
+      <div className="flex flex-wrap items-center gap-6 mb-4 mt-2">
+        {/* Chọn kiểu lọc ngày */}
+        <div className="flex items-center gap-2">
+          <span className="font-semibold">Lọc theo:</span>
+          <select
+            value={dateMode}
+            onChange={(e) => setDateMode(e.target.value)}
+            className="border border-gray-300 rounded px-2 py-1"
+          >
+            <option value="ngayDi">Ngày đi</option>
+            <option value="createdAt">Ngày tạo</option>
+          </select>
+        </div>
+
+        {/* Kiểu lọc */}
+        <div className="flex items-center gap-4">
+          <span className="font-semibold">Kiểu:</span>
+
+          <label className="flex items-center gap-1">
+            <input
+              type="radio"
+              name="filter"
+              value="single"
+              checked={filterType === "single"}
+              onChange={() => setFilterType("single")}
+            />
+            Theo ngày
+          </label>
+
+          <label className="flex items-center gap-1">
+            <input
+              type="radio"
+              name="filter"
+              value="range"
+              checked={filterType === "range"}
+              onChange={() => setFilterType("range")}
+            />
+            Theo khoảng
+          </label>
+        </div>
       </div>
 
       {/* Hiển thị form lọc */}
