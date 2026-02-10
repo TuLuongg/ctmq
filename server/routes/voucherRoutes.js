@@ -12,7 +12,8 @@ const path = require("path");
 const fileUpload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 20 * 1024 * 1024, // 20MB (tuỳ mày)
+    fileSize: 10 * 1024 * 1024,
+    files: 30,
   },
 });
 
@@ -77,7 +78,7 @@ async function handleVoucherFileUpload(req, res, next) {
 // CREATE (có upload ảnh)
 router.post(
   "/",
-  fileUpload.fields([{ name: "attachments", maxCount: 10 }]),
+  fileUpload.fields([{ name: "attachments", maxCount: 30 }]),
   handleVoucherFileUpload,
   voucherController.createVoucher
 );
@@ -101,7 +102,7 @@ router.get("/:id", voucherController.getVoucherById);
 // UPDATE (có upload ảnh)
 router.put(
   "/:id",
-  fileUpload.fields([{ name: "attachments", maxCount: 10 }]),
+  fileUpload.fields([{ name: "attachments", maxCount: 30 }]),
   handleVoucherFileUpload,
   voucherController.updateVoucher
 );
@@ -115,7 +116,7 @@ router.post("/:id/approve", voucherController.approveVoucher);
 // ADJUST (có upload ảnh)
 router.post(
   "/:id/adjust",
-  fileUpload.fields([{ name: "attachments", maxCount: 10 }]),
+  fileUpload.fields([{ name: "attachments", maxCount: 30 }]),
   handleVoucherFileUpload,
   voucherController.adjustVoucher
 );
