@@ -50,7 +50,7 @@ exports.create = async (req, res) => {
     const lastInMonth = await TCBperson.findOne(
       { maGD: { $regex: `^${prefix}` } },
       {},
-      { sort: { maGD: -1 }, session }
+      { sort: { maGD: -1 }, session },
     );
 
     let stt = 1;
@@ -60,13 +60,16 @@ exports.create = async (req, res) => {
       stt = parseSTT(lastInMonth.maGD) + 1;
       soDuTruoc = lastInMonth.soDu;
     } else {
-      // không có tháng này → lấy số dư gần nhất trước đó
-      const lastAny = await TCBperson.findOne(
+      // Không có giao dịch trong tháng này
+      // Lấy giao dịch có maGD nhỏ hơn prefix hiện tại và lớn nhất
+      const lastBefore = await TCBperson.findOne(
+        { maGD: { $lt: `${prefix}.9999` } },
         {},
-        {},
-        { sort: { timePay: -1 }, session }
+        { sort: { maGD: -1 }, session },
       );
-      soDuTruoc = lastAny?.soDu || 0;
+
+      stt = 1;
+      soDuTruoc = lastBefore?.soDu || 0;
     }
 
     const newItem = await TCBperson.create(
@@ -83,7 +86,7 @@ exports.create = async (req, res) => {
           maChuyen,
         },
       ],
-      { session }
+      { session },
     );
 
     await session.commitTransaction();
@@ -126,7 +129,7 @@ exports.insertAfter = async (req, res) => {
         },
       },
       {},
-      { sort: { maGD: -1 }, session }
+      { sort: { maGD: -1 }, session },
     );
 
     for (const r of laterRecords) {
@@ -155,7 +158,7 @@ exports.insertAfter = async (req, res) => {
           maChuyen,
         },
       ],
-      { session }
+      { session },
     );
 
     /** =============================
@@ -171,7 +174,7 @@ exports.insertAfter = async (req, res) => {
         },
       },
       {},
-      { sort: { maGD: 1 }, session }
+      { sort: { maGD: 1 }, session },
     );
 
     for (const r of afterAll) {
@@ -243,7 +246,7 @@ exports.update = async (req, res) => {
         },
       },
       {},
-      { sort: { maGD: 1 }, session }
+      { sort: { maGD: 1 }, session },
     );
 
     let runningSoDu = record.soDu;
@@ -302,7 +305,7 @@ exports.deleteOne = async (req, res) => {
         },
       },
       {},
-      { sort: { maGD: -1 }, session }
+      { sort: { maGD: -1 }, session },
     );
 
     let runningSoDu = prevRecord?.soDu || 0;
@@ -318,7 +321,7 @@ exports.deleteOne = async (req, res) => {
         },
       },
       {},
-      { sort: { maGD: 1 }, session }
+      { sort: { maGD: 1 }, session },
     );
 
     for (const r of laterRecords) {
@@ -519,7 +522,7 @@ exports.importExcel = async (req, res) => {
     const lastRecord = await TCBperson.findOne(
       {},
       {},
-      { sort: { timePay: -1 }, session }
+      { sort: { timePay: -1 }, session },
     );
 
     let runningSoDu = lastRecord?.soDu || 0;
@@ -555,7 +558,7 @@ exports.importExcel = async (req, res) => {
         const lastInMonth = await TCBperson.findOne(
           { maGD: { $regex: `^${prefix}` } },
           {},
-          { sort: { maGD: -1 }, session }
+          { sort: { maGD: -1 }, session },
         );
 
         stt = lastInMonth ? parseSTT(lastInMonth.maGD) : 0;
@@ -622,7 +625,7 @@ exports.exportExcel = async (req, res) => {
     // 2️⃣ LOAD FORM MẪU
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(
-      path.join(__dirname, "../templates/SAO_KE_TCB.xlsx")
+      path.join(__dirname, "../templates/SAO_KE_TCB.xlsx"),
     );
 
     const sheet = workbook.getWorksheet("Sheet1");
@@ -653,11 +656,11 @@ exports.exportExcel = async (req, res) => {
     // 4️⃣ TRẢ FILE
     res.setHeader(
       "Content-Disposition",
-      "attachment; filename=SAO_KE_TCB.xlsx"
+      "attachment; filename=SAO_KE_TCB.xlsx",
     );
     res.setHeader(
       "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     );
 
     // QUAN TRỌNG
@@ -702,9 +705,7 @@ exports.lockByDateRange = async (req, res) => {
     const { fromDate, toDate } = req.body;
 
     if (!fromDate || !toDate) {
-      return res
-        .status(400)
-        .json({ message: "Thiếu fromDate hoặc toDate" });
+      return res.status(400).json({ message: "Thiếu fromDate hoặc toDate" });
     }
 
     const from = new Date(fromDate);
@@ -721,7 +722,7 @@ exports.lockByDateRange = async (req, res) => {
       },
       {
         $set: { isLocked: true },
-      }
+      },
     );
 
     res.json({
