@@ -157,7 +157,7 @@ export default function VoucherCreateModal({
 
   const [form, setForm] = useState({
     dateCreated: "",
-    paymentSource: "COMPANY_VCB",
+    paymentSource: "",
     receiverName: "",
     receiverCompany: "",
     receiverBankAccount: "",
@@ -378,6 +378,10 @@ export default function VoucherCreateModal({
   }
 
   async function submit() {
+    if (!form.paymentSource) {
+      alert("Vui lòng chọn tài khoản nguồn chi");
+      return;
+    }
     try {
       setSaving(true);
 
@@ -490,13 +494,22 @@ export default function VoucherCreateModal({
             name="paymentSource"
             value={form.paymentSource}
             onChange={change}
+            required
             className={`
     border border-gray-300 rounded-md outline-none p-2 w-48 mt-2
-    ${PAYMENT_SOURCE_COLOR[form.paymentSource] || ""}
+    ${form.paymentSource ? PAYMENT_SOURCE_COLOR[form.paymentSource] : ""}
   `}
           >
+            <option value="" disabled>
+              -- Chọn tài khoản --
+            </option>
+
             {PAYMENT_SOURCE_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
+              <option
+                key={opt.value}
+                value={opt.value}
+                className={PAYMENT_SOURCE_COLOR[opt.value] || ""}
+              >
                 {opt.label}
               </option>
             ))}

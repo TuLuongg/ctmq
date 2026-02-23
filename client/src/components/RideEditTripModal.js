@@ -196,6 +196,8 @@ export default function RideEditTripModal({
   customers2 = [],
 }) {
   const [formData, setFormData] = useState({});
+  console.log("initialData", initialData);
+  console.log("formData", formData);
 
   useEffect(() => {
     if (
