@@ -1702,7 +1702,7 @@ const exportTripsByDateRangeBS = async (req, res) => {
       path.join(__dirname, "../templates/DSC_BS.xlsm")
     );
 
-    const sheet = workbook.getWorksheet("Thang 10"); // ⚠️ đúng tên sheet mẫu
+    const sheet = workbook.getWorksheet("BANGKE"); // ⚠️ đúng tên sheet mẫu
 
     // ======================
     // SCHEMA
@@ -1763,6 +1763,7 @@ const exportTripsByDateRangeBS = async (req, res) => {
       row.getCell("AC").value = trip.diemXepHangNew || "";
       row.getCell("AD").value = trip.diemDoHangNew || "";
       row.getCell("AE").value = trip.KHdiemGiaoHang || "";
+      row.getCell("AF").value = trip.maHoaDon || "";
 
       row.commit();
     });
