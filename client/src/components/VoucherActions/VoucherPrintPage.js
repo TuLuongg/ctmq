@@ -34,13 +34,21 @@ const PAYMENT_SOURCE_LABEL = {
 export default function VoucherPrintPage() {
   const { id } = useParams();
   const [data, setData] = useState(null);
-  console.log(data);
+  const [watermarkLoaded, setWatermarkLoaded] = useState(false);
 
   useEffect(() => {
     axios.get(`${API}/vouchers/${id}`).then((res) => {
       setData(res.data);
     });
   }, [id]);
+
+  useEffect(() => {
+    const img = new Image();
+    img.src = "/watermark.png";
+    img.onload = () => {
+      setWatermarkLoaded(true);
+    };
+  }, []);
 
   if (!data) return <div className="p-4">Đang tải...</div>;
 
@@ -119,7 +127,7 @@ export default function VoucherPrintPage() {
             backgroundRepeat: "no-repeat",
             backgroundPosition: "center",
             backgroundSize: "190mm",
-            opacity: 0.9,
+            opacity: 1,
             zIndex: 0,
           }}
         />
@@ -228,10 +236,15 @@ export default function VoucherPrintPage() {
 
           <div className="text-center mt-4 print:hidden">
             <button
+              disabled={!watermarkLoaded}
               onClick={() => window.print()}
-              className="px-4 py-2 rounded bg-green-600 text-white"
+              className={`px-4 py-2 rounded text-white ${
+                watermarkLoaded
+                  ? "bg-green-600"
+                  : "bg-gray-400 cursor-not-allowed"
+              }`}
             >
-              In phiếu
+              {watermarkLoaded ? "In phiếu" : "Đang tải nền..."}
             </button>
           </div>
         </div>
