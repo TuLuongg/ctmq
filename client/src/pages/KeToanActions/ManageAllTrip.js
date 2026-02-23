@@ -827,8 +827,29 @@ export default function ManageTrip({ user, onLogout }) {
 
   // 🔹 Xuất Excel
   const [exporting, setExporting] = useState(false);
+
+  const isValidDateRange = (from, to) => {
+    const start = new Date(from);
+    const end = new Date(to);
+
+    if (end < start) {
+      alert("Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu");
+      return false;
+    }
+
+    const diffTime = end - start;
+    const diffDays = diffTime / (1000 * 60 * 60 * 24);
+
+    if (diffDays > 62) {
+      // tối đa 2 tháng ~ 62 ngày
+      alert("Chỉ được xuất tối đa 2 tháng");
+      return false;
+    }
+
+    return true;
+  };
   const exportToExcel = async () => {
-    if (exporting) return; // ⛔ chống spam click
+    if (exporting) return;
 
     try {
       if (!giaoFrom || !giaoTo) {
@@ -836,7 +857,9 @@ export default function ManageTrip({ user, onLogout }) {
         return;
       }
 
-      setExporting(true); // 🔒 khóa nút
+      if (!isValidDateRange(giaoFrom, giaoTo)) return;
+
+      setExporting(true);
 
       const payload = {
         from: giaoFrom,
@@ -862,7 +885,7 @@ export default function ManageTrip({ user, onLogout }) {
       console.error(err);
       alert("Xuất Excel thất bại");
     } finally {
-      setExporting(false); // 🔓 mở lại nút
+      setExporting(false);
     }
   };
 
@@ -879,6 +902,8 @@ export default function ManageTrip({ user, onLogout }) {
         alert("Vui lòng chọn khoảng ngày");
         return;
       }
+
+      if (!isValidDateRange(giaoFrom, giaoTo)) return;
 
       setExporting(true);
 
