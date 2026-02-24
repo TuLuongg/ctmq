@@ -154,20 +154,37 @@ const getSchedulesByRange = async (req, res) => {
   }
 };
 
-// YYYY-MM-DD (theo giờ VN) → range UTC đúng để query createdAt
-const buildCreatedAtRangeVN = (dateStr) => {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-    throw new Error("Invalid date format, expected YYYY-MM-DD");
+// Parse theo giờ VN (UTC+7) an toàn, không double offset
+const buildCreatedAtVN = (input, isEnd = false) => {
+  if (!input) throw new Error("Thiếu input");
+
+  // Nếu có giờ (datetime-local)
+  if (input.includes("T")) {
+    // Thêm :00 nếu thiếu giây
+    const normalized = input.length === 16 ? input + ":00" : input;
+
+    // Thêm +07:00 để ép timezone VN
+    const withTimezone = normalized + "+07:00";
+
+    const date = new Date(withTimezone);
+
+    if (isNaN(date)) throw new Error("Datetime không hợp lệ");
+
+    return date;
   }
 
-  const [y, m, d] = dateStr.split("-").map(Number);
+  // Nếu chỉ có YYYY-MM-DD
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input)) {
+    throw new Error("Format phải là YYYY-MM-DD hoặc YYYY-MM-DDTHH:mm");
+  }
 
-  // 00:00 VN = hôm trước 17:00 UTC
-  const start = new Date(Date.UTC(y, m - 1, d, -7, 0, 0, 0));
-  // 23:59:59 VN = 16:59:59 UTC
-  const end = new Date(Date.UTC(y, m - 1, d, 16, 59, 59, 999));
+  const [y, m, d] = input.split("-").map(Number);
 
-  return { start, end };
+  if (isEnd) {
+    return new Date(Date.UTC(y, m - 1, d, 16, 59, 59, 999)); // 23:59:59 VN
+  }
+
+  return new Date(Date.UTC(y, m - 1, d, -7, 0, 0, 0)); // 00:00 VN
 };
 
 // Lấy lịch trình theo ngày tạo (createdAt)
@@ -175,13 +192,13 @@ const getSchedulesByCreatedDate = async (req, res) => {
   try {
     const { ngay } = req.query;
     if (!ngay) {
-      return res.status(400).json({ error: "Thiếu tham số ngay (YYYY-MM-DD)" });
+      return res.status(400).json({ error: "Thiếu tham số ngay" });
     }
 
-    const { start, end } = buildCreatedAtRangeVN(ngay);
-
-    console.log("🔎 createdAt (UTC) từ:", start.toISOString());
-    console.log("🔎 createdAt (UTC) đến:", end.toISOString());
+    const start = buildCreatedAtVN(ngay);
+    const end = buildCreatedAtVN(ngay, true);
+    console.log("🔎 UTC từ:", start.toISOString());
+    console.log("🔎 UTC đến:", end.toISOString());
 
     const schedules = await Schedule.find({
       createdAt: { $gte: start, $lte: end },
@@ -189,7 +206,7 @@ const getSchedulesByCreatedDate = async (req, res) => {
 
     res.json(schedules);
   } catch (err) {
-    console.error("❌ getSchedulesByCreatedDate error:", err);
+    console.error(err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -198,15 +215,16 @@ const getSchedulesByCreatedDate = async (req, res) => {
 const getSchedulesByCreatedRange = async (req, res) => {
   try {
     const { from, to } = req.query;
+
     if (!from || !to) {
       return res.status(400).json({ error: "Thiếu from hoặc to" });
     }
 
-    const start = buildCreatedAtRangeVN(from).start;
-    const end = buildCreatedAtRangeVN(to).end;
+    const start = buildCreatedAtVN(from);
+    const end = buildCreatedAtVN(to, true);
 
-    console.log("🔎 createdAt (UTC) từ:", start.toISOString());
-    console.log("🔎 createdAt (UTC) đến:", end.toISOString());
+    console.log("🔎 UTC từ:", start.toISOString());
+    console.log("🔎 UTC đến:", end.toISOString());
 
     const schedules = await Schedule.find({
       createdAt: { $gte: start, $lte: end },
@@ -214,7 +232,7 @@ const getSchedulesByCreatedRange = async (req, res) => {
 
     res.json(schedules);
   } catch (err) {
-    console.error("❌ getSchedulesByCreatedRange error:", err);
+    console.error(err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -498,7 +516,8 @@ const exportScheduleByCreatedDate = async (req, res) => {
       return res.status(400).json({ error: "Thiếu tham số ngay (YYYY-MM-DD)" });
     }
 
-    const { start, end } = buildCreatedAtRangeVN(ngay);
+    const start = buildCreatedAtVN(ngay);
+    const end = buildCreatedAtVN(ngay, true);
 
     console.log("📤 Export createdAt (UTC) từ:", start.toISOString());
     console.log("📤 Export createdAt (UTC) đến:", end.toISOString());
@@ -599,7 +618,6 @@ const exportScheduleByCreatedDate = async (req, res) => {
   }
 };
 
-
 // Xuất Excel theo khoảng ngày tạo (createdAt)
 const exportScheduleByCreatedRange = async (req, res) => {
   try {
@@ -608,8 +626,8 @@ const exportScheduleByCreatedRange = async (req, res) => {
       return res.status(400).json({ error: "Thiếu from hoặc to" });
     }
 
-    const start = buildCreatedAtRangeVN(from).start;
-    const end = buildCreatedAtRangeVN(to).end;
+    const start = buildCreatedAtVN(from);
+    const end = buildCreatedAtVN(to, true);
 
     console.log("📤 Export createdAt (UTC) từ:", start.toISOString());
     console.log("📤 Export createdAt (UTC) đến:", end.toISOString());
@@ -699,7 +717,10 @@ const exportScheduleByCreatedRange = async (req, res) => {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Lịch Trình");
 
-    const fileName = `lichtrinh_createdAt_${from.replace(/-/g, "_")}_den_${to.replace(/-/g, "_")}.xlsx`;
+    const safeFrom = from.replace(/[:\-T]/g, "_");
+    const safeTo = to.replace(/[:\-T]/g, "_");
+
+    const fileName = `lichtrinh_createdAt_${safeFrom}_den_${safeTo}.xlsx`;
     const filePath = path.join(__dirname, "../", fileName);
 
     XLSX.writeFile(workbook, filePath);
@@ -709,7 +730,6 @@ const exportScheduleByCreatedRange = async (req, res) => {
     res.status(500).json({ error: "Xuất file thất bại" });
   }
 };
-
 
 module.exports = {
   createSchedule,
