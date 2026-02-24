@@ -120,13 +120,18 @@ export default function VoucherPrintPage() {
     print:h-[297mm]
   "
       >
-        <div
-          className="absolute inset-0 pointer-events-none print:block hidden"
+        <img
+          src="/watermark.png"
+          alt="watermark"
+          onLoad={() => setWatermarkLoaded(true)}
+          className="absolute inset-0 hidden print:block pointer-events-none"
           style={{
-            backgroundImage: "url('/watermark.png')",
-            backgroundRepeat: "no-repeat",
-            backgroundPosition: "center",
-            backgroundSize: "190mm",
+            width: "190mm",
+            margin: "0 auto",
+            left: 0,
+            right: 0,
+            top: "50%",
+            transform: "translateY(-50%)",
             opacity: 1,
             zIndex: 0,
           }}
