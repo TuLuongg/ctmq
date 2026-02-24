@@ -159,6 +159,10 @@ const KeToanPage = () => {
   };
 
   const handleDeleteByDate = async () => {
+    if (dateMode === "createdAt") {
+      alert("Chỉ xoá được khi lọc theo Ngày đi.");
+      return;
+    }
     if (!selectedDate) return alert("Vui lòng chọn ngày.");
     if (
       !window.confirm("Bạn có chắc chắn muốn xóa toàn bộ lịch trình ngày này?")
@@ -180,8 +184,15 @@ const KeToanPage = () => {
     if (!startDate || !endDate) return alert("Vui lòng chọn đủ ngày.");
 
     try {
-      const from = new Date(startDate).toISOString().split("T")[0];
-      const to = new Date(endDate).toISOString().split("T")[0];
+      let from, to;
+
+      if (dateMode === "createdAt") {
+        from = startDate; // có cả giờ
+        to = endDate;
+      } else {
+        from = new Date(startDate).toISOString().split("T")[0];
+        to = new Date(endDate).toISOString().split("T")[0];
+      }
 
       const url =
         dateMode === "createdAt"
@@ -200,6 +211,10 @@ const KeToanPage = () => {
   };
 
   const handleDeleteByRange = async () => {
+    if (dateMode === "createdAt") {
+      alert("Chỉ xoá được khi lọc theo Ngày đi.");
+      return;
+    }
     if (!startDate || !endDate) return alert("Vui lòng chọn đủ ngày.");
     if (
       !window.confirm(
@@ -224,8 +239,15 @@ const KeToanPage = () => {
     if (!startDate || !endDate) return alert("Vui lòng chọn đủ ngày.");
 
     try {
-      const from = new Date(startDate).toISOString().split("T")[0];
-      const to = new Date(endDate).toISOString().split("T")[0];
+      let from, to;
+
+      if (dateMode === "createdAt") {
+        from = startDate; // có cả giờ
+        to = endDate;
+      } else {
+        from = new Date(startDate).toISOString().split("T")[0];
+        to = new Date(endDate).toISOString().split("T")[0];
+      }
 
       const url =
         dateMode === "createdAt"
@@ -493,7 +515,7 @@ const KeToanPage = () => {
           <div>
             <label className="mr-2">Từ:</label>
             <input
-              type="date"
+              type={dateMode === "createdAt" ? "datetime-local" : "date"}
               className="border px-2 py-1 rounded"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
@@ -503,7 +525,7 @@ const KeToanPage = () => {
           <div>
             <label className="mr-2">Đến:</label>
             <input
-              type="date"
+              type={dateMode === "createdAt" ? "datetime-local" : "date"}
               className="border px-2 py-1 rounded"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
